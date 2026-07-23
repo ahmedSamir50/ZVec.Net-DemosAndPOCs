@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PDDM.Api/PDDM.Api.csproj" />
+    <Project Path="src/PDDM.AppHost/PDDM.AppHost.csproj" />
+    <Project Path="src/PDDM.Core/PDDM.Core.csproj" />
+    <Project Path="src/PDDM.ServiceDefaults/PDDM.ServiceDefaults.csproj" />
+    <Project Path="src/PDDM.Shared/PDDM.Shared.csproj" />
+    <Project Path="src/PDDM.UI/PDDM.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PDDM.Api.Tests/PDDM.Api.Tests.csproj" />
+    <Project Path="tests/PDDM.Core.Tests/PDDM.Core.Tests.csproj" />
+  </Folder>
+</Solution>

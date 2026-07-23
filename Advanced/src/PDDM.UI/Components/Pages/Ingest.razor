@@ -1,0 +1,128 @@
+@page "/ingest"
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <div>
+        <MudText Typo="Typo.h4">Ingestion</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Fetch Apache Spark Jira docs, chunk, embed via LM Studio, and store in ZVec.NET.
+        </MudText>
+    </div>
+
+    <MudCard Elevation="0" Outlined="true">
+        <MudCardContent>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="RunAsync"
+                       Disabled="_busy"
+                       StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.CloudDownload)">
+                @(_busy ? "Running…" : "Start Ingestion")
+            </MudButton>
+            @if (_busy)
+            {
+                <MudText Typo="Typo.caption" Class="mt-2">@_status</MudText>
+                <MudProgressLinear Class="mt-3" Color="Color.Primary" Indeterminate="true" />
+            }
+        </MudCardContent>
+    </MudCard>
+
+    @if (_progress is not null)
+    {
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Progress</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudSimpleTable Dense="true" Hover="false" Bordered="false" Style="background: transparent;">
+                    <tbody>
+                        <tr><td>Status</td><td>@_progress.Status</td></tr>
+                        <tr><td>Issues fetched</td><td>@_progress.IssuesFetched</td></tr>
+                        <tr><td>Chunks created</td><td>@_progress.ChunksCreated</td></tr>
+                        <tr><td>Embeddings</td><td>@_progress.EmbeddingsGenerated</td></tr>
+                        <tr><td>Inserted</td><td>@_progress.ChunksInserted</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+                @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-3">@_progress.ErrorMessage</MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudStack>
+
+@code {
+    private IngestionProgressDto? _progress;
+    private bool _busy;
+    private string _status = "";
+    private CancellationTokenSource? _pollCts;
+
+    private async Task RunAsync()
+    {
+        _busy = true;
+        _status = "Starting ingestion…";
+        await InvokeAsync(StateHasChanged);
+
+        _pollCts = new CancellationTokenSource();
+        var pollTask = PollProgressAsync(_pollCts.Token);
+
+        try
+        {
+            _progress = await Api.StartIngestionAsync();
+            Snackbar.Add($"Ingestion {_progress?.Status}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            _status = ex.Message;
+        }
+        finally
+        {
+            await _pollCts.CancelAsync();
+            try { await pollTask; } catch (OperationCanceledException) { /* expected */ }
+            _pollCts.Dispose();
+            _pollCts = null;
+            _busy = false;
+            _status = "";
+            _progress = await Api.GetIngestionAsync() ?? _progress;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task PollProgressAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var p = await Api.GetIngestionAsync(ct);
+                if (p is not null)
+                {
+                    _progress = p;
+                    _status = $"Status: {p.Status} · fetched {p.IssuesFetched} · chunks {p.ChunksCreated}";
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch
+            {
+                // ignore transient poll errors
+            }
+
+            try
+            {
+                await Task.Delay(750, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+}

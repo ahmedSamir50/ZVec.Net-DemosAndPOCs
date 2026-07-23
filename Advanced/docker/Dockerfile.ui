@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY src/PDDM.Shared/PDDM.Shared.csproj src/PDDM.Shared/
+COPY src/PDDM.UI/PDDM.UI.csproj src/PDDM.UI/
+RUN dotnet restore src/PDDM.UI/PDDM.UI.csproj
+COPY src/PDDM.Shared/ src/PDDM.Shared/
+COPY src/PDDM.UI/ src/PDDM.UI/
+RUN dotnet publish src/PDDM.UI/PDDM.UI.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+ENV PddmUi__ApiBaseUrl=http://pddm-api:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "PDDM.UI.dll"]

@@ -1,0 +1,33 @@
+## .NET
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+## PDDM data
+**/data/
+**/spark-docs/
+
+## CodeGraph (local machine index — not for commit)
+.codegraph/
+**/.codegraph/
+!.codegraph/.gitignore
+!**/.codegraph/.gitignore
+
+## IDE
+.idea/
+*.swp
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## Secrets / local
+appsettings.Development.json
+*.pfx
+.env

@@ -1,0 +1,113 @@
+@page "/settings"
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+@using PDDM.Shared.Constants
+
+<MudStack Spacing="4">
+    <div>
+        <MudText Typo="Typo.h4">Model Configuration</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            LM Studio endpoints and model ids. Default chat model is <code>@SharedPddmDefaults.DefaultChatModel</code>.
+        </MudText>
+    </div>
+
+    <MudAlert Severity="Severity.Info">
+        Embedding dimension is locked to @SharedPddmDefaults.EmbeddingDimensions for this collection.
+        Changing dimensions requires destroying the ZVec collection and re-ingesting. Do not zero-pad alternate models.
+    </MudAlert>
+
+    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined">
+        Recommended chat model: <strong>@SharedPddmDefaults.DefaultChatModel</strong> (instruction-following).
+        Thinking-style 3B models (e.g. VibeThinker) are optional experiments in Settings — they often ramble or echo RAG dumps unless the prompt is strict.
+    </MudAlert>
+
+    @if (_settings is null)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardContent>
+                <MudTextField @bind-Value="_settings.BaseUrl" Label="LM Studio Base URL" Variant="Variant.Outlined" Disabled="_busy" />
+                <MudTextField @bind-Value="_settings.EmbeddingModel" Label="Embedding Model ID" Variant="Variant.Outlined" Class="mt-3" Disabled="_busy" />
+                <MudTextField @bind-Value="_settings.ChatModel" Label="Chat Model ID" Variant="Variant.Outlined" Class="mt-3" Disabled="_busy" />
+                <MudNumericField @bind-Value="_settings.EmbeddingDimensions" Label="Embedding Dimensions" Min="768" Max="768" Variant="Variant.Outlined" Class="mt-3" Disabled="true" />
+                <MudNumericField @bind-Value="_settings.ChatTemperature" Label="Chat Temperature" Min="0" Max="2" Step="0.1f" Variant="Variant.Outlined" Class="mt-3" Disabled="_busy" />
+                <MudNumericField @bind-Value="_settings.ChatMaxTokens" Label="Chat Max Tokens (-1 unlimited)" Variant="Variant.Outlined" Class="mt-3" Disabled="_busy" />
+                <MudNumericField @bind-Value="_settings.EmbeddingBatchSize" Label="Embedding Batch Size" Min="1" Max="200" Variant="Variant.Outlined" Class="mt-3" Disabled="_busy" />
+
+                <MudStack Row="true" Class="mt-4" Spacing="2">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync" Disabled="_busy"
+                               StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.Save)">
+                        Save
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="VerifyAsync" Disabled="_busy"
+                               StartIcon="@Icons.Material.Filled.Cable">
+                        Verify LM Studio
+                    </MudButton>
+                </MudStack>
+
+                @if (_busy)
+                {
+                    <MudProgressLinear Class="mt-3" Color="Color.Primary" Indeterminate="true" />
+                }
+
+                @if (_reachable is not null)
+                {
+                    <MudAlert Class="mt-3" Severity="@(_reachable.Value ? Severity.Success : Severity.Error)">
+                        LM Studio is @(_reachable.Value ? "connected" : "not reachable")
+                    </MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudStack>
+
+@code {
+    private LmStudioSettingsDto? _settings;
+    private bool? _reachable;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await Api.GetSettingsAsync() ?? new LmStudioSettingsDto();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null) return;
+        _busy = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var (ok, error, updated) = await Api.UpdateSettingsAsync(_settings);
+            if (!ok)
+            {
+                Snackbar.Add(error ?? "Save failed", Severity.Error);
+                return;
+            }
+
+            _settings = updated ?? _settings;
+            Snackbar.Add("Settings saved", Severity.Success);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task VerifyAsync()
+    {
+        _busy = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            _reachable = await Api.VerifyLmStudioAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

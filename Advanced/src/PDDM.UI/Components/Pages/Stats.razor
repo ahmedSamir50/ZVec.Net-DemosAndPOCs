@@ -1,0 +1,70 @@
+@page "/stats"
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <div>
+        <MudText Typo="Typo.h4">Statistics</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Hybrid index counts by document tier after ingestion.
+        </MudText>
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (_stats is null)
+    {
+        <MudAlert Severity="Severity.Warning">Could not load stats. Is the API running?</MudAlert>
+    }
+    else
+    {
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardContent>
+                <MudSimpleTable Dense="true" Hover="false" Bordered="false">
+                    <tbody>
+                        <tr><td>Total documents</td><td>@_stats.TotalDocuments</td></tr>
+                        <tr><td>Tier 0 (Epic/Umbrella)</td><td>@_stats.Tier0Count</td></tr>
+                        <tr><td>Tier 1 (Issues)</td><td>@_stats.Tier1Count</td></tr>
+                        <tr><td>Tier 2 (Sub-tasks)</td><td>@_stats.Tier2Count</td></tr>
+                        <tr><td>Tier 3 (Comments)</td><td>@_stats.Tier3Count</td></tr>
+                        <tr><td>Decision comments</td><td>@_stats.DecisionCommentCount</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+                <MudAlert Class="mt-3" Severity="@(_stats.LmStudioReachable ? Severity.Success : Severity.Warning)">
+                    LM Studio: @(_stats.LmStudioReachable ? "reachable" : "not reachable")
+                </MudAlert>
+                <MudButton Class="mt-3" Variant="Variant.Outlined" OnClick="RefreshAsync" StartIcon="@Icons.Material.Filled.Refresh">
+                    Refresh
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudStack>
+
+@code {
+    private StatsDto? _stats;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            _stats = await Api.GetStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            _stats = null;
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

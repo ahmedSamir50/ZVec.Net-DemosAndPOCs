@@ -1,0 +1,148 @@
+﻿@page "/"
+@using PDDM.Shared.Constants
+@inject ChatClientService Chat
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <div>
+        <MudText Typo="Typo.h4">Navigator</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Ask about an assigned ticket, a new requirement, or a past decision. Answers should cite Jira browse links.
+        </MudText>
+    </div>
+
+    @if (!_busy && string.IsNullOrEmpty(_answer) && _intent is null)
+    {
+        <MudPaper Class="pa-4" Outlined="true" Elevation="0">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Try a golden question</MudText>
+            <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                @foreach (var q in GoldenDemoQuestions.All)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="@(() => UsePrompt(q))"
+                               Style="text-transform: none; max-width: 100%;">
+                        @(q.Length > 72 ? q[..72] + "…" : q)
+                    </MudButton>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+
+    <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+        <MudTextField @bind-Value="_question"
+                      Label="Your question"
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Disabled="_busy"
+                      Immediate="true" />
+        <MudStack Row="true" Class="mt-3" AlignItems="AlignItems.Center" Spacing="2">
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="SendAsync"
+                       Disabled="_busy || string.IsNullOrWhiteSpace(_question)"
+                       StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.Send)">
+                @(_busy ? "Working…" : "Ask")
+            </MudButton>
+            @if (_busy)
+            {
+                <MudText Typo="Typo.caption">@_status</MudText>
+            }
+        </MudStack>
+        @if (_busy)
+        {
+            <MudProgressLinear Class="mt-3" Color="Color.Primary" Indeterminate="true" />
+        }
+    </MudPaper>
+
+    @if (_intent is not null)
+    {
+        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled">
+            Intent: @_intent.Intent @(_intent.IssueKey is null ? "" : $"· {_intent.IssueKey}")
+        </MudChip>
+    }
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    @if (!string.IsNullOrEmpty(_userBubble) || !string.IsNullOrEmpty(_answer))
+    {
+        <MudStack Spacing="3">
+            @if (!string.IsNullOrEmpty(_userBubble))
+            {
+                <MudPaper Class="pa-3 ml-auto" Style="max-width: 85%; background: #E8EEF0;" Elevation="0">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">You</MudText>
+                    <MudText Style="white-space: pre-wrap;">@_userBubble</MudText>
+                </MudPaper>
+            }
+            <MudPaper Class="pa-3" Style="max-width: 95%;" Outlined="true" Elevation="0">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">PDDM</MudText>
+                <MudText Style="white-space: pre-wrap;">@(_answer + (_busy && !string.IsNullOrEmpty(_answer) ? "▍" : ""))</MudText>
+            </MudPaper>
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    private string _question = "";
+    private string _userBubble = "";
+    private string _answer = "";
+    private string _status = "";
+    private string? _error;
+    private IntentEventDto? _intent;
+    private bool _busy;
+
+    private void UsePrompt(string prompt) => _question = prompt;
+
+    private async Task SendAsync()
+    {
+        _busy = true;
+        _status = "Starting…";
+        _answer = "";
+        _error = null;
+        _intent = null;
+        _userBubble = _question;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await Chat.StreamChatAsync(
+                _question,
+                onIntent: i =>
+                {
+                    _intent = i;
+                    _ = InvokeAsync(StateHasChanged);
+                },
+                onProgress: p =>
+                {
+                    _status = string.IsNullOrEmpty(p.Message) ? p.Phase : p.Message;
+                    _ = InvokeAsync(StateHasChanged);
+                },
+                onToken: t =>
+                {
+                    _answer += t;
+                    _ = InvokeAsync(StateHasChanged);
+                },
+                onError: e =>
+                {
+                    _error = e;
+                    _ = InvokeAsync(StateHasChanged);
+                },
+                onDone: () => _ = InvokeAsync(StateHasChanged));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+            _status = "";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}
