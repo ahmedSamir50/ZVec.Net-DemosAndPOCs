@@ -82,6 +82,7 @@ Flow: open UI → **Ingest** (wipes `./data/spark-docs`, seeds SPARK-57337 + SPA
 
 ## Notes
 
+- Chat flow: **heuristic intent fast-path** (Jira key / phrase lists) → optional **LLM JSON classify** when the ask is ambiguous → retrieval by scenario → **intent-aware** system/user prompts → streamed answer.
 - Default chat model: `google/gemma-4-e2b` (VibeThinker 3B is an optional Settings experiment).
 - Embedding dimension is locked at **768**; changing it requires destroying `./data/spark-docs` and re-ingesting (Ingest now recreates the collection each run).
 - HybridIndex rebuilds from `chunk-ids.json` + ZVec `Fetch` on API startup.

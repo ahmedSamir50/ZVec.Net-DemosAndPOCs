@@ -136,10 +136,17 @@ public sealed class PddmApiFactory : WebApplicationFactory<Program>
             var chat = Substitute.For<IChatService>();
             chat.StreamAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(StreamTokens("hello"));
+            chat.CompleteAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<string>(),
+                    Arg.Any<CancellationToken>(),
+                    Arg.Any<float?>(),
+                    Arg.Any<int?>())
+                .Returns("""{"intent":"GeneralQuestion"}""");
             services.AddSingleton(chat);
 
             var nav = Substitute.For<INavigationEngine>();
-            nav.NavigateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            nav.NavigateAsync(Arg.Any<string>(), Arg.Any<QueryIntent>(), Arg.Any<CancellationToken>())
                 .Returns(new NavigatedContext
                 {
                     Intent = QueryIntent.NewRequirement,

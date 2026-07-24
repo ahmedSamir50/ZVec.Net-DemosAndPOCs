@@ -30,9 +30,11 @@ public sealed class NavigationEngine : INavigationEngine
     }
 
     /// <inheritdoc />
-    public async Task<NavigatedContext> NavigateAsync(string userInput, CancellationToken cancellationToken = default)
+    public async Task<NavigatedContext> NavigateAsync(
+        string userInput,
+        QueryIntent intent,
+        CancellationToken cancellationToken = default)
     {
-        var intent = _intentClassifier.Classify(userInput);
         NavigatedContext context = intent switch
         {
             QueryIntent.AssignedIssue => await NavigateFromAssignedIssueAsync(

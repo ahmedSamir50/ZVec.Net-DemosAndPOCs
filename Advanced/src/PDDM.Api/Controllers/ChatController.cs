@@ -49,7 +49,7 @@ public sealed class ChatController : ControllerBase
                 Message = "Classifying intent…"
             }, cancellationToken).ConfigureAwait(false);
 
-            var intent = _intentClassifier.Classify(question);
+            var intent = await _intentClassifier.ClassifyAsync(question, cancellationToken).ConfigureAwait(false);
             await WriteEventAsync(SseEventTypes.Intent, new IntentEventDto
             {
                 Intent = intent,
@@ -62,8 +62,9 @@ public sealed class ChatController : ControllerBase
                 Message = "Retrieving project docs…"
             }, cancellationToken).ConfigureAwait(false);
 
-            var nav = await _navigationEngine.NavigateAsync(question, cancellationToken).ConfigureAwait(false);
-            var userPrompt = PddmDefaults.BuildUserPrompt(nav.AssembledContext, question);
+            var nav = await _navigationEngine.NavigateAsync(question, intent, cancellationToken).ConfigureAwait(false);
+            var systemPrompt = PddmDefaults.BuildSystemPrompt(nav.Intent);
+            var userPrompt = PddmDefaults.BuildUserPrompt(nav.AssembledContext, question, nav.Intent);
 
             await WriteEventAsync(SseEventTypes.Progress, new ProgressEventDto
             {
@@ -71,7 +72,7 @@ public sealed class ChatController : ControllerBase
                 Message = "Generating navigator answer…"
             }, cancellationToken).ConfigureAwait(false);
 
-            await foreach (var token in _chatService.StreamAsync(PddmDefaults.SystemPrompt, userPrompt, cancellationToken)
+            await foreach (var token in _chatService.StreamAsync(systemPrompt, userPrompt, cancellationToken)
                                .ConfigureAwait(false))
             {
                 await WriteEventAsync(SseEventTypes.Token, new TokenEventDto { Token = token }, cancellationToken)

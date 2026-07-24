@@ -5,7 +5,7 @@ using PDDM.Shared;
 
 namespace PDDM.Core.Services;
 
-/// <inheritdoc />
+/// <summary>Heuristic intent classifier (Jira key + phrase lists). Used as the hybrid fast path.</summary>
 public sealed partial class IntentClassifier : IIntentClassifier
 {
     /// <inheritdoc />
@@ -31,6 +31,10 @@ public sealed partial class IntentClassifier : IIntentClassifier
 
         return QueryIntent.GeneralQuestion;
     }
+
+    /// <inheritdoc />
+    public Task<QueryIntent> ClassifyAsync(string userInput, CancellationToken cancellationToken = default)
+        => Task.FromResult(Classify(userInput));
 
     /// <inheritdoc />
     public string? ExtractIssueKey(string userInput)

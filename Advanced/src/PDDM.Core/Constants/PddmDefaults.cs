@@ -1,5 +1,6 @@
 namespace PDDM.Core.Constants;
 
+using PDDM.Shared;
 using PDDM.Shared.Constants;
 
 /// <summary>Compile-time and default numeric/string knobs for PDDM Core.</summary>
@@ -22,6 +23,12 @@ public static class PddmDefaults
     public const int ContextMaxCrossRefs = 3;
     public const int ContextMaxDecisionComments = 5;
 
+    /// <summary>Timeout for ambiguous-intent LLM classification.</summary>
+    public const int IntentClassifyTimeoutMs = 5000;
+
+    /// <summary>Max tokens for intent JSON classification completion.</summary>
+    public const int IntentClassifyMaxTokens = 64;
+
     public const string ChunkIdsFileName = "chunk-ids.json";
     public const string CollectionName = "spark_docs";
     public const string DefaultCollectionPath = "./data/spark-docs";
@@ -36,7 +43,8 @@ public static class PddmDefaults
     /// <summary>Apache Jira Epic Link custom field id (verified for issues.apache.org).</summary>
     public const string JiraEpicLinkField = "customfield_12311120";
 
-    public const string SystemPrompt = """
+    /// <summary>Shared navigator system prompt (scenario structure appended via <see cref="BuildSystemPrompt"/>).</summary>
+    public const string SystemPromptBase = """
         You are Project Docs Deep Mind (PDDM), a Project Docs Navigator.
         Your job is to guide the developer through documentation hierarchy (UP = Epic/business, SIDE = siblings, DOWN = details/decisions) — NOT to dump retrieved text.
 
@@ -44,23 +52,53 @@ public static class PddmDefaults
         1. Answer ONLY from CONTEXT. Suggest running Ingestion ONLY when CONTEXT is empty or explicitly says the key/docs were not found. If CONTEXT lists any Epics, issues, or comments, you MUST navigate from them — do not refuse with “run Ingestion”.
         2. Synthesize briefly (short bullets / short sections). Do NOT paste raw CONTEXT, full descriptions, or long quotes unless a one-line decision excerpt is essential.
         3. Every cited Jira key MUST be a markdown link using the Url from CONTEXT, e.g. [SPARK-57337](https://issues.apache.org/jira/browse/SPARK-57337). Never invent hosts like jira.example.com.
-        4. Structure by scenario:
-           - Assigned ticket: Epic → Your issue → Siblings / risks → useful decisions.
-           - New requirement: Related landscape (top Epics/issues) → suggestion where a new Story might belong.
-           - Decision: Rationale summary → source issue/comment with links.
-        5. End with a "Sources" list of markdown links for keys you cited.
+        4. End with a "Sources" list of markdown links for keys you cited.
         """;
 
+    /// <summary>Backward-compatible full system prompt (all scenarios). Prefer <see cref="BuildSystemPrompt"/>.</summary>
+    public static string SystemPrompt => BuildSystemPrompt(QueryIntent.GeneralQuestion);
+
+    /// <summary>System prompt with a single scenario structure directive.</summary>
+    public static string BuildSystemPrompt(QueryIntent intent)
+    {
+        var structure = intent switch
+        {
+            QueryIntent.AssignedIssue =>
+                "Structure: Assigned ticket — Epic → Your issue → Siblings / risks → useful decisions.",
+            QueryIntent.NewRequirement =>
+                "Structure: New requirement — Related landscape (top Epics/issues) → suggestion where a new Story might belong.",
+            QueryIntent.DecisionRationale =>
+                "Structure: Decision — Rationale summary → source issue/comment with links.",
+            _ =>
+                "Structure: General — Related landscape of existing work → point to the most relevant Epics/issues."
+        };
+
+        return $"{SystemPromptBase.TrimEnd()}\n        5. {structure}";
+    }
+
     /// <summary>Wraps assembled context + user question for the chat model.</summary>
-    public static string BuildUserPrompt(string context, string question) =>
+    public static string BuildUserPrompt(string context, string question, QueryIntent intent) =>
         $"""
+        SCENARIO: {intent}
+
         CONTEXT (use only this; do not invent):
         {context}
 
         QUESTION:
         {question}
 
-        Respond as a navigator with markdown links. Do not repeat CONTEXT verbatim.
+        Respond as a navigator with markdown links.
+        """;
+
+    /// <summary>System prompt for ambiguous-intent LLM classification (JSON only).</summary>
+    public const string IntentClassifySystemPrompt = """
+        Classify the user question into exactly one QueryIntent for a Jira project-docs navigator.
+        Reply with ONLY compact JSON (no markdown): {"intent":"<name>","issueKey":"<KEY-or-null>"}
+        intent must be one of: AssignedIssue, NewRequirement, DecisionRationale, GeneralQuestion.
+        - AssignedIssue: user references or was assigned a specific Jira issue key.
+        - NewRequirement: user wants to add/implement a feature or requirement.
+        - DecisionRationale: user asks why a past decision was made / rationale.
+        - GeneralQuestion: anything else about the project docs.
         """;
 }
 

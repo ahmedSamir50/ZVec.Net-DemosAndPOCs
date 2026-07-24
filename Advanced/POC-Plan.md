@@ -130,8 +130,9 @@ This makes GitLab.org unusable for a POC that needs full comment/discussion acce
                            │
               ┌────────────▼────────────┐
               │   Intent Classifier      │
-              │                          │
-              │  Detects which scenario: │
+              │   (hybrid)               │
+              │  Heuristic fast path;    │
+              │  LLM JSON when ambiguous │
               │  A = assigned_issue      │
               │  B = new_requirement     │
               │  C = decision_rationale  │
@@ -490,6 +491,12 @@ This is a simple heuristic — can be upgraded to LLM-based classification in pr
 
 ### 5.1 Intent Classification
 
+**Current (shipped):** hybrid classifier behind `IIntentClassifier`.
+
+1. **Heuristic fast path** (`IntentClassifier`): Jira key in focus → decision phrases → requirement phrases → `GeneralQuestion`.
+2. **LLM JSON classify** (`HybridIntentClassifier`): only when the heuristic returns `GeneralQuestion` (ambiguous paraphrase). Timeout / parse failure → stay on `GeneralQuestion`.
+3. Intent is classified **once** per chat request, passed into `NavigateAsync` and into intent-aware prompts (`BuildSystemPrompt` / `BuildUserPrompt`).
+
 ```csharp
 public enum QueryIntent
 {
@@ -498,7 +505,11 @@ public enum QueryIntent
     DecisionRationale,  // Scenario C: asks why/rationale
     GeneralQuestion     // Fallback: broad question about the project
 }
+```
 
+Heuristic sketch (fast path only):
+
+```csharp
 public static QueryIntent ClassifyIntent(string userInput)
 {
     // Check for Jira issue key pattern (SPARK-NNNNN, DEV-NNN, etc.)
@@ -1133,12 +1144,12 @@ Step 3: Scenario C — Decision Rationale
 
 The POC proves the concept. The production product would be:
 
-| POC | Production |
+| POC (original) | Current / production direction |
 |---|---|
 | Apache Spark (public) | Organization's internal Jira/GitLab |
 | Console app | Jira plugin / GitLab app / VS Code extension / Web UI |
-| Simple keyword intent classifier | LLM-based intent classification |
-| Simple decision keyword detection | LLM-based decision extraction |
+| Simple keyword intent classifier | **Hybrid intent** (heuristic fast path + LLM JSON on ambiguous) — shipped |
+| Simple decision keyword detection | LLM-based decision extraction (still future) |
 | Static ingestion | Live sync with project docs server |
 | One project | Multi-project support |
 | English only | Multi-language |

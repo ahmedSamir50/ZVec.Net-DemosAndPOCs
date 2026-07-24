@@ -56,12 +56,84 @@ public class IntentClassifierTests
         => _sut.Classify("Tell me about streaming shuffle").Should().Be(QueryIntent.GeneralQuestion);
 
     [Fact]
+    public async Task ClassifyAsync_MatchesHeuristic()
+        => (await _sut.ClassifyAsync("I need to add validation")).Should().Be(QueryIntent.NewRequirement);
+
+    [Fact]
     public void ExtractIssueKey_ReturnsUppercase()
         => _sut.ExtractIssueKey("help with spark-123").Should().Be("SPARK-123");
 
     [Fact]
     public void ExtractIssueKey_WhenMissing_ReturnsNull()
         => _sut.ExtractIssueKey("no key here").Should().BeNull();
+}
+
+public class HybridIntentClassifierTests
+{
+    [Fact]
+    public async Task ClassifyAsync_UsesHeuristic_WhenHighConfidence()
+    {
+        var chat = Substitute.For<IChatService>();
+        var sut = new HybridIntentClassifier(new IntentClassifier(), chat);
+        (await sut.ClassifyAsync("I need to add validation")).Should().Be(QueryIntent.NewRequirement);
+        await chat.DidNotReceiveWithAnyArgs().CompleteAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task ClassifyAsync_UsesLlm_WhenAmbiguousParaphrase()
+    {
+        var chat = Substitute.For<IChatService>();
+        chat.CompleteAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<float?>(),
+                Arg.Any<int?>())
+            .Returns("""{"intent":"DecisionRationale","issueKey":null}""");
+
+        var sut = new HybridIntentClassifier(new IntentClassifier(), chat);
+        (await sut.ClassifyAsync("Explain the ANSI mode choice in Spark 4")).Should().Be(QueryIntent.DecisionRationale);
+    }
+
+    [Fact]
+    public async Task ClassifyAsync_FallsBackToGeneral_WhenLlmFails()
+    {
+        var chat = Substitute.For<IChatService>();
+        chat.CompleteAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<float?>(),
+                Arg.Any<int?>())
+            .Returns<Task<string>>(_ => throw new HttpRequestException("down"));
+
+        var sut = new HybridIntentClassifier(new IntentClassifier(), chat);
+        (await sut.ClassifyAsync("Tell me about shuffle")).Should().Be(QueryIntent.GeneralQuestion);
+    }
+
+    [Theory]
+    [InlineData("""{"intent":"NewRequirement"}""", QueryIntent.NewRequirement)]
+    [InlineData("```json\n{\"intent\":\"AssignedIssue\",\"issueKey\":\"SPARK-1\"}\n```", QueryIntent.AssignedIssue)]
+    [InlineData("noise {\"intent\":\"DecisionRationale\"} trailing", QueryIntent.DecisionRationale)]
+    public void ParseIntent_AcceptsJsonVariants(string raw, QueryIntent expected)
+        => HybridIntentClassifier.ParseIntent(raw).Should().Be(expected);
+}
+
+public class PromptBuilderTests
+{
+    [Fact]
+    public void BuildUserPrompt_IncludesScenario()
+    {
+        var prompt = PddmDefaults.BuildUserPrompt("ctx", "q?", QueryIntent.DecisionRationale);
+        prompt.Should().Contain("SCENARIO: DecisionRationale").And.Contain("ctx").And.Contain("q?");
+    }
+
+    [Fact]
+    public void BuildSystemPrompt_IncludesOnlyMatchingStructure()
+    {
+        var prompt = PddmDefaults.BuildSystemPrompt(QueryIntent.AssignedIssue);
+        prompt.Should().Contain("Assigned ticket").And.NotContain("New requirement");
+    }
 }
 
 public class ChunkIdFormatterTests
@@ -268,6 +340,22 @@ public class ContextBuilderServiceTests
     }
 
     [Fact]
+    public void Build_NewRequirement_MentionsNoExactMatch()
+    {
+        var sut = new ContextBuilderService();
+        var text = sut.Build(new NavigatedContext(), QueryIntent.NewRequirement);
+        text.Should().Contain("No exact match found for this requirement.");
+    }
+
+    [Fact]
+    public void Build_GeneralQuestion_DoesNotSayRequirement()
+    {
+        var sut = new ContextBuilderService();
+        var text = sut.Build(new NavigatedContext(), QueryIntent.GeneralQuestion);
+        text.Should().Contain("Relevant landscape").And.NotContain("No exact match found for this requirement.");
+    }
+
+    [Fact]
     public void Build_NotFound_ReturnsAssembled()
     {
         var sut = new ContextBuilderService();
@@ -463,9 +551,10 @@ public class NavigationEngineTests
             .Returns([]);
 
         var sut = new NavigationEngine(store, hybrid, embed, intent, context);
-        var result = await sut.NavigateAsync("Tell me about shuffle");
+        var result = await sut.NavigateAsync("Tell me about shuffle", QueryIntent.GeneralQuestion);
         result.Intent.Should().Be(QueryIntent.GeneralQuestion);
         result.AssembledContext.Should().Contain("landscape");
+        result.AssembledContext.Should().NotContain("No exact match found for this requirement.");
     }
 }
 
@@ -617,7 +706,8 @@ public class ChatServiceTests
     {
         // ChatService requires real HTTP — verify construction only via interface contract with substitute consumer
         var chat = Substitute.For<IChatService>();
-        chat.CompleteAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("ok");
+        chat.CompleteAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>(), Arg.Any<float?>(), Arg.Any<int?>())
+            .Returns("ok");
         (await chat.CompleteAsync("s", "u")).Should().Be("ok");
     }
 }

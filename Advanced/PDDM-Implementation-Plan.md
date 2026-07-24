@@ -1638,9 +1638,11 @@ public sealed class HybridIndexService
 }
 ```
 
-### Story 3.7: IntentClassifier
+### Story 3.7: IntentClassifier (heuristic) + HybridIntentClassifier
 
-**File**: `src/PDDM.Core/Services/IntentClassifier.cs`
+**Files**:
+- `src/PDDM.Core/Services/IntentClassifier.cs` — sync heuristic fast path
+- `src/PDDM.Core/Services/HybridIntentClassifier.cs` — `IIntentClassifier` implementation used in DI
 
 **⚠️ BUG FIX (from review)**: Previous version used boolean `Regex.IsMatch` for issue key detection, which matched ANY string containing PROJ-N pattern (even "unlike SPARK-1"). Also, `GeneralQuestion` had no real navigation path.
 
@@ -1648,6 +1650,12 @@ public sealed class HybridIndexService
 - Extract issue key via `Regex.Match` with capture group, validate it's the FOCUS of the query (not negated)
 - `GeneralQuestion` now routes to `NewRequirement` navigation (semantic search) — this is the sensible fallback
 - Ordered priority: explicit key → decision keywords → requirement keywords → general (semantic search)
+
+**Current behavior (post hot-path upgrade)**:
+- Heuristic hits (key / decision / requirement phrases) skip the LLM — keeps Q1–Q3 deterministic and fast
+- When heuristic returns `GeneralQuestion`, `ClassifyAsync` calls a tiny non-streaming JSON completion; timeout/failure → `GeneralQuestion`
+- Chat classifies **once** via `ClassifyAsync`, then `NavigateAsync(userInput, intent)` — no second classify inside the engine
+- `BuildSystemPrompt(intent)` / `BuildUserPrompt(context, question, intent)` inject `SCENARIO` so the answer model matches retrieval
 
 ```csharp
 namespace PDDM.Core.Services;
@@ -1848,11 +1856,10 @@ public sealed class NavigationEngine
         return context;
     }
 
-    // ── Unified entry point ──
-    public async Task<NavigatedContext> Navigate(string userInput)
+    // ── Unified entry point (intent pre-classified once in ChatController) ──
+    public async Task<NavigatedContext> NavigateAsync(string userInput, QueryIntent intent)
     {
-        var intent = _intentClassifier.Classify(userInput);
-
+        // Do NOT re-classify here — hybrid ClassifyAsync already ran upstream.
         return intent switch
         {
             QueryIntent.AssignedIssue => await NavigateFromAssignedIssue(
@@ -1990,6 +1997,8 @@ public sealed class ContextBuilderService
 **File**: `src/PDDM.Core/Services/ChatService.cs`
 
 **KEY CHANGE**: ChatService now streams LLM responses via `IAsyncEnumerable<string>` instead of returning a single string. This enables SSE streaming from API → UI.
+
+**Prompts (current):** live in `PddmDefaults` — `BuildSystemPrompt(QueryIntent)` appends a single scenario structure rule; `BuildUserPrompt(context, question, intent)` includes `SCENARIO: …`. `CompleteAsync` is non-streaming (used by hybrid intent classify).
 
 ```csharp
 namespace PDDM.Core.Services;
@@ -3003,7 +3012,7 @@ The following fixes were applied to this plan before coding begins, based on a t
 | 7 | Zero-padding myth | Removed zero-padding claim; pin one model; Settings UI blocks dimension changes without collection reset |
 | 8 | Ingestion filters not wired | Applied `MaxCommentsPerIssue` in ChunkingService loop; noted `MinCommentsForIssue` for fetch-level filtering |
 | 9 | Comment embedding text regression | Restored POC-style: `"On {ParentKey}: {Author} said: {Body}"` for Tier 3 |
-| 10 | Intent classifier brittle | Added ordered rules; use `ExtractIssueKey()` regex capture; `GeneralQuestion` → `NewRequirement` (semantic search) |
+| 10 | Intent classifier brittle | Ordered heuristic rules + `ExtractIssueKey()`; hybrid LLM JSON classify on ambiguous (`GeneralQuestion`); single classify per request; intent passed into prompts |
 | 11 | Missing UmbrellaLink field | Added `UmbrellaLink` to JiraDocChunk POCO; `ExtractUmbrellaLink()` parses issuelinks |
 | 12 | IOptionsMonitor fantasy | Replaced with explicit `PddmRuntimeSettings` mutable singleton; `SettingsService` directly updates singleton + persists to JSON |
 

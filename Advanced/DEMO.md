@@ -13,6 +13,8 @@ Ingest automatically:
 
 After ingest, Stats should show **Tier3 (Comments) > 0** and usually **Decision comments > 0**.
 
+**Intent routing:** Q1–Q3 hit the **heuristic fast path** (key / phrase lists). Paraphrases of Q2/Q3 that miss those phrases use a short **LLM JSON classify** before retrieval. Classified intent is passed into the navigator system/user prompts (`SCENARIO: …`) so generation matches the retrieval path.
+
 ---
 
 ## Q1 — Scenario A (assigned ticket)

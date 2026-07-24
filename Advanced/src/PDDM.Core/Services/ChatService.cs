@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
 using PDDM.Core.Abstractions;
 using PDDM.Core.Configuration;
@@ -88,11 +87,34 @@ public sealed class ChatService : IChatService
     }
 
     /// <inheritdoc />
-    public async Task<string> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+    public async Task<string> CompleteAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken = default,
+        float? temperature = null,
+        int? maxTokens = null)
     {
-        var sb = new StringBuilder();
-        await foreach (var token in StreamAsync(systemPrompt, userPrompt, cancellationToken).ConfigureAwait(false))
-            sb.Append(token);
-        return sb.ToString();
+        var lm = _runtimeSettings.Current.LmStudio;
+        var client = _httpClientFactory.CreateClient(HttpClientNames.LmStudio);
+        var request = new ChatCompletionRequest
+        {
+            Model = lm.ChatModel,
+            Temperature = temperature ?? lm.ChatTemperature,
+            MaxTokens = maxTokens ?? lm.ChatMaxTokens,
+            Stream = false,
+            Messages =
+            [
+                new ChatMessage { Role = "system", Content = systemPrompt },
+                new ChatMessage { Role = "user", Content = userPrompt }
+            ]
+        };
+
+        using var response = await client.PostAsJsonAsync("chat/completions", request, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(JsonOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return body?.Choices.FirstOrDefault()?.Message.Content ?? string.Empty;
     }
 }

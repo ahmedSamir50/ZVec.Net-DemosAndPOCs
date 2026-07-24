@@ -113,14 +113,20 @@ public interface IHybridIndex
 /// <summary>Classifies user questions into <see cref="QueryIntent"/>.</summary>
 public interface IIntentClassifier
 {
+    /// <summary>Heuristic classify (sync fast path).</summary>
     QueryIntent Classify(string userInput);
+
+    /// <summary>Hybrid classify: heuristic when confident, otherwise LLM JSON.</summary>
+    Task<QueryIntent> ClassifyAsync(string userInput, CancellationToken cancellationToken = default);
+
     string? ExtractIssueKey(string userInput);
 }
 
 /// <summary>Navigates project docs for Scenarios A/B/C.</summary>
 public interface INavigationEngine
 {
-    Task<NavigatedContext> NavigateAsync(string userInput, CancellationToken cancellationToken = default);
+    /// <summary>Navigates using a pre-classified intent (single classify per chat request).</summary>
+    Task<NavigatedContext> NavigateAsync(string userInput, QueryIntent intent, CancellationToken cancellationToken = default);
     Task<NavigatedContext> NavigateFromAssignedIssueAsync(string issueKey, CancellationToken cancellationToken = default);
     Task<NavigatedContext> NavigateFromNewRequirementAsync(string requirementText, CancellationToken cancellationToken = default);
     Task<NavigatedContext> NavigateFromDecisionQuestionAsync(string question, CancellationToken cancellationToken = default);
@@ -136,7 +142,14 @@ public interface IContextBuilder
 public interface IChatService
 {
     IAsyncEnumerable<string> StreamAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
-    Task<string> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
+
+    /// <summary>Non-streaming completion. Optional temperature/maxTokens override settings defaults.</summary>
+    Task<string> CompleteAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken = default,
+        float? temperature = null,
+        int? maxTokens = null);
 }
 
 /// <summary>Coordinates Jira fetch → chunk → embed → insert → hybrid index.</summary>

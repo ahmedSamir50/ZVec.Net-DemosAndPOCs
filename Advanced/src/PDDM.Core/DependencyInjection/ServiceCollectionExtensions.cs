@@ -17,10 +17,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorStore, VectorStoreService>();
         services.AddSingleton<IHybridIndex, HybridIndexService>();
-        services.AddSingleton<IIntentClassifier, IntentClassifier>();
+        services.AddSingleton<IntentClassifier>();
+        services.AddSingleton<IChatService, ChatService>();
+        services.AddSingleton<IIntentClassifier, HybridIntentClassifier>();
         services.AddSingleton<IContextBuilder, ContextBuilderService>();
         services.AddSingleton<INavigationEngine, NavigationEngine>();
-        services.AddSingleton<IChatService, ChatService>();
         services.AddSingleton<IIngestionOrchestrator, IngestionOrchestrator>();
         services.AddSingleton<ISettingsService, SettingsService>();
         return services;

@@ -34,21 +34,14 @@ public sealed class ContextBuilderService : IContextBuilder
                 break;
 
             case QueryIntent.NewRequirement:
-            case QueryIntent.GeneralQuestion:
                 sb.AppendLine("No exact match found for this requirement.");
                 sb.AppendLine("Relevant landscape of existing work:");
-                foreach (var epic in navigation.RelatedEpics.Take(PddmDefaults.DefaultClusterCount))
-                    AppendEpic(sb, epic);
-                AppendList(sb, "Related stories/issues", navigation.RelatedStories, PddmDefaults.ContextMaxRelatedStories);
-                AppendList(sb, "Standalone related issues", navigation.StandaloneRelatedIssues, PddmDefaults.DefaultStandaloneHits);
-                AppendList(sb, "Decision patterns", navigation.DecisionComments, PddmDefaults.ContextMaxDecisionComments);
-                if (navigation.RelatedEpics.Count == 0
-                    && navigation.RelatedStories.Count == 0
-                    && navigation.StandaloneRelatedIssues.Count == 0
-                    && navigation.DecisionComments.Count == 0)
-                {
-                    sb.AppendLine("No related tickets in the index yet. Run Ingestion (with ANSI seed) and retry.");
-                }
+                AppendLandscape(sb, navigation);
+                break;
+
+            case QueryIntent.GeneralQuestion:
+                sb.AppendLine("Relevant landscape of existing work:");
+                AppendLandscape(sb, navigation);
                 break;
 
             case QueryIntent.DecisionRationale:
@@ -69,6 +62,22 @@ public sealed class ContextBuilderService : IContextBuilder
         }
 
         return sb.ToString();
+    }
+
+    private static void AppendLandscape(StringBuilder sb, NavigatedContext navigation)
+    {
+        foreach (var epic in navigation.RelatedEpics.Take(PddmDefaults.DefaultClusterCount))
+            AppendEpic(sb, epic);
+        AppendList(sb, "Related stories/issues", navigation.RelatedStories, PddmDefaults.ContextMaxRelatedStories);
+        AppendList(sb, "Standalone related issues", navigation.StandaloneRelatedIssues, PddmDefaults.DefaultStandaloneHits);
+        AppendList(sb, "Decision patterns", navigation.DecisionComments, PddmDefaults.ContextMaxDecisionComments);
+        if (navigation.RelatedEpics.Count == 0
+            && navigation.RelatedStories.Count == 0
+            && navigation.StandaloneRelatedIssues.Count == 0
+            && navigation.DecisionComments.Count == 0)
+        {
+            sb.AppendLine("No related tickets in the index yet. Run Ingestion (with ANSI seed) and retry.");
+        }
     }
 
     private static string BrowseUrl(string key)
