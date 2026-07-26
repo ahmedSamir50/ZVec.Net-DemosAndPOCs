@@ -2513,7 +2513,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="fc-tag">Friction 02</span>
         </div>
         <div class="fc-title">Operational Complexity</div>
-        <p class="fc-body">Another Docker cluster to deploy. Access keys to rotate. Firewalls to configure. Version upgrades to schedule. A monthly cloud bill to justify. Each step is a ticket, an outage window, or a 3am page waiting to happen.</p>
+        <p class="fc-body">The usual reach: Qdrant, Weaviate, LanceDB, Postgres + pgvector, or Pinecone / Azure AI Search. Another Docker cluster (or cloud account) to deploy. Access keys to rotate. Firewalls to configure. Version upgrades to schedule. A monthly bill to justify.</p>
       </div>
 
       <!-- Card 3 — Security (highlighted) -->
@@ -2530,7 +2530,7 @@ main.sidenav-collapsed { margin-left: 0; }
 
     <!-- Transition line -->
     <div style="margin-top:22px;">
-      <p class="transition">What if we could get vector search without any of this?<span class="arrow">→</span></p>
+      <p class="transition">What if we could get vector search without Qdrant, pgvector, LanceDB, or a cloud account?<span class="arrow">→</span></p>
     </div>
 
     <!-- Page footer -->
@@ -2543,7 +2543,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Vector search itself isn't hard — the algorithm is well-understood and the libraries are mature. What's hard is the infrastructure tax that comes with it. Network overhead — every query pays a round-trip tax to a separate cluster, often five to thirty milliseconds, which usually exceeds the actual search time. Operational complexity — another system to deploy, monitor, upgrade, and debug when it breaks at 3am, plus access keys to rotate and a cloud bill to justify. Security boundary — this is the one most teams underestimate. If you're searching over customer support tickets, internal financial docs, or proprietary code, shipping those vectors to a third-party vector DB means shipping sensitive data outside your trust boundary. For many of our use cases, that's a hard no. So I went looking for a way to do this in-process. That's what ZVec.NET is.</div>
+        <div class="notes-content">Vector search itself isn't hard — the algorithm is well-understood and the libraries are mature. What's hard is the infrastructure tax that comes with it. Network overhead — every query pays a round-trip tax to a separate cluster, often five to thirty milliseconds, which usually exceeds the actual search time. Operational complexity — teams usually reach for Qdrant, Weaviate, LanceDB, Postgres plus pgvector, or Pinecone / Azure AI Search — another system to deploy, monitor, upgrade, and debug when it breaks at 3am, plus access keys to rotate and a cloud bill to justify. Security boundary — this is the one most teams underestimate. If you're searching over customer support tickets, internal financial docs, or proprietary code, shipping those vectors to a third-party vector DB means shipping sensitive data outside your trust boundary. For many of our use cases, that's a hard no. So I went looking for a way to do this in-process. That's what ZVec.NET is.</div>
       </details>
     </section>
 
@@ -2580,7 +2580,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <div class="surface feature-card">
         <div class="feature-label">ZERO INFRA</div>
         <div class="feature-title">Runs in-process</div>
-        <p class="feature-body">No Docker cluster, no Pinecone account, no network hop. The ZVec C++ engine lives inside your .NET 8/9/10 app, like SQLite.</p>
+        <p class="feature-body">No Qdrant/pgvector sidecar, no Pinecone account, no network hop. The ZVec C++ engine lives inside your .NET 8/9/10 app, like SQLite.</p>
       </div>
 
       <div class="surface feature-card">
@@ -2646,7 +2646,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-14">schema</span>
       05 / Architecture
     </span>
-    <h1 class="h1" style="margin-top:10px;">In-Process vs. Managed Cloud Vector DB</h1>
+    <h1 class="h1" style="margin-top:10px;">In-Process vs. External Vector Store</h1>
 
     <!-- Two architecture cards -->
     <div class="compare-grid" style="margin-top:12px; gap:16px;">
@@ -2688,11 +2688,11 @@ main.sidenav-collapsed { margin-left: 0; }
         <p class="footnote">Single process · zero infra ops</p>
       </div>
 
-      <!-- RIGHT — Managed cloud DB -->
+      <!-- RIGHT — External / managed vector store -->
       <div class="surface arch-card card-right">
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="material-icons md-24" style="color: var(--primary);">cloud_queue</span>
-          <h3 class="card-title" style="color: var(--primary);">Managed cloud DB (e.g. Pinecone)</h3>
+          <h3 class="card-title" style="color: var(--primary);">External store (Pinecone, Qdrant, pgvector…)</h3>
         </div>
 
         <div class="stack">
@@ -2703,21 +2703,21 @@ main.sidenav-collapsed { margin-left: 0; }
           <div class="stack-arrow"><span class="material-icons md-14">arrow_downward</span></div>
           <div class="stack-row">
             <span class="material-icons md-18 ico">cloud_sync</span>
-            <span>HTTPS / gRPC request</span>
+            <span>HTTPS / gRPC / DB round-trip</span>
           </div>
           <div class="stack-arrow"><span class="material-icons md-14">arrow_downward</span></div>
           <div class="stack-row">
             <span class="material-icons md-18 ico">dns</span>
-            <span>Cloud-hosted vector DB cluster</span>
+            <span>Cloud DB, Docker sidecar, or Postgres+pgvector</span>
           </div>
           <div class="stack-arrow"><span class="material-icons md-14">arrow_downward</span></div>
           <div class="stack-row warn">
             <span class="material-icons md-18">warning</span>
-            <span>Network round-trip on every query</span>
+            <span>Network / process hop on every query</span>
           </div>
         </div>
 
-        <p class="footnote">Per-query latency + per-month bill</p>
+        <p class="footnote">Per-query latency + ops or cloud bill</p>
       </div>
 
     </div>
@@ -2768,7 +2768,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Be honest about the trade-off. In-process wins on latency, ops simplicity, and cost — but it caps out at single-node scale, roughly millions of vectors per machine. Cloud vector DBs win at planetary scale and multi-tenant isolation. The real numbers from the README: our binding suite shows 0.5 milliseconds for a warm query on 128 docs, and 2.9 milliseconds for a query across 10,000 docs. That's the SDK on top of native ZVec — measured against Python and Node.js on the same machine, we're faster on every metric. Walk the trade-off strip: latency, ops cost, scale ceiling, best fit. In-process is the right call for apps, prototyping, edge, and mobile. Cloud wins when you need planet-scale multi-tenant. And the same SDK runs on Android — you can ship an offline RAG app on a phone.</div>
+        <div class="notes-content">Be honest about the trade-off. Left side is ZVec.NET in-process. Right side is the usual alternative stack — Pinecone or Azure AI Search in the cloud, or self-hosted Qdrant / Weaviate / LanceDB / Postgres plus pgvector. In-process wins on latency, ops simplicity, and cost — but it caps out at single-node scale, roughly millions of vectors per machine. External stores win at planetary scale and multi-tenant isolation. The real numbers from the README: our binding suite shows 0.5 milliseconds for a warm query on 128 docs, and 2.9 milliseconds for a query across 10,000 docs. That's the SDK on top of native ZVec — measured against Python and Node.js on the same machine, we're faster on every metric. Walk the trade-off strip: latency, ops cost, scale ceiling, best fit. In-process is the right call for apps, prototyping, edge, and mobile. Cloud wins when you need planet-scale multi-tenant. And the same SDK runs on Android — you can ship an offline RAG app on a phone.</div>
       </details>
     </section>
 
@@ -3927,7 +3927,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <div>
         <div class="dc-label">Positioning</div>
         <div class="dc-title">Beyond retrieve-and-answer</div>
-        <p class="dc-body">Simple RAG teaches the pattern. PDDM is the further example — intent routing, hierarchy, and citations over a real public Jira corpus, all with local vectors.</p>
+        <p class="dc-body">Simple RAG teaches the pattern. PDDM is the further example — intent routing, hierarchy, and citations over a real public Jira corpus, all with local vectors. <strong>No vector Docker sidecar:</strong> ZVec.NET owns <span class="mono">./data/spark-docs</span> — not Qdrant, pgvector, or a cloud vector DB.</p>
       </div>
     </div>
 
@@ -3939,7 +3939,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">This is the advanced finale. PDDM sits in the demos repo under Advanced/. Stack is ZVec.NET plus LM Studio embeddings and chat, ASP.NET controllers, Blazor UI, Aspire orchestration. The point is not “another chat bot” — it navigates Spark Jira hierarchy so developers get epic context, siblings, and decision comments with browse links. Run AppHost, ingest, then use the golden questions. Contrast with slide 13: that was the simple RAG pipeline; this is product-shaped navigation on top of the same in-process store.</div>
+        <div class="notes-content">This is the advanced finale. PDDM sits in the demos repo under Advanced/. Stack is ZVec.NET plus LM Studio embeddings and chat, ASP.NET controllers, Blazor UI, Aspire orchestration. Call out: no vector Docker sidecar — ZVec.NET owns ./data/spark-docs; without it you'd stand up Qdrant, pgvector, LanceDB, or a cloud vector account. The point is not “another chat bot” — it navigates Spark Jira hierarchy so developers get epic context, siblings, and decision comments with browse links. Run AppHost, ingest, then use the golden questions. Contrast with slide 13: that was the simple RAG pipeline; this is product-shaped navigation on top of the same in-process store.</div>
       </details>
     </section>
 

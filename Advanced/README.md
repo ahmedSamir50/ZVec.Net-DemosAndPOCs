@@ -2,6 +2,17 @@
 
 Smart navigator over Apache Spark Jira docs using **ZVec.NET**, **LM Studio**, **ASP.NET Core**, **Blazor**, and **.NET Aspire**.
 
+## Why ZVec.NET in PDDM
+
+PDDM’s vector store is **in-process ZVec.NET** — a folder at `./data/spark-docs`, not Qdrant, pgvector, LanceDB, or a cloud vector DB. Without ZVec.NET this demo would need a separate vector DB service or cloud account.
+
+What ZVec does here:
+
+- Persist 768-d Jira chunks on disk and query them with HNSW cosine + metadata filters (`Tier`, `ContainsDecision`, `Key`)
+- `Fetch` by id/key so the hybrid hierarchy index can rebuild after API restart
+
+What it is *not*: embeddings and chat still come from **LM Studio**. ZVec only stores vectors and runs similarity search.
+
 ## Prerequisites
 
 - .NET 10 SDK
