@@ -11,11 +11,25 @@ What ZVec does here:
 - Persist 768-d Jira chunks on disk and query them with HNSW cosine + metadata filters (`Tier`, `ContainsDecision`, `Key`)
 - `Fetch` by id/key so the hybrid hierarchy index can rebuild after API restart
 
+### Create vs Open (restart-safe collections)
+
+Matches [ZVec.NET README — Create vs Open](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET#create-vs-open-restart-safe-collections):
+
+| API | Behavior |
+|-----|----------|
+| `factory.CreateAndOpen` | Create new; **throws if path exists** |
+| `factory.Open` | Open existing |
+| `factory.OpenOrCreate` | Open if path has content; otherwise create |
+| DI `OpenMode = OpenOrCreate` | **Default** — restart-safe (obsolete `Create` bool maps to CreateOnly/OpenOnly) |
+
+PDDM uses `IZvecFactory.OpenOrCreate` via `CollectionBootstrap` (wipe+reopen on re-ingest still works after deleting the folder). Do **not** use obsolete `options.Create`.
+
 What it is *not*: embeddings and chat still come from **LM Studio**. ZVec only stores vectors and runs similarity search.
 
 ## Prerequisites
 
 - .NET 10 SDK
+- **ZVec.NET 1.0.0-beta.3.1** (NuGet; pinned in `PDDM.Core`)
 - [LM Studio](https://lmstudio.ai/) with embedding + chat models loaded (`localhost:1234`)
 - Windows x64 / Linux x64 / osx-arm64 (ZVec.NET native RID)
 

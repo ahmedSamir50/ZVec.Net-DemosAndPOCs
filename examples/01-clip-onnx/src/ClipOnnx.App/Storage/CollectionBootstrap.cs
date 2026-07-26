@@ -5,8 +5,9 @@ using ZVec.NET.Mapping;
 namespace ClipOnnx.App.Storage;
 
 /// <summary>
-/// Open-or-create typed ZVec collection for <see cref="Models.ImageAsset"/> (CreateAndOpen throws if path exists).
-/// Schema/metric come from the entity attributes — not CLIP-specific logic.
+/// Typed ZVec open-or-create for gallery entities via SDK
+/// <see cref="IZvecFactory.OpenOrCreate"/> — package README “Create vs Open (restart-safe collections)”.
+/// Schema/metric come from entity attributes — not CLIP-specific logic.
 /// </summary>
 public static class CollectionBootstrap
 {
@@ -24,16 +25,8 @@ public static class CollectionBootstrap
             Directory.CreateDirectory(parent);
 
         var options = new ZVecCollectionOptions { EnableMmap = enableMmap };
-        if (Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any())
-            return new ZVecCollection<T>(factory.Open(path, options));
-
-        if (Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any())
-        {
-            try { Directory.Delete(path); } catch { /* best effort */ }
-        }
-
         var schema = ZVecCollectionSchemaBuilder.From<T>().Build();
-        return new ZVecCollection<T>(factory.CreateAndOpen(path, schema, options));
+        return new ZVecCollection<T>(factory.OpenOrCreate(path, schema, options));
     }
 
     public static IZvecCollection<ImageAsset> OpenOrCreateGallery(

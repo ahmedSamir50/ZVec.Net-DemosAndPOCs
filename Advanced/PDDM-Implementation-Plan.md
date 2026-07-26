@@ -1,5 +1,5 @@
 # PDDM — Projects Docs Deep Mind
-## Detailed Implementation Plan (Verified Against ZVec.NET v1.0.0-beta.2)
+## Detailed Implementation Plan (Verified Against ZVec.NET v1.0.0-beta.3.1)
 
 > **Project**: Projects Docs Deep Mind (PDDM)  
 > **Stack**: .NET 10 (net10.0) — Separate API + Separate UI  
@@ -64,7 +64,7 @@
 | Constraint | Impact on PDDM |
 |---|---|
 | **Expression filters** only support `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!`, `null` checks | No `Contains()`, `StartsWith()` in typed queries. Use `ZVecFilterBuilder.ContainAny/Like` via `.Untyped` for array/string-like filtering |
-| **`CreateAndOpen` throws if path already exists** | Must use open-or-create pattern (check `Directory.Exists` first) |
+| **`CreateAndOpen` throws if path already exists** | Prefer SDK `IZvecFactory.OpenOrCreate` / DI `OpenMode = OpenOrCreate` (beta.3+; obsolete `Create` bool) |
 | **`QueryGroupBy` throws `NotSupportedException`** | Group results client-side after query |
 | **Typed `Query` returns `IReadOnlyList<ZVecQueryResult<T>>`** (not `ZVecDoc`) | Access `hit.Record` for the typed entity, `hit.Score` for similarity score |
 | **Typed `Fetch` returns `T?`** (nullable) | Always null-check; `Fetch(id, includeVector: false)` for metadata-only reads |
@@ -119,7 +119,7 @@ dotnet sln add src/PDDM.Core src/PDDM.Api src/PDDM.UI src/PDDM.Shared
 
 **NuGet packages for PDDM.Core** (API-side library with ZVec + LM Studio):
 ```bash
-dotnet add src/PDDM.Core package ZVec.NET --version 1.0.0-beta.2
+dotnet add src/PDDM.Core package ZVec.NET --version 1.0.0-beta.3.1
 dotnet add src/PDDM.Core package Microsoft.Extensions.Http
 ```
 
@@ -299,25 +299,18 @@ builder.Services.AddZVec(options =>
     options.MaxConcurrentNativeCalls = 0;
 });
 
-// ZVec.NET typed collection — open-or-create pattern
+// ZVec.NET typed collection — OpenOrCreate (restart-safe; package README “Create vs Open”)
 builder.Services.AddSingleton<IZvecCollection<JiraDocChunk>>(sp =>
 {
     var factory = sp.GetRequiredService<IZvecFactory>();
     var settings = sp.GetRequiredService<IOptions<PddmSettings>>().Value;
     var options = new ZVecCollectionOptions { EnableMmap = settings.ZVec.EnableMmap };
-
     var path = settings.ZVec.CollectionPath;
-    if (Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any())
-    {
-        var untyped = factory.Open(path, options);
-        return new ZVecCollection<JiraDocChunk>(untyped);
-    }
-    else
-    {
-        var schema = ZVecCollectionSchemaBuilder.From<JiraDocChunk>().Build();
-        var untyped = factory.CreateAndOpen(path, schema, options);
-        return new ZVecCollection<JiraDocChunk>(untyped);
-    }
+    var schema = ZVecCollectionSchemaBuilder.From<JiraDocChunk>().Build();
+    // Prefer factory.OpenOrCreate over CreateAndOpen (throws if path exists) / Open branching.
+    // DI AddZVecCollection defaults OpenMode = OpenOrCreate; obsolete Create bool → CreateOnly/OpenOnly.
+    var untyped = factory.OpenOrCreate(path, schema, options);
+    return new ZVecCollection<JiraDocChunk>(untyped);
 });
 
 // LM Studio HTTP client (API-side only)
@@ -2939,7 +2932,7 @@ Before implementing any story that uses ZVec.NET, verify:
 
 - [ ] Are we using typed `IZvecCollection<T>`? (Yes — POCO with `[ZVecVector]`)
 - [ ] Are expression filters only using `==`, `!=`, `<`, `>`, `&&`, `||`, `bool`? (Yes — no `Contains()`)
-- [ ] Is `CreateAndOpen` wrapped in open-or-create pattern? (Yes — check `Directory.Exists`)
+- [ ] Prefer `IZvecFactory.OpenOrCreate` / DI `OpenMode.OpenOrCreate` (not obsolete `Create` bool)?
 - [ ] Is `Fetch` null-checked? (Yes — returns `T?`)
 - [ ] Is `Query` result accessed via `.Record` and `.Score`? (Yes — **VERIFY type name at first compile** — could be `ZVecQueryResult<T>` or `ZVecHit<T>` depending on NuGet version; do not assume either)
 - [ ] Is `includeVector: false` used when we don't need result vectors? (Yes — lower latency)

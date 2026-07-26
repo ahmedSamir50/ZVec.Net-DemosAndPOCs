@@ -81,7 +81,12 @@ public sealed class DocsCollectionHolder
     }
 }
 
-/// <summary>Open-or-create helper for typed ZVec collections (upstream has no open_or_create).</summary>
+/// <summary>
+/// Typed ZVec open-or-create via SDK <see cref="IZvecFactory.OpenOrCreate"/> (beta.3+).
+/// Aligns with package README “Create vs Open (restart-safe collections)”:
+/// prefer <c>OpenOrCreate</c> over <c>CreateAndOpen</c>/<c>Open</c> branching;
+/// DI default is <c>ZVecCollectionOpenMode.OpenOrCreate</c> (obsolete <c>Create</c> bool).
+/// </summary>
 public static class CollectionBootstrap
 {
     /// <summary>Opens an existing collection or creates one from <typeparamref name="T"/> schema.</summary>
@@ -99,20 +104,8 @@ public static class CollectionBootstrap
             Directory.CreateDirectory(parent);
 
         var options = new ZVecCollectionOptions { EnableMmap = enableMmap };
-        if (Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any())
-        {
-            var opened = factory.Open(path, options);
-            return new ZVecCollection<T>(opened);
-        }
-
-        if (Directory.Exists(path) && !Directory.EnumerateFileSystemEntries(path).Any())
-        {
-            try { Directory.Delete(path); } catch { /* best effort */ }
-        }
-
         var schema = ZVecCollectionSchemaBuilder.From<T>().Build();
-        var created = factory.CreateAndOpen(path, schema, options);
-        return new ZVecCollection<T>(created);
+        return new ZVecCollection<T>(factory.OpenOrCreate(path, schema, options));
     }
 
     /// <summary>Convenience for <see cref="JiraDocChunk"/>.</summary>

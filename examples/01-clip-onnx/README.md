@@ -1,9 +1,17 @@
 # CLIP ONNX gallery (ZVec.NET)
 
+**Requires ZVec.NET 1.0.0-beta.3.1** (NuGet).
+
 Local **CLIP dual-encoder** (ONNX Runtime, CPU) + local **ZVec.NET** Cosine index of **vision** embeddings.
 Search is multimodal: **text→image** and **image→image** from pixels. Flickr captions may appear under result cards as **secondary enrichment only** — they are not indexed for primary ranking.
 
 **Same in-process story as PDDM:** vision embeddings live in a local ZVec collection (`data/zvec-clip-gallery/…`) — multimodal search without a Qdrant/pgvector/cloud vector microservice.
+
+## Create vs Open (restart-safe collections)
+
+Per [ZVec.NET README](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET#create-vs-open-restart-safe-collections): upstream `CreateAndOpen` throws if the path exists; there is no native `open_or_create`. Use SDK **`factory.OpenOrCreate`** (or DI `OpenMode = OpenOrCreate`, the default).
+
+This demo opens each model’s gallery via `CollectionBootstrap` → `IZvecFactory.OpenOrCreate` so **restart is safe** without flipping an obsolete `Create` flag. **Reset index** deletes the on-disk folder, then OpenOrCreate builds a fresh collection.
 
 ## Multi-model picker (B/32 · B/16 · L/14)
 

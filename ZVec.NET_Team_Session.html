@@ -2251,7 +2251,7 @@ main.sidenav-collapsed { margin-left: 0; }
           Tech Session · ELM
         </span>
         <div class="corner-mark" style="position:static;">
-          <span class="deck-label">ZVec.NET · v1.0.0-beta.2</span>
+          <span class="deck-label">ZVec.NET · v1.0.0-beta.3.1</span>
           <span class="badge-beta">
             <span class="material-icons md-14">science</span>
             BETA · net8 / net9 / net10
@@ -2273,7 +2273,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <div class="meta-line"><span class="meta-key">Host:</span>&nbsp;ELM KSA · <a class="host-link" href="https://elm.sa/ar/Pages/default.aspx" target="_blank" rel="noopener noreferrer">elm.sa</a></div>
           <div class="meta-line"><span class="meta-key">Audience:</span>&nbsp;ELM Engineering</div>
           <div class="meta-line"><span class="meta-key">Duration:</span>&nbsp;~35 min + demo + Q&amp;A</div>
-          <div class="meta-line"><span class="meta-key">Version:</span>&nbsp;1.0.0-beta.2+zvec.0.5.1</div>
+          <div class="meta-line"><span class="meta-key">Version:</span>&nbsp;1.0.0-beta.3.1</div>
           <div class="meta-line"><span class="meta-key">SDK:</span>&nbsp;github.com/ahmedSamir50/AdamSystems.ZVec.NET</div>
           <div class="meta-line"><span class="meta-key">Demos:</span>&nbsp;github.com/ahmedSamir50/ZVec.Net-DemosAndPOCs</div>
         </div>
@@ -2288,7 +2288,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Good afternoon, everyone. Over the next thirty-five minutes plus live demos and Q&amp;A, I want to walk you through what vector search actually is, the infrastructure problem cloud vector DBs create, the production .NET SDK I shipped for Alibaba's open-source ZVec engine, the eight index types and three similarity metrics, how CLIP shares one vector space across text and image, and concrete code patterns you can lift into features. Live demo this session: PDDM — advanced Jira RAG in `Advanced/`. CLIP + local ONNX (`examples/01-clip-onnx`) is planned in the demos repo. This is beta 1.0.0-beta.2 targeting net8, net9, and net10. Interrupt with questions anytime.</div>
+        <div class="notes-content">Good afternoon, everyone. Over the next thirty-five minutes plus live demos and Q&amp;A, I want to walk you through what vector search actually is, the infrastructure problem cloud vector DBs create, the production .NET SDK I shipped for Alibaba's open-source ZVec engine, the eight index types and three similarity metrics, how CLIP shares one vector space across text and image, and concrete code patterns you can lift into features. Live demos this session: PDDM — advanced Jira RAG in `Advanced/` — and CLIP + local ONNX in `examples/01-clip-onnx`. This is beta 1.0.0-beta.3.1 targeting net8, net9, and net10. Interrupt with questions anytime.</div>
       </details>
     </section>
 
@@ -2606,7 +2606,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Status strip -->
     <div style="position:absolute; left:72px; right:72px; bottom:54px;">
       <div class="status-strip">
-        <span class="lab">Beta 1.0.0-beta.2</span>
+        <span class="lab">Beta 1.0.0-beta.3.1</span>
         <span class="sep">·</span>
         <span>net8.0 / net9.0 / net10.0</span>
         <span class="sep">·</span>
@@ -2626,7 +2626,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">ZVec.NET is what I built to kill that infrastructure tax. It's a production SDK for Alibaba's open-source ZVec — not a thin P/Invoke wrapper. It ships with DI extensions, a typed ODM that maps POCOs with attributes, sync and async APIs, SafeHandle-based lifecycle, and full coverage of ZVec's eight index types including HNSW, DiskANN, and FTS. Walk the four cells: zero infra means it runs in-process like SQLite — no Docker, no Pinecone account, no network hop. Zero alloc means ReadOnlyMemory of float is pinned and passed straight to native code with no intermediate copies. DI-first means AddZVec plus AddZVecCollection of T maps POCOs with the ZVecVector attribute for compile-time field safety. Eight indexes plus in-DB rerankers and hybrid search. It's in beta now — 1.0.0-beta.2 — supports .NET 8, 9, and 10, runs on Windows, Linux, macOS, and Android. MIT licensed.</div>
+        <div class="notes-content">ZVec.NET is what I built to kill that infrastructure tax. It's a production SDK for Alibaba's open-source ZVec — not a thin P/Invoke wrapper. It ships with DI extensions, a typed ODM that maps POCOs with attributes, sync and async APIs, SafeHandle-based lifecycle, and full coverage of ZVec's eight index types including HNSW, DiskANN, and FTS. Walk the four cells: zero infra means it runs in-process like SQLite — no Docker, no Pinecone account, no network hop. Zero alloc means ReadOnlyMemory of float is pinned and passed straight to native code with no intermediate copies. DI-first means AddZVec plus AddZVecCollection of T maps POCOs with the ZVecVector attribute for compile-time field safety. Eight indexes plus in-DB rerankers and hybrid search. It's in beta now — 1.0.0-beta.3.1 — supports .NET 8, 9, and 10, runs on Windows, Linux, macOS, and Android. Apache-2.0 licensed.</div>
       </details>
     </section>
 
@@ -3185,20 +3185,22 @@ main.sidenav-collapsed { margin-left: 0; }
     </span>
     <h1 class="h1" style="margin-top:12px;">Three Steps to a Typed Collection</h1>
     <p class="lead" style="margin-top:10px; max-width:920px;">
-      Install the package, register ZVec in DI, define a POCO with <span class="mono">[ZVecVector]</span>. The factory initializes the native engine in-process; the collection opens on-disk and is ready for inserts and queries.
+      Install the package, register ZVec in DI, define a POCO with <span class="mono">[ZVecVector]</span>.
+      DI <span class="mono">OpenMode</span> defaults to <span class="mono">OpenOrCreate</span> — restart-safe; no Create=true on first run / false later.
+      See package README: <span class="mono">Create vs Open (restart-safe collections)</span>.
     </p>
 
     <div class="code-step-grid">
       <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="install">
         <span class="csc-num">01 · INSTALL</span>
         <span class="csc-title">Install the NuGet package</span>
-        <span class="csc-teaser">dotnet add package ZVec.NET --version 1.0.0-beta.2</span>
+        <span class="csc-teaser">dotnet add package ZVec.NET --version 1.0.0-beta.3.1</span>
         <span class="csc-cta"><span class="material-icons">code</span> View code</span>
       </button>
       <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="register">
         <span class="csc-num">02 · REGISTER</span>
         <span class="csc-title">AddZVec + AddZVecCollection&lt;T&gt;</span>
-        <span class="csc-teaser">builder.Services.AddZVec(…) · Path · Create · EnableMmap</span>
+        <span class="csc-teaser">builder.Services.AddZVec(…) · Path · OpenOrCreate (default) · EnableMmap</span>
         <span class="csc-cta"><span class="material-icons">code</span> View code</span>
       </button>
       <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="poco">
@@ -3224,7 +3226,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Open each step card to show the code. Step one — install the package (1.0.0-beta.2). Step two — DI: AddZVec (log level, QueryThreads=-1, MemoryLimitMb) then AddZVecCollection&lt;Product&gt; — Create=true first run, false later. Step three — POCO: Id by convention, scalars + [ZVecVector(384, Cosine, M=32, EfConstruction=256)] — example overrides; SDK defaults are M=16 / EfConstruction=200. Dim must match the embedder. Attribute mapping fails at compile time for bad property names.</div>
+        <div class="notes-content">Open each step card to show the code. Step one — install the package (1.0.0-beta.3.1). Step two — DI: AddZVec then AddZVecCollection&lt;Product&gt; — OpenMode defaults to OpenOrCreate (restart-safe; see package README “Create vs Open”). Do not flip obsolete Create=true/false. Step three — POCO: Id by convention, scalars + [ZVecVector(384, Cosine, M=32, EfConstruction=256)] — example overrides; SDK defaults are M=16 / EfConstruction=200. Dim must match the embedder. Attribute mapping fails at compile time for bad property names.</div>
       </details>
     </section>
 
@@ -3281,7 +3283,7 @@ main.sidenav-collapsed { margin-left: 0; }
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">image</span>
-          <span><span class="mono">examples/01-clip-onnx</span> — planned</span>
+          <span><span class="mono">examples/01-clip-onnx</span> — live</span>
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">bolt</span>
@@ -3300,7 +3302,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Open the CRUD card first — ProductService takes IZvecCollection of Product via primary constructor. Upsert, Delete, Fetch, DeleteByFilter — async and cancellation-aware. Then open Query: QueryAsync takes a lambda selecting the vector field (compile-time checked), query vector, topK, optional typed filter. Escape hatch: products.Untyped + ZVecFilterBuilder (also required for multi-query RRF). Live demo: PDDM; CLIP ONNX planned.</div>
+        <div class="notes-content">Open the CRUD card first — ProductService takes IZvecCollection of Product via primary constructor. Upsert, Delete, Fetch, DeleteByFilter — async and cancellation-aware. Then open Query: QueryAsync takes a lambda selecting the vector field (compile-time checked), query vector, topK, optional typed filter. Escape hatch: products.Untyped + ZVecFilterBuilder (also required for multi-query RRF). Live demos: PDDM and CLIP ONNX gallery.</div>
       </details>
     </section>
 
@@ -3775,12 +3777,12 @@ main.sidenav-collapsed { margin-left: 0; }
       <div>
         <div class="dc-label">Planned Demo</div>
         <div class="dc-title">CLIP + local ONNX gallery</div>
-        <p class="dc-body">Text query or image upload → same 512-d space → ZVec top-K. Path planned as <span class="mono">examples/01-clip-onnx</span> (Flickr8k patch ingest). Live advanced demo today: PDDM in <span class="mono">Advanced/</span>.</p>
+        <p class="dc-body">Text query or image upload → same 512-d space → ZVec top-K. Live at <span class="mono">examples/01-clip-onnx</span> (Flickr8k vision ingest). Also live: PDDM in <span class="mono">Advanced/</span>.</p>
       </div>
       <div class="dc-bullets">
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">folder</span>
-          <span class="mono">examples/01-clip-onnx</span> · planned
+          <span class="mono">examples/01-clip-onnx</span> · live
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">image</span>
@@ -3824,7 +3826,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
       <div>
         <span class="uc-label">Use Case</span>
-        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. CLIP ONNX gallery (<span class="mono">examples/01-clip-onnx</span>) is planned; SDK samples already show offline RAG via MAUI + LM Studio embeddings.</span>
+        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. CLIP ONNX gallery (<span class="mono">examples/01-clip-onnx</span>) is live; SDK samples already show offline RAG via MAUI + LM Studio embeddings.</span>
       </div>
     </div>
 
@@ -3866,7 +3868,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <div class="surface-elev why-callout">
       <span class="material-icons md-24" style="color: var(--accent);">rocket_launch</span>
       <span class="lbl">Why This Matters</span>
-      <p class="body">End-to-end .NET pipeline · single container · no Python/Node sidecar · lower latency (no IPC). The same ONNX pattern can power CLIP image/text encoders (<span class="mono">examples/01-clip-onnx</span>, planned). MAUI offline/edge RAG already ships in SDK <span class="mono">samples/ZVec.NET.Samples.Maui</span> (LM Studio embeddings today).</p>
+      <p class="body">End-to-end .NET pipeline · single container · no Python/Node sidecar · lower latency (no IPC). The same ONNX pattern powers CLIP image/text encoders (<span class="mono">examples/01-clip-onnx</span>, live). MAUI offline/edge RAG already ships in SDK <span class="mono">samples/ZVec.NET.Samples.Maui</span> (LM Studio embeddings today).</p>
     </div>
 
     <!-- Page footer -->
@@ -3879,7 +3881,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Walk The Pattern + Three Steps, then open “View ONNX → ZVec code” (schematic: real MiniLM needs attention_mask + mean-pool + L2). One container, no Python sidecar. CLIP ONNX gallery planned; MAUI RAG sample already in the SDK repo (LM Studio embeddings).</div>
+        <div class="notes-content">Walk The Pattern + Three Steps, then open “View ONNX → ZVec code” (schematic: real MiniLM needs attention_mask + mean-pool + L2). One container, no Python sidecar. CLIP ONNX gallery is live; MAUI RAG sample already in the SDK repo (LM Studio embeddings).</div>
       </details>
     </section>
 
@@ -4044,7 +4046,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="rm-dot good"></span>
           <div>
             <span class="rm-title">NuGet package live<span class="rm-status done">DONE</span></span>
-            <p class="rm-body"><span class="mono">1.0.0-beta.2+zvec.0.5.1</span> on nuget.org. <span class="mono">net8 / net9 / net10</span>, win-x64, linux-x64, osx-arm64, android-arm64/x64.</p>
+            <p class="rm-body"><span class="mono">1.0.0-beta.3.1</span> on nuget.org. <span class="mono">net8 / net9 / net10</span>, win-x64, linux-x64, osx-arm64, android-arm64/x64.</p>
           </div>
         </div>
 
@@ -4060,7 +4062,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="rm-dot good"></span>
           <div>
             <span class="rm-title">Demos repo live demos<span class="rm-status done">DONE</span></span>
-            <p class="rm-body">Live: <span class="mono">Advanced/</span> PDDM. Planned: <span class="mono">examples/01-clip-onnx</span> (CLIP + local ONNX) — demos repo.</p>
+            <p class="rm-body">Live: <span class="mono">Advanced/</span> PDDM and <span class="mono">examples/01-clip-onnx</span> (CLIP + local ONNX) — demos repo.</p>
           </div>
         </div>
 
@@ -4100,7 +4102,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <div class="ico"><span class="material-icons">terminal</span></div>
           <div class="link-text">
             <span class="link-label">Install</span>
-            <span class="link-value">dotnet add package <span class="accent">ZVec.NET</span> --version 1.0.0-beta.2</span>
+            <span class="link-value">dotnet add package <span class="accent">ZVec.NET</span> --version 1.0.0-beta.3.1</span>
           </div>
         </div>
 
@@ -4161,7 +4163,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Quick recap — vector search vs keywords, the infrastructure tax, ZVec.NET in-process on Alibaba's ZVec, eight indexes and three metrics, CLIP multimodal alignment, and five code patterns. Live demo: PDDM in Advanced/. CLIP ONNX gallery planned. SDK beta 1.0.0-beta.2 on net8/9/10. I'd love PRs and a real sprint use case to pair on. Questions?</div>
+        <div class="notes-content">Quick recap — vector search vs keywords, the infrastructure tax, ZVec.NET in-process on Alibaba's ZVec, eight indexes and three metrics, CLIP multimodal alignment, and five code patterns. Live demos: PDDM in Advanced/ and CLIP ONNX gallery in examples/01-clip-onnx. SDK beta 1.0.0-beta.3.1 on net8/9/10. I'd love PRs and a real sprint use case to pair on. Questions?</div>
       </details>
     </section>
   </main>
@@ -4368,7 +4370,7 @@ main.sidenav-collapsed { margin-left: 0; }
         <!-- Pack 10 -->
         <div class="code-pack" id="code-pack-10" data-title="Three steps — typed collection" data-sub="Install · DI · POCO · real README code">
           <div class="code-panel" data-tab="install" data-tab-label="01 Install">
-<pre class="code">$ dotnet add package ZVec.NET --version <span class="n">1.0.0-beta.2</span></pre>
+<pre class="code">$ dotnet add package ZVec.NET --version <span class="n">1.0.0-beta.3.1</span></pre>
           </div>
           <div class="code-panel" data-tab="register" data-tab-label="02 Register">
 <pre class="code">builder.Services.<span class="t">AddZVec</span>(options =&gt;
@@ -4382,7 +4384,8 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
 {
     options.Path = <span class="s">"/data/products"</span>;
     options.EnableMmap = <span class="k">true</span>;
-    options.Create = <span class="k">true</span>;   <span class="c">// first run; set false to Open</span>
+    <span class="c">// OpenMode default = OpenOrCreate (restart-safe). Create bool is obsolete.</span>
+    <span class="c">// Override: CreateOnly | OpenOnly if needed.</span>
 });</pre>
           </div>
           <div class="code-panel" data-tab="poco" data-tab-label="03 POCO">

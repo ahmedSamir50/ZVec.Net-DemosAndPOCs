@@ -2,6 +2,10 @@
 
 Repository for demos and proof-of-concepts built on [ZVec.NET](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET).
 
+**Requires ZVec.NET 1.0.0-beta.3.1** (NuGet).
+
+Collections use SDK **`OpenOrCreate`** / DI default `OpenMode = OpenOrCreate` (restart-safe). See package README [Create vs Open](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET#create-vs-open-restart-safe-collections) — do not use obsolete `Create`.
+
 ## Why ZVec.NET
 
 **ZVec.NET gives .NET apps production vector search inside the process — typed POCOs, DI, SafeHandles — with no Docker vector cluster, no Postgres extension, and no cloud vector bill.**
