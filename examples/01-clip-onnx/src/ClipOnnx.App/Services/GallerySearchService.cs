@@ -255,7 +255,8 @@ public sealed class GallerySearchService : IGallerySearchService
                 templatesUsed,
                 rawCount,
                 rawCount,
-                "No confident matches (top similarity below threshold). Try a concrete chip query, or Reset+Ingest if dogs/snow also fail.",
+                $"No confident matches: top cos {topCosine:F3} < min {minCosine:F3} (rawHits={rawCount}). " +
+                "Try a concrete chip query, or Reset+Ingest if dogs/snow also fail.",
                 encodeMs,
                 queryMs,
                 def.Id,
@@ -268,14 +269,16 @@ public sealed class GallerySearchService : IGallerySearchService
             .Take(topK)
             .ToList();
 
-        var filteredOut = rawCount - filtered.Count;
+        var passedCount = filtered.Count;
+        var filteredOut = rawCount - passedCount;
         string? empty = null;
-        if (filtered.Count < Math.Max(1, _options.MinConfidentHits))
+        var minHits = Math.Max(1, _options.MinConfidentHits);
+        if (passedCount < minHits)
         {
             empty =
-                "No confident matches (too few hits above threshold). " +
+                $"No confident matches: only {passedCount} hit(s) passed min+gap " +
+                $"(top cos {topCosine:F3}, min {minCosine:F3}, gap {gap:F3}, MinConfidentHits={minHits}, rawHits={rawCount}). " +
                 "Try “dogs in the snow” or “people on a beach”. " +
-                "Avoid bare words like “network” or “19”. " +
                 "If dogs/snow also fail, Reset index → Ingest with the active model.";
             filtered = [];
             filteredOut = rawCount;

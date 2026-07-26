@@ -48,7 +48,8 @@ ZVec Cosine metric exposes **cosine distance** on hit `Score` (lower = more simi
 Conversion: `cosine = 1 - zvecScore`, then `similarityPercent = max(0, round(100 * cosine))`.  
 Results are sorted **highest cosine first**. Identical vectors → distance ≈ 0 → cos ≈ 1.
 
-Defaults: `MinCosine=0.30`, gap `0.05`, `MinConfidentHits=3` (empty beats junk).
+Defaults: `MinCosine=0.20`, gap `0.12`, `MinConfidentHits=1` (show sparse real matches; empty only when top cos &lt; min).  
+UI Min similarity % only sets `minCosine` — it does not override gap or `MinConfidentHits`.
 
 ## Setup
 
@@ -64,9 +65,9 @@ dotnet run
 ```json
 "ClipOnnx": {
   "ActiveModelId": "clip-vit-b16",
-  "MinCosine": 0.30,
-  "MaxCosineGapFromTop": 0.05,
-  "MinConfidentHits": 3,
+  "MinCosine": 0.20,
+  "MaxCosineGapFromTop": 0.12,
+  "MinConfidentHits": 1,
   "TextPromptTemplates": [ "a photo of {query}" ]
 }
 ```

@@ -69,14 +69,17 @@ public sealed class ClipOnnxOptions
         "a photo of {query}"
     ];
 
-    /// <summary>Minimum CLIP cosine (after converting ZVec score) to keep a hit. Default 0.30.</summary>
-    public float MinCosine { get; set; } = 0.30f;
+    /// <summary>Minimum CLIP cosine (after converting ZVec distance) to keep a hit. Default 0.20.</summary>
+    public float MinCosine { get; set; } = 0.20f;
 
-    /// <summary>Drop hits whose cosine is more than this below the top-1 cosine. Default 0.05.</summary>
-    public float MaxCosineGapFromTop { get; set; } = 0.05f;
+    /// <summary>Drop hits whose cosine is more than this below the top-1 cosine. Default 0.12.</summary>
+    public float MaxCosineGapFromTop { get; set; } = 0.12f;
 
-    /// <summary>If fewer than this many hits survive filters, return empty (demo safety). Default 3.</summary>
-    public int MinConfidentHits { get; set; } = 3;
+    /// <summary>
+    /// If fewer than this many hits survive min+gap filters, return empty.
+    /// Default 1 — show sparse true-CLIP matches (e.g. one watermelon hit); do not wipe 1–2 good hits.
+    /// </summary>
+    public int MinConfidentHits { get; set; } = 1;
 
     /// <summary>Local filenames expected inside each model directory.</summary>
     public IReadOnlyList<string> RequiredModelFiles =>
