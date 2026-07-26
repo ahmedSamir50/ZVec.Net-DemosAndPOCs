@@ -1,15 +1,15 @@
 using System.IO.Compression;
-using System.Text.Json;
 using ClipOnnx.App.Encoding;
 using ClipOnnx.App.Models;
 using ClipOnnx.App.Options;
 using ClipOnnx.App.Services;
+using ClipOnnx.App.Storage;
 using Microsoft.Extensions.Options;
-using ZVec.NET;
 
 namespace ClipOnnx.App.Ingest;
 
 public sealed record IngestStartResult(bool Started, int MaxImages, string? Error);
+public sealed record IngestResetResult(bool Reset, string? Error);
 
 public interface IFlickr8kIngestService
 {
@@ -18,6 +18,12 @@ public interface IFlickr8kIngestService
     /// Returns false if a run is already active.
     /// </summary>
     IngestStartResult TryStartIngest(int maxImages);
+
+    /// <summary>
+    /// Wipe ZVec gallery + reset manifest offset to 0 (keeps downloaded images).
+    /// Fails if ingest is running.
+    /// </summary>
+    IngestResetResult TryResetIndex();
 }
 
 /// <summary>
@@ -27,8 +33,12 @@ public interface IFlickr8kIngestService
 /// </summary>
 public sealed class Flickr8kIngestService : IFlickr8kIngestService
 {
-    private readonly IZvecCollection<ImageAsset> _collection;
+    private const int StatePersistEvery = 10;
+
+    private readonly GalleryStore _gallery;
     private readonly IClipEncoder _encoder;
+    private readonly IClipModelSelectionService _models;
+    private readonly IGalleryStampStore _stamp;
     private readonly ClipOnnxOptions _options;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IngestProgressStatus _status;
@@ -37,15 +47,19 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
     private int _running; // 0 = idle, 1 = running
 
     public Flickr8kIngestService(
-        IZvecCollection<ImageAsset> collection,
+        GalleryStore gallery,
         IClipEncoder encoder,
+        IClipModelSelectionService models,
+        IGalleryStampStore stamp,
         IOptions<ClipOnnxOptions> options,
         IHttpClientFactory httpClientFactory,
         IngestProgressStatus status,
         ILogger<Flickr8kIngestService> logger)
     {
-        _collection = collection;
+        _gallery = gallery;
         _encoder = encoder;
+        _models = models;
+        _stamp = stamp;
         _options = options.Value;
         _httpClientFactory = httpClientFactory;
         _status = status;
@@ -60,6 +74,10 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         if (!_encoder.IsReady)
             return new IngestStartResult(false, maxImages, _encoder.NotReadyReason ?? "CLIP encoder is not ready.");
 
+        var active = _models.ActiveDefinition;
+        if (_stamp.IsMismatch(active))
+            return new IngestStartResult(false, maxImages, _stamp.MismatchMessage(active) + " Reset index first.");
+
         lock (_startGate)
         {
             if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
@@ -71,29 +89,75 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         }
     }
 
+    public IngestResetResult TryResetIndex()
+    {
+        lock (_startGate)
+        {
+            if (Volatile.Read(ref _running) != 0)
+                return new IngestResetResult(false, "Ingest already running.");
+
+            try
+            {
+                var active = _models.ActiveDefinition;
+                _gallery.SwitchToModel(active);
+                _gallery.RecreateEmpty();
+                // Clear stamp so the next ingest owns this model (offset 0, no mismatch).
+                _stamp.Save(new GalleryStamp(
+                    Offset: 0,
+                    ModelId: active.Id,
+                    EmbeddingDim: active.EmbeddingDim,
+                    EncodePipelineVersion: ClipModelCatalog.EncodePipelineVersion));
+                _status.SetIdle($"Index reset for {active.DisplayName} ({active.EmbeddingDim}-d). Click Ingest to re-embed.");
+                _logger.LogInformation("Gallery index reset at {Path} for {ModelId}", _gallery.CollectionPath, active.Id);
+                return new IngestResetResult(true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Index reset failed");
+                return new IngestResetResult(false, ex.Message);
+            }
+        }
+    }
+
     private async Task RunIngestAsync(int maxImages)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            var active = _models.ActiveDefinition;
             var flickrRoot = Path.GetFullPath(Path.Combine(_options.DataRoot, "flickr8k"));
             var imagesDir = Path.Combine(flickrRoot, "images");
-            var statePath = Path.Combine(_options.DataRoot, "state", "flickr8k.json");
             Directory.CreateDirectory(imagesDir);
-            Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(_stamp.StatePath)!);
 
             await EnsureManifestAndDatasetAsync(flickrRoot, imagesDir, CancellationToken.None);
 
             var manifest = await LoadManifestAsync(flickrRoot, CancellationToken.None);
-            var state = await LoadStateAsync(statePath, CancellationToken.None);
+            var state = _stamp.Load();
+            // If stamp matches active but offset was reset, continue; else start clean for this model.
+            if (!_stamp.IsMismatch(active, state)
+                && string.Equals(state.ModelId, active.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                /* resume */
+            }
+            else if (state.Offset > 0 && _stamp.IsMismatch(active, state))
+            {
+                throw new InvalidOperationException(_stamp.MismatchMessage(active, state));
+            }
+
             var offset = Math.Clamp(state.Offset, 0, manifest.Count);
+            if (!string.Equals(state.ModelId, active.Id, StringComparison.OrdinalIgnoreCase) && state.Offset == 0)
+            {
+                state = new GalleryStamp(0, active.Id, active.EmbeddingDim, ClipModelCatalog.EncodePipelineVersion);
+            }
+
             var remaining = Math.Max(0, manifest.Count - offset);
             var target = Math.Min(maxImages, remaining);
 
             _status.SetEmbedding(
                 target == 0
                     ? "Nothing left to embed at current offset."
-                    : $"Embedding up to {target} image(s) from offset {offset}…",
+                    : $"Embedding up to {target} with {active.DisplayName} from offset {offset}…",
                 offset, manifest.Count, 0, 0, target);
 
             var embedded = 0;
@@ -106,7 +170,7 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
                 var id = Path.GetFileNameWithoutExtension(fileName);
                 var localPath = Path.Combine(imagesDir, fileName);
 
-                if (_collection.Fetch(id) is not null)
+                if (_gallery.Exists(id))
                 {
                     skipped++;
                 }
@@ -116,35 +180,33 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
                 }
                 else
                 {
-                    // Vision embed only (512-d L2); captions never enter the index.
+                    // Vision embed only (dim = active model); captions never enter the ZVec index.
                     var embedding = _encoder.EncodeImage(localPath);
-                    await _collection.UpsertAsync(new ImageAsset
-                    {
-                        Id = id,
-                        Path = localPath,
-                        Embedding = embedding
-                    }, CancellationToken.None);
+                    await _gallery.UpsertAsync(id, localPath, embedding, CancellationToken.None);
                     embedded++;
                 }
 
                 offset++;
                 processed++;
-                state = state with { Offset = offset };
-                await SaveStateAsync(statePath, state, CancellationToken.None);
+                state = new GalleryStamp(offset, active.Id, active.EmbeddingDim, ClipModelCatalog.EncodePipelineVersion);
+                if (processed % StatePersistEvery == 0 || processed == target)
+                    _stamp.Save(state);
 
                 _status.SetEmbedding(
-                    $"Embedding {processed}/{target} this run · gallery offset {offset}/{manifest.Count}",
+                    $"Embedding {processed}/{target} this run · gallery offset {offset}/{manifest.Count} · {active.Id}",
                     offset, manifest.Count, embedded, skipped, target);
             }
 
+            _stamp.Save(new GalleryStamp(offset, active.Id, active.EmbeddingDim, ClipModelCatalog.EncodePipelineVersion));
+
             sw.Stop();
             var msg = target == 0
-                ? $"Caught up — offset {offset}/{manifest.Count}."
-                : $"Ingest complete — embedded {embedded}, skipped {skipped}, offset {offset}/{manifest.Count}.";
+                ? $"Caught up — offset {offset}/{manifest.Count} ({active.Id})."
+                : $"Ingest complete — embedded {embedded}, skipped {skipped}, offset {offset}/{manifest.Count} ({active.Id}).";
             _status.SetCompleted(msg, offset, manifest.Count, embedded, skipped, sw.ElapsedMilliseconds);
             _logger.LogInformation(
-                "Ingest finished: embedded={Embedded} skipped={Skipped} offset={Offset}/{Total} in {Ms}ms",
-                embedded, skipped, offset, manifest.Count, sw.ElapsedMilliseconds);
+                "Ingest finished: model={Model} embedded={Embedded} skipped={Skipped} offset={Offset}/{Total} in {Ms}ms",
+                active.Id, embedded, skipped, offset, manifest.Count, sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
@@ -164,14 +226,12 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         {
             _logger.LogInformation("Downloading Flickr8k text zip…");
             var textZip = Path.Combine(flickrRoot, "Flickr8k_text.zip");
-            var downloaded = await DownloadAsync(
+            await EnsureValidZipAsync(
                 _options.FlickrTextZipUrl,
                 textZip,
                 "Flickr8k_text.zip",
                 "Downloading Flickr8k text zip (manifest)…",
                 ct);
-            if (downloaded)
-                _status.IncrementZipDownloaded();
 
             _status.SetExtracting("Extracting Flickr8k text zip…", "Flickr8k_text.zip");
             ZipFile.ExtractToDirectory(textZip, flickrRoot, overwriteFiles: true);
@@ -182,17 +242,35 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         {
             _logger.LogInformation("Downloading Flickr8k images zip (large, one-time full download)…");
             var imgZip = Path.Combine(flickrRoot, "Flickr8k_Dataset.zip");
-            var downloaded = await DownloadAsync(
+            await EnsureValidZipAsync(
                 _options.FlickrImagesZipUrl,
                 imgZip,
                 "Flickr8k_Dataset.zip",
                 "Downloading Flickr8k images zip (one-time full dataset)…",
                 ct);
-            if (downloaded)
-                _status.IncrementZipDownloaded();
 
             _status.SetExtracting("Extracting Flickr8k images zip (this can take a few minutes)…", "Flickr8k_Dataset.zip");
-            ZipFile.ExtractToDirectory(imgZip, flickrRoot, overwriteFiles: true);
+            try
+            {
+                ZipFile.ExtractToDirectory(imgZip, flickrRoot, overwriteFiles: true);
+            }
+            catch (InvalidDataException)
+            {
+                _logger.LogWarning("Extract failed for {Zip} — deleting corrupt archive and re-downloading once.", imgZip);
+                TryDelete(imgZip);
+                _status.SetDownloading("Corrupt zip detected — re-downloading…", "Flickr8k_Dataset.zip", 0, null);
+                await DownloadAsync(
+                    _options.FlickrImagesZipUrl,
+                    imgZip,
+                    "Flickr8k_Dataset.zip",
+                    "Corrupt zip detected — re-downloading Flickr8k images zip…",
+                    ct,
+                    force: true);
+                _status.IncrementZipDownloaded();
+                EnsureZipReadable(imgZip);
+                _status.SetExtracting("Extracting Flickr8k images zip (retry)…", "Flickr8k_Dataset.zip");
+                ZipFile.ExtractToDirectory(imgZip, flickrRoot, overwriteFiles: true);
+            }
 
             _status.SetExtracting("Copying JPEGs into images/…");
             foreach (var jpg in Directory.EnumerateFiles(flickrRoot, "*.jpg", SearchOption.AllDirectories))
@@ -204,8 +282,10 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         }
     }
 
-    /// <summary>Returns true if bytes were downloaded this call; false if skipped (already on disk).</summary>
-    private async Task<bool> DownloadAsync(
+    /// <summary>
+    /// Reuse on-disk zip only if it opens as a valid archive; otherwise download (once more if corrupt).
+    /// </summary>
+    private async Task EnsureValidZipAsync(
         string url,
         string destPath,
         string displayName,
@@ -213,6 +293,69 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         CancellationToken ct)
     {
         if (File.Exists(destPath) && new FileInfo(destPath).Length > 1024)
+        {
+            if (TryValidateZip(destPath))
+            {
+                var len = new FileInfo(destPath).Length;
+                _status.SetDownloading($"Using existing {displayName}", displayName, len, len);
+                return;
+            }
+
+            _logger.LogWarning("Corrupt zip on disk ({Path}) — re-downloading.", destPath);
+            _status.SetDownloading("Corrupt zip detected — re-downloading…", displayName, 0, null);
+            TryDelete(destPath);
+            await DownloadAsync(url, destPath, displayName, message, ct, force: true);
+            _status.IncrementZipDownloaded();
+            EnsureZipReadable(destPath);
+            return;
+        }
+
+        var downloaded = await DownloadAsync(url, destPath, displayName, message, ct, force: false);
+        if (downloaded)
+            _status.IncrementZipDownloaded();
+        EnsureZipReadable(destPath);
+    }
+
+    private static bool TryValidateZip(string path)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            _ = archive.Entries.Count;
+            return true;
+        }
+        catch (InvalidDataException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static void EnsureZipReadable(string path)
+    {
+        if (!TryValidateZip(path))
+            throw new InvalidDataException(
+                $"Zip archive is invalid or truncated: {path}. Delete it and retry ingest.");
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { /* best effort */ }
+    }
+
+    /// <summary>Returns true if bytes were downloaded this call; false if skipped (already on disk).</summary>
+    private async Task<bool> DownloadAsync(
+        string url,
+        string destPath,
+        string displayName,
+        string message,
+        CancellationToken ct,
+        bool force = false)
+    {
+        if (!force && File.Exists(destPath) && new FileInfo(destPath).Length > 1024)
         {
             var len = new FileInfo(destPath).Length;
             _status.SetDownloading($"Using existing {displayName}", displayName, len, len);
@@ -254,6 +397,13 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         await output.FlushAsync(ct);
         output.Close();
 
+        if (total is > 0 && received != total.Value)
+        {
+            TryDelete(partial);
+            throw new IOException(
+                $"Download incomplete for {displayName}: received {received} of {total} bytes. Retry ingest.");
+        }
+
         if (File.Exists(destPath))
             File.Delete(destPath);
         File.Move(partial, destPath);
@@ -279,20 +429,4 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
-
-    private static async Task<FlickrState> LoadStateAsync(string path, CancellationToken ct)
-    {
-        if (!File.Exists(path))
-            return new FlickrState(0);
-        await using var fs = File.OpenRead(path);
-        return await JsonSerializer.DeserializeAsync<FlickrState>(fs, cancellationToken: ct) ?? new FlickrState(0);
-    }
-
-    private static async Task SaveStateAsync(string path, FlickrState state, CancellationToken ct)
-    {
-        await using var fs = File.Create(path);
-        await JsonSerializer.SerializeAsync(fs, state, cancellationToken: ct);
-    }
-
-    private sealed record FlickrState(int Offset);
 }

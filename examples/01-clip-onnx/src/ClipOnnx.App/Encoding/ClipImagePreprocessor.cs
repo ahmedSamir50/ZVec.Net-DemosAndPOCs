@@ -12,11 +12,8 @@ namespace ClipOnnx.App.Encoding;
 ///
 /// Why 224? ViT-B/32 was trained on 224×224 patches (patch size 32 → 7×7 tokens).
 ///
-/// Demo choice vs CLIP paper:
-///   Paper / HF processor: scale so the short side is 224, then CENTER-CROP
-///     (discards edges). We instead FIT-CONTAIN (keep entire image) and PAD
-///     empty strips so nothing is cropped. Slight distribution shift vs training,
-///     but better for demos where edge content matters.
+/// Preprocess matches OpenAI / HF CLIP:
+///   scale so the short side is 224, then CENTER-CROP 224×224 (edges discarded).
 /// </summary>
 public static class ClipImagePreprocessor
 {
@@ -33,7 +30,7 @@ public static class ClipImagePreprocessor
     private static readonly float[] Std = [0.26862954f, 0.26130258f, 0.27577711f];
 
     /// <summary>
-    /// Decode → fit-contain resize → pad to 224×224 → NCHW float plane
+    /// Decode → short-side resize to 224 → center-crop 224×224 → NCHW float plane
     /// of length 3*224*224 (caller wraps with batch dim = 1 for ONNX).
     /// </summary>
     public static float[] ToClipTensor(Stream imageStream)
@@ -46,33 +43,32 @@ public static class ClipImagePreprocessor
         using var rgba = original.Copy(SKColorType.Rgba8888)
             ?? throw new InvalidOperationException("Unable to convert image to RGBA.");
 
-        // Fit-contain: uniform scale so BOTH width and height fit inside Size×Size.
-        // Math.Min → the limiting side; the other side will be smaller and get padding.
-        var scale = Math.Min((float)Size / rgba.Width, (float)Size / rgba.Height);
+        // Short-side scale to Size (CLIP / torchvision Resize then CenterCrop).
+        var scale = Math.Max((float)Size / rgba.Width, (float)Size / rgba.Height);
         var newW = Math.Max(1, (int)Math.Round(rgba.Width * scale));
         var newH = Math.Max(1, (int)Math.Round(rgba.Height * scale));
 
-        // High-quality resample (Mitchell ≈ bicubic family; CLIP training used bicubic).
+        // Bicubic-family resample (CLIP training used bicubic).
         using var resized = rgba.Resize(new SKImageInfo(newW, newH), new SKSamplingOptions(SKCubicResampler.Mitchell))
             ?? throw new InvalidOperationException("Resize failed.");
 
-        using var canvasBmp = new SKBitmap(Size, Size, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using (var canvas = new SKCanvas(canvasBmp))
+        var left = Math.Max(0, (newW - Size) / 2);
+        var top = Math.Max(0, (newH - Size) / 2);
+        var cropW = Math.Min(Size, newW);
+        var cropH = Math.Min(Size, newH);
+
+        using var cropped = new SKBitmap(Size, Size, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(cropped))
         {
-            // Letterbox / pillarbox with CLIP-mean gray so padded pixels ≈ 0 after normalize.
-            var pad = new SKColor(
-                (byte)Math.Clamp((int)(Mean[0] * 255), 0, 255),
-                (byte)Math.Clamp((int)(Mean[1] * 255), 0, 255),
-                (byte)Math.Clamp((int)(Mean[2] * 255), 0, 255));
-            canvas.Clear(pad);
-            var left = (Size - newW) / 2;
-            var top = (Size - newH) / 2;
-            canvas.DrawBitmap(resized, left, top);
+            canvas.Clear(SKColors.Black);
+            var src = new SKRect(left, top, left + cropW, top + cropH);
+            var dst = new SKRect(0, 0, cropW, cropH);
+            canvas.DrawBitmap(resized, src, dst);
         }
 
         // Flatten to NCHW without batch: R plane, then G, then B (each Size*Size).
         var tensor = new float[3 * Size * Size];
-        var pixels = canvasBmp.Pixels;
+        var pixels = cropped.Pixels;
         for (var y = 0; y < Size; y++)
         {
             for (var x = 0; x < Size; x++)

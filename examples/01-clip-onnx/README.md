@@ -1,16 +1,42 @@
 # CLIP ONNX gallery (ZVec.NET)
 
-Index Flickr8k photos with **CLIP ViT-B/32** vision embeddings, store `{id, path, embedding}` in **ZVec.NET**, then search by **text** or **uploaded image** in the same 512-d space.
+Local **CLIP dual-encoder** (ONNX Runtime, CPU) + local **ZVec.NET** Cosine index of **vision** embeddings.
+Search is multimodal: **text→image** and **image→image** from pixels. Flickr captions may appear under result cards as **secondary enrichment only** — they are not indexed for primary ranking.
 
-## Stack
+**Same in-process story as PDDM:** vision embeddings live in a local ZVec collection (`data/zvec-clip-gallery/…`) — multimodal search without a Qdrant/pgvector/cloud vector microservice.
 
-| Piece | Choice |
-|-------|--------|
-| Host | ASP.NET Core Minimal API (`net10.0`) + static UI |
-| Vectors | ZVec.NET `1.0.0-beta.2` typed ODM (`ImageAsset`) |
-| Encoders | ONNX Runtime — `vision_model.onnx` + `text_model.onnx` |
-| Preprocess | SkiaSharp **fit-contain + pad** to **224×224** (no center-crop discard) |
-| Dataset | Flickr8k — one-time full zip download, then resumeable upserts (default **100** images/run) |
+## Multi-model picker (B/32 · B/16 · L/14)
+
+| Id | Model | Dim | Notes |
+|----|-------|-----|-------|
+| `clip-vit-b32` | OpenAI CLIP ViT-B/32 | 512 | Fastest / weakest — smoke tests |
+| `clip-vit-b16` | OpenAI CLIP ViT-B/16 | 512 | **Default** — balanced demo |
+| `clip-vit-l14` | OpenAI CLIP ViT-L/14 | **768** | Best accuracy — **pre-ingest before the talk** (slow CPU encode) |
+
+ONNX files live under `models/{modelId}/`. ZVec collections live under `data/zvec-clip-gallery/{modelId}/`.
+
+### Critical: never mix models in one index
+
+Embeddings from different CLIP variants are incompatible (even B/32 vs B/16 at 512-d). The gallery stamp stores `ModelId`, `EmbeddingDim`, `EncodePipelineVersion`, and `Offset`. After **Apply model**, if the stamp does not match:
+
+1. Search is blocked with a clear message  
+2. Ingest-append is refused  
+3. Use **Reset index → Ingest** (Flickr images are kept)
+
+## Live demo script (recommended)
+
+1. Open the UI → pick **CLIP ViT-L/14** (or B/16) → **Apply model** (downloads if needed)  
+2. If mismatch banner appears → **Reset index**  
+3. **Ingest** enough images **before** the talk (especially L/14)  
+4. Status **Demo ready** → use query chips → then **Image → image** for the multimodal punchline  
+5. Captions under cards are human Flickr text — say so explicitly if asked  
+
+Banned trap queries in search: bare `network`, `19`.
+
+## Scores
+
+ZVec Cosine score ≈ `(1 + cosθ) / 2`. UI **similarity %** uses `cosine = 2*score - 1`.  
+Defaults: `MinCosine=0.30`, gap `0.05`, `MinConfidentHits=3` (empty beats junk).
 
 ## Setup
 
@@ -21,75 +47,39 @@ cd src/ClipOnnx.App
 dotnet run
 ```
 
-### Models (auto-download on startup)
-
-On start, the app checks **`ClipOnnx:ModelsDir`** (default `./models` under the content root).
-
-- If all four files are present → load ONNX and mark ready.
-- If any are missing and **`AutoDownloadModels`** is `true` (default) → download from Hugging Face into that folder with progress on `GET /api/status` and the UI.
-- Files: `vision_model.onnx`, `text_model.onnx`, `vocab.json`, `merges.txt`  
-  Source: [inference4j/clip-vit-base-patch32](https://huggingface.co/inference4j/clip-vit-base-patch32)
-
-Override path / URLs in `appsettings.json`:
+`appsettings.json`:
 
 ```json
 "ClipOnnx": {
-  "ModelsDir": "./models",
-  "AutoDownloadModels": true,
-  "ModelDownloadUrlTemplate": "https://huggingface.co/inference4j/clip-vit-base-patch32/resolve/main/{file}"
+  "ActiveModelId": "clip-vit-b16",
+  "MinCosine": 0.30,
+  "MaxCosineGapFromTop": 0.05,
+  "MinConfidentHits": 3,
+  "TextPromptTemplates": [ "a photo of {query}" ]
 }
 ```
 
-Optional offline helper (same files): `./scripts/download-models.ps1`
+## API
 
-Open the printed URL. Ingest/search stay disabled until **models state = Ready**.
+- `GET /api/models` — catalog + expectations  
+- `POST /api/models/select` `{ "modelId": "clip-vit-l14" }` — download/load + mismatch flag  
+- `GET /api/status` — models, ingest, gallery stamp, `demoReady`, warnings  
+- `POST /api/ingest` / `POST /api/ingest/reset`  
+- `POST /api/search/text` / `POST /api/search/image`  
+- `GET /api/debug/encode-check` — mutual CLIP cosine (active model)  
+- `GET /api/debug/probe` / `GET /api/debug/sanity`  
 
-### Ingest + search
+## Hardware note
 
-1. **Ingest gallery** — `POST /api/ingest` starts a **background** job and returns **202**. Progress is on `GET /api/status` → `ingest` (same poll as models).
-   - **First run:** downloads the full Flickr8k text + images zips (large, ~1GB images) with **byte %**, then extracts, then encodes.
-   - **`maxImages`** (default 100) only limits how many photos are **encoded+upserted** this run from the saved manifest offset — it does **not** partial-download the zip.
-   - Later clicks continue from `data/state/flickr8k.json`.
-2. **Text search** — natural language → text ONNX → ZVec top-K.
-3. **Image search** — upload → same SkiaSharp preprocess + vision ONNX → ZVec top-K.
+Laptop-class CPU (e.g. i7-8850H + 32GB) can run B/16 and L/14 **FP32 on CPU**. **4GB VRAM is not assumed** for L/14 dual-encoder CUDA. Pre-embed L/14 before live demos.
 
-API:
-
-- `GET /api/status` — `models.*` (download/ready) + `ingest.*` (state, download %, embed offset/total, message) + `encoderReady`
-- `POST /api/ingest` `{ "maxImages": 100 }` → **202** `{ started, maxImages }` (or **409** if already running)
-- `POST /api/search/text` `{ "query": "…", "topK": 10 }`
-- `POST /api/search/image` multipart `file` (+ optional `topK`)
-
-Ingest states: `Idle` → `Downloading` → `Extracting` → `Embedding` → `Completed` | `Failed`.
-
-## Data layout (gitignored)
+## Data layout
 
 ```
 data/
-  flickr8k/images/     # originals for UI thumbnails
-  flickr8k/*.txt       # manifests
-  zvec-clip-gallery/   # on-disk ZVec collection
-  state/flickr8k.json  # manifest offset for resume
-models/                # ONNX + vocab (auto-downloaded; not committed)
+  flickr8k/images/
+  flickr8k/Flickr8k.token.txt   # captions for UI only
+  zvec-clip-gallery/{modelId}/  # per-model ZVec
+  state/flickr8k.json           # offset + model stamp
+models/{modelId}/               # per-model ONNX + vocab
 ```
-
-## Schema
-
-```csharp
-[ZVecCollection("clip_gallery")]
-public sealed class ImageAsset
-{
-    public string Id { get; set; }
-    public string Path { get; set; }
-    [ZVecVector(512, Metric = ZVecMetricType.Cosine, M = 16, EfConstruction = 200)]
-    public ReadOnlyMemory<float> Embedding { get; set; }
-}
-```
-
-No captions stored. Scores are cosine on L2-normalized 512-d vectors.
-
-## Notes
-
-- Preprocess is **fit-contain + pad**, not CLIP’s original center-crop (keeps all content; slight distribution shift vs training).
-- First model download is hundreds of MB; first Flickr download is ~1GB once. Use `maxImages: 100` while testing embeds.
-- CPU ONNX by default.

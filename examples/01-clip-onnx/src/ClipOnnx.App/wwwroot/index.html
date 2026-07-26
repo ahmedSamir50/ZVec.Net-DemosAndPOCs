@@ -13,6 +13,7 @@
       --muted: #7E93B5;
       --accent: #00D4FF;
       --good: #4ADE80;
+      --warn: #FFC456;
     }
     * { box-sizing: border-box; }
     body {
@@ -22,21 +23,27 @@
     }
     main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
     h1 { font-size: 28px; margin: 0 0 6px; }
-    .sub { color: var(--muted); margin-bottom: 22px; }
+    .sub { color: var(--muted); margin-bottom: 14px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
     .panel {
       background: var(--bg-soft); border: 1px solid var(--line);
       border-radius: 14px; padding: 16px 18px; margin-bottom: 16px;
     }
     .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    input[type=text], input[type=number] {
+    input[type=text], input[type=number], select {
       background: #07172C; border: 1px solid var(--line); color: var(--text);
-      border-radius: 8px; padding: 10px 12px; min-width: 220px;
+      border-radius: 8px; padding: 10px 12px; min-width: 180px;
     }
+    select { min-width: 220px; }
     button {
       background: var(--accent); color: #07172C; border: 0; border-radius: 8px;
       padding: 10px 14px; font-weight: 700; cursor: pointer;
     }
     button.secondary { background: transparent; color: var(--accent); border: 1px solid rgba(0,212,255,0.4); }
+    button.chip {
+      background: rgba(0,212,255,0.12); color: var(--accent); font-weight: 600; font-size: 12px;
+      padding: 6px 10px;
+    }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .muted { color: var(--muted); font-size: 13px; }
     .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
@@ -47,6 +54,7 @@
     }
     .badge.ready { background: rgba(74,222,128,0.16); color: var(--good); }
     .badge.failed { background: rgba(255,122,182,0.16); color: #FF7AB6; }
+    .badge.warn { background: rgba(255,196,86,0.16); color: var(--warn); }
     .bar {
       margin-top: 10px; height: 10px; border-radius: 999px; background: #07172C; overflow: hidden;
       border: 1px solid var(--line);
@@ -62,18 +70,61 @@
     }
     .card {
       background: #07172C; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+      cursor: zoom-in;
     }
-    .card img { width: 100%; height: 140px; object-fit: cover; display: block; background: #000; }
+    .card img { width: 100%; height: 140px; object-fit: cover; display: block; background: #000; pointer-events: none; }
     .meta { padding: 8px 10px; font-size: 12px; color: var(--muted); }
-    .score { color: var(--accent); font-weight: 700; }
+    .score-big { font-size: 22px; letter-spacing: -0.02em; line-height: 1.1; color: var(--accent); font-weight: 700; }
+    .score-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .caption { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.35; font-style: italic; }
+    .empty-state { color: var(--muted); padding: 18px 4px; line-height: 1.5; max-width: 640px; }
+    .warn-banner {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid rgba(255, 196, 86, 0.35);
+      background: rgba(255, 196, 86, 0.08); color: var(--warn); font-size: 13px; line-height: 1.45;
+    }
+    .expect {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--line); background: #07172C; font-size: 13px; line-height: 1.45; color: var(--muted);
+    }
+    .expect strong { color: var(--text); }
+    .prompt-line { margin-top: 8px; font-size: 12px; color: var(--muted); word-break: break-word; }
     .err { color: #FF7AB6; }
     .help { color: var(--muted); font-size: 12px; margin: 8px 0 0; line-height: 1.45; max-width: 720px; }
+    .lightbox {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(7, 23, 44, 0.88);
+      display: none; align-items: center; justify-content: center;
+      padding: 24px; cursor: zoom-out;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox-inner {
+      max-width: min(960px, 96vw); max-height: 92vh;
+      display: flex; flex-direction: column; gap: 10px; align-items: center;
+      cursor: default;
+    }
+    .lightbox-inner img {
+      max-width: 100%; max-height: calc(92vh - 48px);
+      object-fit: contain; border-radius: 10px;
+      border: 1px solid var(--line); background: #000;
+    }
+    .lightbox-caption { color: var(--muted); font-size: 13px; text-align: center; }
+    .lightbox-close {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(0,212,255,0.14); color: var(--accent);
+      border: 1px solid rgba(0,212,255,0.4); border-radius: 8px;
+      padding: 8px 12px; font-weight: 700; cursor: pointer;
+    }
   </style>
 </head>
 <body>
 <main>
   <h1>CLIP gallery search</h1>
-  <p class="sub">Flickr8k · CLIP ViT-B/32 ONNX · ZVec.NET in-process · fit-contain pad 224</p>
+  <p class="sub">Local CLIP ONNX · Local ZVec.NET · vision embeddings primary · captions secondary</p>
+  <div class="badges">
+    <span class="badge" id="offlineBadge">Local CLIP · Local ZVec · Offline</span>
+    <span class="badge" id="demoReadyBadge">Demo …</span>
+  </div>
 
   <div class="panel">
     <div class="row" style="justify-content:space-between">
@@ -85,10 +136,18 @@
     </div>
     <p class="muted" id="modelMessage" style="margin:10px 0 4px">Checking…</p>
     <div class="mono" id="modelsDir"></div>
+    <div class="row" style="margin-top:12px">
+      <label class="muted">ONNX model
+        <select id="modelSelect" disabled></select>
+      </label>
+      <button type="button" id="applyModelBtn" disabled>Apply model</button>
+    </div>
+    <div class="expect" id="expectPanel">Select a model to see accuracy / latency / download expectations.</div>
     <div class="bar" title="Overall download / ready progress"><i id="overallBar"></i></div>
     <div class="muted" id="overallPct" style="margin-top:6px"></div>
     <div id="fileList"></div>
     <p class="err" id="modelError" style="margin-top:8px"></p>
+    <div class="warn-banner" id="galleryWarn" style="display:none"></div>
   </div>
 
   <div class="panel">
@@ -99,12 +158,14 @@
       </div>
     </div>
     <p class="help">
-      First run downloads the full Flickr8k image zip once (~1GB) with progress below, then extracts.
-      <strong>Images this run</strong> only limits how many photos are encoded into ZVec (resume from saved offset) — it does not partial-download the zip.
+      Embeds <strong>vision</strong> vectors only into ZVec for the <strong>active</strong> model.
+      After changing ONNX model, use <strong>Reset index</strong> then Ingest — never mix embedding spaces.
+      L/14: pre-ingest before the live talk (CPU encode is slow).
     </p>
     <div class="row" style="margin-top:10px">
       <label>Images this run <input type="number" id="maxImages" value="100" min="1" max="6000" /></label>
       <button type="button" id="ingestBtn" disabled>Ingest</button>
+      <button class="secondary" type="button" id="resetIndexBtn" disabled>Reset index</button>
     </div>
     <p class="muted" id="ingestMessage" style="margin:10px 0 4px"></p>
     <div class="mono" id="ingestDetail"></div>
@@ -115,14 +176,19 @@
 
   <div class="panel">
     <strong>Text → image</strong>
+    <p class="help">CLIP text query into the vision index. Prefer chips for demos.</p>
+    <div class="row" style="margin-top:8px" id="chips"></div>
     <div class="row" style="margin-top:10px">
-      <input type="text" id="query" placeholder='e.g. "a dog running in the snow"' style="flex:1" disabled />
+      <input type="text" id="query" placeholder="a photo of dogs in the snow" style="flex:1" disabled />
+      <label class="muted">Top K <input type="number" id="topK" value="10" min="1" max="50" style="min-width:72px" disabled /></label>
+      <label class="muted">Min similarity % <input type="number" id="minSimPct" value="30" min="0" max="100" style="min-width:72px" disabled /></label>
       <button type="button" id="searchTextBtn" disabled>Search</button>
     </div>
   </div>
 
   <div class="panel">
     <strong>Image → image</strong>
+    <p class="help">Prove multimodal: query with pixels, not captions.</p>
     <div class="row" style="margin-top:10px">
       <input type="file" id="file" accept="image/*" disabled />
       <button type="button" id="searchImageBtn" disabled>Search upload</button>
@@ -131,25 +197,51 @@
 
   <div class="panel">
     <strong>Results</strong>
+    <p class="help" style="margin-top:6px">Similarity % = CLIP cosine (not ZVec raw score). Caption under each card is Flickr text for humans — not used for ranking.</p>
+    <div class="prompt-line" id="promptLine"></div>
     <div id="results" class="grid"></div>
   </div>
 </main>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Original image">
+  <button type="button" class="lightbox-close" id="lightboxClose">Close</button>
+  <div class="lightbox-inner" id="lightboxInner">
+    <img id="lightboxImg" src="" alt="" />
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+  </div>
+</div>
+
 <script>
 let pollTimer = null;
 let ready = false;
 let ingestActive = false;
+let catalog = [];
+let activeModelId = null;
+
+const DEMO_CHIPS = [
+  'dogs in the snow',
+  'people on a beach',
+  'a red bicycle',
+  'a brown dog',
+  'children playing'
+];
 
 function setSearchEnabled(on) {
   ready = on;
-  ['searchTextBtn','searchImageBtn','query','file'].forEach(id => {
+  ['searchTextBtn','searchImageBtn','query','file','topK','minSimPct'].forEach(id => {
     document.getElementById(id).disabled = !on;
   });
+  document.querySelectorAll('#chips button').forEach(b => { b.disabled = !on; });
   updateIngestButton();
 }
 
 function updateIngestButton() {
   const btn = document.getElementById('ingestBtn');
+  const reset = document.getElementById('resetIndexBtn');
   btn.disabled = !ready || ingestActive;
+  reset.disabled = !ready || ingestActive;
+  document.getElementById('applyModelBtn').disabled = ingestActive;
+  document.getElementById('modelSelect').disabled = ingestActive;
 }
 
 function fmtBytes(n) {
@@ -161,8 +253,57 @@ function fmtBytes(n) {
 }
 
 function ensurePolling() {
-  if (!pollTimer)
-    pollTimer = setInterval(refreshStatus, 1000);
+  if (!pollTimer) pollTimer = setInterval(refreshStatus, 1000);
+}
+
+function renderChips() {
+  const root = document.getElementById('chips');
+  root.innerHTML = '';
+  DEMO_CHIPS.forEach(q => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = q;
+    b.disabled = !ready;
+    b.onclick = () => {
+      document.getElementById('query').value = q;
+      document.getElementById('searchTextBtn').click();
+    };
+    root.appendChild(b);
+  });
+}
+
+function findExpect(id) {
+  return catalog.find(m => m.id === id || m.Id === id);
+}
+
+function showExpectations(id) {
+  const m = findExpect(id);
+  const el = document.getElementById('expectPanel');
+  if (!m) { el.textContent = 'Unknown model.'; return; }
+  el.innerHTML =
+    '<strong>' + (m.displayName || m.DisplayName) + '</strong><br/>' +
+    'Accuracy: ' + (m.accuracyTier || m.AccuracyTier) + '<br/>' +
+    'Embedding dim: <strong>' + (m.embeddingDim || m.EmbeddingDim) + '</strong><br/>' +
+    'Latency: ' + (m.latencyExpectation || m.LatencyExpectation) + '<br/>' +
+    'Download: ' + (m.downloadSizeNote || m.DownloadSizeNote) + '<br/>' +
+    (m.vramNote || m.VramNote) + '<br/>' +
+    'When to pick: ' + (m.whenToPick || m.WhenToPick);
+}
+
+function fillModelSelect(list, selectedId) {
+  catalog = list || [];
+  const sel = document.getElementById('modelSelect');
+  sel.innerHTML = '';
+  catalog.forEach(m => {
+    const id = m.id || m.Id;
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = (m.displayName || m.DisplayName) + ' (' + (m.embeddingDim || m.EmbeddingDim) + '-d)';
+    sel.appendChild(opt);
+  });
+  if (selectedId) sel.value = selectedId;
+  showExpectations(sel.value);
 }
 
 function renderIngest(ing) {
@@ -175,8 +316,7 @@ function renderIngest(ing) {
 
   document.getElementById('ingestMessage').textContent = ing.message || '';
   document.getElementById('ingestDetail').textContent = ing.phaseDetail
-    ? ('File: ' + ing.phaseDetail)
-    : '';
+    ? ('File: ' + ing.phaseDetail) : '';
 
   let pct = 0;
   let pctLabel = '';
@@ -219,8 +359,7 @@ async function refreshStatus() {
 
     document.getElementById('modelMessage').textContent = m.message || '';
     document.getElementById('modelsDir').textContent = m.modelsDir
-      ? ('Models path: ' + m.modelsDir)
-      : '';
+      ? ('Models path: ' + m.modelsDir) : '';
     const pct = m.overallPercent != null ? m.overallPercent : (j.encoderReady ? 100 : 0);
     document.getElementById('overallBar').style.width = pct + '%';
     document.getElementById('overallPct').textContent =
@@ -242,38 +381,141 @@ async function refreshStatus() {
       list.appendChild(row);
     });
 
+    if (j.modelsCatalog) fillModelSelect(j.modelsCatalog, (j.activeModel && j.activeModel.id) || activeModelId);
+    activeModelId = (j.activeModel && j.activeModel.id) || activeModelId;
+
+    const demo = document.getElementById('demoReadyBadge');
+    if (j.demoReady) {
+      demo.textContent = 'Demo ready';
+      demo.className = 'badge ready';
+    } else if (j.gallery && j.gallery.modelMismatch) {
+      demo.textContent = 'Model mismatch — Reset+Ingest';
+      demo.className = 'badge warn';
+    } else {
+      demo.textContent = 'Not demo-ready';
+      demo.className = 'badge';
+    }
+
     renderIngest(j.ingest);
     setSearchEnabled(!!j.encoderReady);
+    renderChips();
 
-    // Keep polling while models loading OR ingest active
-    const needPoll = !j.encoderReady || (j.ingest && j.ingest.active);
-    if (needPoll) ensurePolling();
-    else if (pollTimer && j.encoderReady && !(j.ingest && j.ingest.active)) {
-      // Models ready and ingest idle — slow stop only if we already have a timer from startup
-      // Keep a light poll so Completed state refreshes after background job; stop after idle settle
+    const warn = document.getElementById('galleryWarn');
+    const warnings = j.warnings || [];
+    if (warnings.length) {
+      warn.style.display = 'block';
+      warn.textContent = warnings.join(' ');
+    } else {
+      warn.style.display = 'none';
+      warn.textContent = '';
     }
+
+    const needPoll = !j.encoderReady || (j.ingest && j.ingest.active) || (m.state === 'Downloading');
+    if (needPoll) ensurePolling();
   } catch (e) {
     document.getElementById('modelError').textContent = String(e);
   }
 }
 
-function renderHits(hits) {
+function openLightbox(src, caption) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxCaption').textContent = caption || '';
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+}
+document.getElementById('lightboxClose').onclick = (e) => { e.stopPropagation(); closeLightbox(); };
+document.getElementById('lightbox').onclick = () => closeLightbox();
+document.getElementById('lightboxInner').onclick = (e) => e.stopPropagation();
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+function renderSearchResponse(j) {
+  const promptLine = document.getElementById('promptLine');
+  const summary = j.promptSummary || j.PromptSummary;
+  const filteredOut = j.filteredOut ?? j.FilteredOut ?? 0;
+  const raw = j.rawHitCount ?? j.RawHitCount ?? 0;
+  const empty = j.emptyMessage || j.EmptyMessage;
+  const hits = j.hits || j.Hits || [];
+  const enc = j.encodeMs ?? j.EncodeMs;
+  const qry = j.queryMs ?? j.QueryMs;
+  const model = j.activeModelId || j.ActiveModelId;
+  const dim = j.embeddingDim ?? j.EmbeddingDim;
+
+  let bits = [];
+  if (model) bits.push(model + (dim ? ' · ' + dim + '-d' : ''));
+  if (summary) bits.push('Prompt: ' + summary);
+  if (enc != null) bits.push('encode ' + enc + ' ms');
+  if (qry != null) bits.push('query ' + qry + ' ms');
+  if (raw > 0) bits.push('raw ' + raw + (filteredOut ? ', filtered ' + filteredOut : ''));
+  promptLine.textContent = bits.join(' · ');
+
   const root = document.getElementById('results');
   root.innerHTML = '';
-  if (!hits || !hits.length) {
-    root.innerHTML = '<div style="color:var(--muted)">No hits</div>';
+  if (!hits.length) {
+    root.innerHTML = '<div class="empty-state"><strong>No confident matches</strong><br/>' +
+      (empty || 'Try a chip query, or Reset index → Ingest after a model change.') + '</div>';
     return;
   }
   for (const h of hits) {
     const card = document.createElement('div');
     card.className = 'card';
-    const src = '/gallery/' + encodeURIComponent(h.fileName || h.FileName);
-    card.innerHTML = `<img src="${src}" alt="" /><div class="meta"><div class="score">${(h.score ?? h.Score).toFixed(3)}</div><div>${h.fileName || h.FileName}</div></div>`;
+    const fileName = h.fileName || h.FileName;
+    const pct = h.similarityPercent ?? h.SimilarityPercent;
+    const cosine = h.cosine ?? h.Cosine;
+    const caption = h.caption || h.Caption;
+    const pctLabel = (pct != null ? pct : 0) + '%';
+    const src = '/gallery/' + encodeURIComponent(fileName);
+    card.innerHTML =
+      '<img src="' + src + '" alt="" /><div class="meta">' +
+      '<div class="score-big">' + pctLabel + '</div>' +
+      '<div class="score-sub">similarity · cos ' + Number(cosine).toFixed(3) + '</div>' +
+      '<div>' + fileName + '</div>' +
+      (caption ? '<div class="caption" title="Flickr caption (not used for primary search)">“' +
+        caption.replace(/</g,'&lt;') + '”</div>' : '') +
+      '</div>';
+    card.onclick = () => openLightbox(src, pctLabel + ' · ' + fileName + (caption ? ' · ' + caption : ''));
     root.appendChild(card);
   }
 }
 
+function readSearchControls() {
+  const topK = Math.max(1, Math.min(50, Number(document.getElementById('topK').value) || 10));
+  const minPct = Math.max(0, Math.min(100, Number(document.getElementById('minSimPct').value) || 0));
+  return { topK, minCosine: minPct / 100 };
+}
+
+document.getElementById('modelSelect').onchange = () => showExpectations(document.getElementById('modelSelect').value);
+
+document.getElementById('applyModelBtn').onclick = async () => {
+  const modelId = document.getElementById('modelSelect').value;
+  document.getElementById('modelError').textContent = '';
+  try {
+    const r = await fetch('/api/models/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modelId })
+    });
+    const j = await r.json();
+    if (!r.ok || j.ok === false) {
+      document.getElementById('modelError').textContent = j.error || JSON.stringify(j);
+      return;
+    }
+    activeModelId = j.activeModelId || modelId;
+    if (j.modelMismatch) {
+      document.getElementById('galleryWarn').style.display = 'block';
+      document.getElementById('galleryWarn').textContent = j.mismatchMessage || 'Model mismatch — Reset index → Ingest.';
+    }
+    ensurePolling();
+    refreshStatus();
+  } catch (e) {
+    document.getElementById('modelError').textContent = String(e);
+  }
+};
+
 document.getElementById('refreshStatus').onclick = refreshStatus;
+
 document.getElementById('ingestBtn').onclick = async () => {
   if (!ready || ingestActive) return;
   const outErr = document.getElementById('ingestError');
@@ -282,17 +524,37 @@ document.getElementById('ingestBtn').onclick = async () => {
     const r = await fetch('/api/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        maxImages: Number(document.getElementById('maxImages').value)
-      })
+      body: JSON.stringify({ maxImages: Number(document.getElementById('maxImages').value) })
     });
     const j = await r.json();
     if (r.status === 202) {
       ingestActive = true;
       updateIngestButton();
       document.getElementById('ingestMessage').textContent =
-        'Started — embedding up to ' + (j.maxImages || '') + ' image(s). Watch progress below.';
+        'Started — embedding up to ' + (j.maxImages || '') + ' image(s).';
       ensurePolling();
+      refreshStatus();
+    } else {
+      outErr.textContent = j.error || JSON.stringify(j);
+      outErr.className = 'err';
+    }
+  } catch (e) {
+    outErr.textContent = String(e);
+  }
+};
+
+document.getElementById('resetIndexBtn').onclick = async () => {
+  if (!ready || ingestActive) return;
+  if (!confirm('Reset gallery index for the active model? Clears ZVec embeddings for this model path and sets offset to 0. Flickr images are kept.'))
+    return;
+  const outErr = document.getElementById('ingestError');
+  outErr.textContent = '';
+  try {
+    const r = await fetch('/api/ingest/reset', { method: 'POST' });
+    const j = await r.json();
+    if (r.ok && j.reset) {
+      document.getElementById('ingestMessage').textContent =
+        'Index reset. Click Ingest to re-embed with the active model.';
       refreshStatus();
     } else {
       outErr.textContent = j.error || JSON.stringify(j);
@@ -306,28 +568,32 @@ document.getElementById('ingestBtn').onclick = async () => {
 document.getElementById('searchTextBtn').onclick = async () => {
   if (!ready) return;
   const q = document.getElementById('query').value;
+  const { topK, minCosine } = readSearchControls();
   const r = await fetch('/api/search/text', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: q, topK: 10 })
+    body: JSON.stringify({ query: q, topK, minCosine })
   });
   const j = await r.json();
   if (!r.ok) { alert(j.error || 'search failed'); return; }
-  renderHits(j);
+  renderSearchResponse(j);
 };
 
 document.getElementById('searchImageBtn').onclick = async () => {
   if (!ready) return;
   const f = document.getElementById('file').files[0];
   if (!f) { alert('choose an image'); return; }
+  const { topK, minCosine } = readSearchControls();
   const fd = new FormData();
   fd.append('file', f);
-  fd.append('topK', '10');
+  fd.append('topK', String(topK));
+  fd.append('minCosine', String(minCosine));
   const r = await fetch('/api/search/image', { method: 'POST', body: fd });
   const j = await r.json();
   if (!r.ok) { alert(j.error || 'search failed'); return; }
-  renderHits(j);
+  renderSearchResponse(j);
 };
 
+renderChips();
 refreshStatus();
 ensurePolling();
 </script>

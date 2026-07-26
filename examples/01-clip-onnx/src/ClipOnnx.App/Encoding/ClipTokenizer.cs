@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ClipOnnx.App.Encoding;
 
@@ -23,11 +24,22 @@ public sealed class ClipTokenizer
     /// <summary>CLIP text max tokens (including SOT/EOT). Must match ONNX input shape [1,77].</summary>
     public const int ContextLength = 77;
 
+    public const int SotId = 49406;
+    public const int EotId = 49407;
+
     private const string Sot = "<|startoftext|>";
     private const string Eot = "<|endoftext|>";
 
+    /// <summary>
+    /// OpenAI CLIP regex (minus special tokens — those are added explicitly).
+    /// Digits are matched one-at-a-time so "19" → "1","9".
+    /// </summary>
+    private static readonly Regex ClipPat = new(
+        @"'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private readonly Dictionary<string, int> _vocab;
-    private readonly List<(string A, string B)> _merges;
+    private readonly Dictionary<(string A, string B), int> _mergeRanks;
     private readonly Dictionary<byte, char> _byteEncoder;
 
     public ClipTokenizer(string vocabPath, string mergesPath)
@@ -41,37 +53,59 @@ public sealed class ClipTokenizer
         _vocab = JsonSerializer.Deserialize<Dictionary<string, int>>(vocabStream)
             ?? throw new InvalidOperationException("Failed to parse vocab.json");
 
+        if (!_vocab.TryGetValue(Sot, out var sot) || sot != SotId
+            || !_vocab.TryGetValue(Eot, out var eot) || eot != EotId)
+        {
+            throw new InvalidOperationException(
+                $"Unexpected CLIP special token ids (expected SOT={SotId}, EOT={EotId}).");
+        }
+
         // merges.txt: skip header comments; each "a b" line is one merge ranked by order.
-        _merges = [];
+        _mergeRanks = new Dictionary<(string, string), int>();
+        var rank = 0;
         foreach (var line in File.ReadLines(mergesPath))
         {
             if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
                 continue;
             var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 2)
-                _merges.Add((parts[0], parts[1]));
+            {
+                _mergeRanks[(parts[0], parts[1])] = rank;
+                rank++;
+            }
         }
 
         // Map every byte 0–255 to a printable unicode char so BPE can operate on strings.
         _byteEncoder = BuildByteEncoder();
+
+        ValidateGoldenSample();
     }
 
     /// <summary>
     /// Encode raw query text → (input_ids, attention_mask) for the text ONNX session.
-    /// Pipeline: clean → lower → word-split → bytes_to_unicode → BPE → vocab ids → pad/truncate to 77.
+    /// Pipeline: clean → lower → CLIP regex split → bytes_to_unicode → BPE → vocab ids → pad/truncate to 77.
     /// </summary>
     public (long[] InputIds, long[] AttentionMask) Encode(string text)
     {
         var tokens = new List<int> { _vocab[Sot] };
-        var cleaned = BasicClean(text).ToLowerInvariant();
-        foreach (var word in SplitWords(cleaned))
+        var cleaned = WhitespaceClean(BasicClean(text)).ToLowerInvariant();
+        foreach (Match m in ClipPat.Matches(cleaned))
         {
+            var word = m.Value;
+            if (word.Length == 0)
+                continue;
+
             // UTF-8 bytes → CLIP unicode alphabet, then BPE merge into subword tokens.
             var encoded = BytesToUnicode(System.Text.Encoding.UTF8.GetBytes(word));
             foreach (var bpeToken in Bpe(encoded))
             {
-                if (_vocab.TryGetValue(bpeToken, out var id))
-                    tokens.Add(id);
+                if (!_vocab.TryGetValue(bpeToken, out var id))
+                {
+                    throw new InvalidOperationException(
+                        $"CLIP BPE token '{bpeToken}' missing from vocab.json (query fragment '{word}').");
+                }
+
+                tokens.Add(id);
             }
         }
 
@@ -96,6 +130,18 @@ public sealed class ClipTokenizer
         return (ids, mask);
     }
 
+    /// <summary>Index of EOT in a padded id sequence (for last_hidden_state pooling).</summary>
+    public static int FindEotIndex(ReadOnlySpan<long> ids)
+    {
+        for (var i = ids.Length - 1; i >= 0; i--)
+        {
+            if (ids[i] == EotId)
+                return i;
+        }
+
+        return Math.Max(0, ids.Length - 1);
+    }
+
     /// <summary>
     /// Byte-pair encoding: start with characters (last marked &lt;/w&gt;), repeatedly merge
     /// the highest-ranked adjacent pair from merges.txt until no merge applies.
@@ -111,32 +157,29 @@ public sealed class ClipTokenizer
 
         while (word.Count > 1)
         {
-            var pairs = new List<(string A, string B)>();
-            for (var i = 0; i < word.Count - 1; i++)
-                pairs.Add((word[i], word[i + 1]));
-
-            // Lowest merge rank (earlier in merges.txt) wins.
-            var bestIdx = -1;
             var bestRank = int.MaxValue;
-            for (var i = 0; i < pairs.Count; i++)
+            var bestA = "";
+            var bestB = "";
+            var found = false;
+            for (var i = 0; i < word.Count - 1; i++)
             {
-                var rank = _merges.FindIndex(m => m.A == pairs[i].A && m.B == pairs[i].B);
-                if (rank >= 0 && rank < bestRank)
+                if (_mergeRanks.TryGetValue((word[i], word[i + 1]), out var r) && r < bestRank)
                 {
-                    bestRank = rank;
-                    bestIdx = i;
+                    bestRank = r;
+                    bestA = word[i];
+                    bestB = word[i + 1];
+                    found = true;
                 }
             }
 
-            if (bestIdx < 0)
+            if (!found)
                 break;
 
-            var (a, b) = pairs[bestIdx];
-            var merged = a + b;
+            var merged = bestA + bestB;
             var newWord = new List<string>();
             for (var i = 0; i < word.Count;)
             {
-                if (i < word.Count - 1 && word[i] == a && word[i + 1] == b)
+                if (i < word.Count - 1 && word[i] == bestA && word[i + 1] == bestB)
                 {
                     newWord.Add(merged);
                     i += 2;
@@ -167,28 +210,27 @@ public sealed class ClipTokenizer
         => text.Replace('\u2018', '\'').Replace('\u2019', '\'')
                .Replace('\u201c', '"').Replace('\u201d', '"').Trim();
 
-    private static IEnumerable<string> SplitWords(string text)
+    private static string WhitespaceClean(string text)
+        => Regex.Replace(text, @"\s+", " ").Trim();
+
+    /// <summary>
+    /// Smoke-check against OpenAI CLIP: SOT/EOT ids and a short known phrase.
+    /// Golden ids for "a photo of a cat" from openai/clip-vit-base-patch32.
+    /// </summary>
+    private void ValidateGoldenSample()
     {
-        // Simplified CLIP word split: keep letters/digits/' ; flush on other punctuation/space.
-        var sb = new StringBuilder();
-        foreach (var ch in text)
+        var (ids, _) = Encode("a photo of a cat");
+        // Expected: [49406, 320, 1125, 539, 320, 2368, 49407, 0…]
+        int[] golden = [49406, 320, 1125, 539, 320, 2368, 49407];
+        for (var i = 0; i < golden.Length; i++)
         {
-            if (char.IsLetterOrDigit(ch) || ch is '\'' )
+            if (ids[i] != golden[i])
             {
-                sb.Append(ch);
-            }
-            else
-            {
-                if (sb.Length > 0)
-                {
-                    yield return sb.ToString();
-                    sb.Clear();
-                }
+                throw new InvalidOperationException(
+                    $"CLIP tokenizer golden mismatch at index {i}: got {ids[i]}, expected {golden[i]} " +
+                    "(\"a photo of a cat\"). Check vocab.json / merges.txt.");
             }
         }
-
-        if (sb.Length > 0)
-            yield return sb.ToString();
     }
 
     /// <summary>
