@@ -18,10 +18,13 @@ public static class PddmDefaults
     public const int DefaultClusterCount = 3;
     public const int DefaultStandaloneHits = 5;
 
-    public const int ContextMaxDescriptionChars = 1200;
-    public const int ContextMaxRelatedStories = 10;
+    /// <summary>Max description chars in CONTEXT (keeps keys/summaries/Urls intact; cuts echo-dumps).</summary>
+    public const int ContextMaxDescriptionChars = 500;
+
+    public const int ContextMaxRelatedStories = 8;
     public const int ContextMaxCrossRefs = 3;
     public const int ContextMaxDecisionComments = 5;
+    public const int ContextMaxSubTasks = 8;
 
     /// <summary>Timeout for ambiguous-intent LLM classification.</summary>
     public const int IntentClassifyTimeoutMs = 5000;
@@ -49,31 +52,65 @@ public static class PddmDefaults
         Your job is to guide the developer through documentation hierarchy (UP = Epic/business, SIDE = siblings, DOWN = details/decisions) — NOT to dump retrieved text.
 
         Rules (mandatory):
-        1. Answer ONLY from CONTEXT. Suggest running Ingestion ONLY when CONTEXT is empty or explicitly says the key/docs were not found. If CONTEXT lists any Epics, issues, or comments, you MUST navigate from them — do not refuse with “run Ingestion”.
-        2. Synthesize briefly (short bullets / short sections). Do NOT paste raw CONTEXT, full descriptions, or long quotes unless a one-line decision excerpt is essential.
-        3. Every cited Jira key MUST be a markdown link using the Url from CONTEXT, e.g. [SPARK-57337](https://issues.apache.org/jira/browse/SPARK-57337). Never invent hosts like jira.example.com.
+        1. First decide: if CONTEXT lists any Epics, issues, comments, or Url lines, you MUST navigate from them. Suggest running Ingestion ONLY when CONTEXT is empty or explicitly says the key/docs were not found.
+        2. Synthesize briefly: at most 8–12 short bullets total; each section ≤ 2–3 lines. Do NOT paste raw CONTEXT, full descriptions, or repeat headers like "EPIC:" / "Url:" blocks verbatim. Prefer one-line decision excerpts only when essential.
+        3. Every cited Jira key MUST be a markdown link using the Url from CONTEXT, e.g. [SPARK-57337](https://issues.apache.org/jira/browse/SPARK-57337). Never invent hosts like jira.example.com. Never invent SPARK keys not present in CONTEXT.
         4. End with a "Sources" list of markdown links for keys you cited.
         """;
 
     /// <summary>Backward-compatible full system prompt (all scenarios). Prefer <see cref="BuildSystemPrompt"/>.</summary>
     public static string SystemPrompt => BuildSystemPrompt(QueryIntent.GeneralQuestion);
 
-    /// <summary>System prompt with a single scenario structure directive.</summary>
+    /// <summary>System prompt with a single scenario structure directive and output skeleton.</summary>
     public static string BuildSystemPrompt(QueryIntent intent)
     {
-        var structure = intent switch
+        var (structure, skeleton) = intent switch
         {
-            QueryIntent.AssignedIssue =>
-                "Structure: Assigned ticket — Epic → Your issue → Siblings / risks → useful decisions.",
-            QueryIntent.NewRequirement =>
+            QueryIntent.AssignedIssue => (
+                "Structure: Assigned ticket — Epic → Your issue → Siblings / risks → useful decisions / sub-tasks.",
+                """
+                Output skeleton:
+                ### Epic
+                - [KEY](url) — one-line business purpose
+                ### Your issue
+                - [KEY](url) — what it is / why it matters
+                ### Siblings / risks
+                - open siblings or risks (or "none noted")
+                ### Sources
+                - markdown links
+                """),
+            QueryIntent.NewRequirement => (
                 "Structure: New requirement — Related landscape (top Epics/issues) → suggestion where a new Story might belong.",
-            QueryIntent.DecisionRationale =>
+                """
+                Output skeleton:
+                ### Related landscape
+                - top 1–3 Epics/issues with [KEY](url) and one-line why relevant
+                ### Where to attach
+                - suggested Epic (or standalone) for a new Story
+                ### Sources
+                - markdown links
+                """),
+            QueryIntent.DecisionRationale => (
                 "Structure: Decision — Rationale summary → source issue/comment with links.",
-            _ =>
-                "Structure: General — Related landscape of existing work → point to the most relevant Epics/issues."
+                """
+                Output skeleton:
+                ### Rationale
+                - one short summary sentence; if a decision comment exists, include one short quoted one-liner
+                ### Sources
+                - parent issue + comment links from CONTEXT only
+                """),
+            _ => (
+                "Structure: General — Related landscape of existing work → point to the most relevant Epics/issues.",
+                """
+                Output skeleton:
+                ### Related landscape
+                - most relevant Epics/issues with [KEY](url)
+                ### Sources
+                - markdown links
+                """)
         };
 
-        return $"{SystemPromptBase.TrimEnd()}\n        5. {structure}";
+        return $"{SystemPromptBase.TrimEnd()}\n        5. {structure}\n\n{skeleton.Trim()}";
     }
 
     /// <summary>Wraps assembled context + user question for the chat model.</summary>
@@ -87,7 +124,7 @@ public static class PddmDefaults
         QUESTION:
         {question}
 
-        Respond as a navigator with markdown links.
+        Follow the system Structure and output skeleton exactly. Put Sources last. Use markdown links only from CONTEXT Url lines.
         """;
 
     /// <summary>System prompt for ambiguous-intent LLM classification (JSON only).</summary>
@@ -99,6 +136,16 @@ public static class PddmDefaults
         - NewRequirement: user wants to add/implement a feature or requirement.
         - DecisionRationale: user asks why a past decision was made / rationale.
         - GeneralQuestion: anything else about the project docs.
+
+        Examples:
+        Q: I got assigned SPARK-57337 — help me understand it
+        A: {"intent":"AssignedIssue","issueKey":"SPARK-57337"}
+        Q: I need to add ANSI mode validation so invalid string-to-number casts throw
+        A: {"intent":"NewRequirement","issueKey":null}
+        Q: Why did they decide to enable ANSI mode by default in Spark 4.0?
+        A: {"intent":"DecisionRationale","issueKey":null}
+        Q: Tell me about streaming shuffle coordination
+        A: {"intent":"GeneralQuestion","issueKey":null}
         """;
 }
 
@@ -132,13 +179,17 @@ public static class IntentPhrases
     [
         "why did they", "what was the decision", "why was",
         "rationale for", "reason for choosing", "how did they decide",
-        "what's the reasoning", "why did we choose", "decision behind"
+        "what's the reasoning", "why did we choose", "decision behind",
+        "enable by default", "why enable", "why did they decide to enable",
+        "explain the ansi", "ansi mode choice", "reasoning behind"
     ];
 
     public static readonly string[] Requirement =
     [
         "i need to", "i want to add", "we should add",
         "i have to implement", "add validation",
-        "new feature", "requirement", "i'm working on", "how to implement"
+        "new feature", "requirement", "i'm working on", "how to implement",
+        "string-to-number", "add ansi", "help me implement",
+        "i need to add", "invalid string-to-number"
     ];
 }

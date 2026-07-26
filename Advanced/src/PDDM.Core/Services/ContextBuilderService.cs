@@ -17,7 +17,8 @@ public sealed class ContextBuilderService : IContextBuilder
         ArgumentNullException.ThrowIfNull(navigation);
         if (!string.IsNullOrEmpty(navigation.AssembledContext) && navigation.CentralIssue is null
             && navigation.RelatedEpics.Count == 0 && navigation.DecisionComments.Count == 0
-            && navigation.ParentIssues.Count == 0 && navigation.StandaloneRelatedIssues.Count == 0)
+            && navigation.ParentIssues.Count == 0 && navigation.StandaloneRelatedIssues.Count == 0
+            && navigation.SubTasks.Count == 0 && navigation.SiblingIssues.Count == 0)
         {
             return navigation.AssembledContext;
         }
@@ -27,16 +28,24 @@ public sealed class ContextBuilderService : IContextBuilder
         {
             case QueryIntent.AssignedIssue:
                 AppendEpic(sb, navigation.ParentEpic);
-                AppendList(sb, "Sibling work", navigation.SiblingIssues, PddmDefaults.ContextMaxRelatedStories);
                 AppendIssue(sb, "Central issue", navigation.CentralIssue);
+                AppendList(sb, "Sibling work", navigation.SiblingIssues, PddmDefaults.ContextMaxRelatedStories);
+                AppendList(sb, "Sub-tasks", navigation.SubTasks, PddmDefaults.ContextMaxSubTasks);
                 AppendList(sb, "Decision comments", navigation.DecisionComments, PddmDefaults.ContextMaxDecisionComments);
                 AppendList(sb, "Cross references", navigation.CrossReferences, PddmDefaults.ContextMaxCrossRefs);
                 break;
 
             case QueryIntent.NewRequirement:
-                sb.AppendLine("No exact match found for this requirement.");
-                sb.AppendLine("Relevant landscape of existing work:");
-                AppendLandscape(sb, navigation);
+                if (HasLandscape(navigation))
+                {
+                    sb.AppendLine("No exact ticket for this ask; related landscape:");
+                    AppendLandscape(sb, navigation);
+                }
+                else
+                {
+                    AppendLandscape(sb, navigation);
+                }
+
                 break;
 
             case QueryIntent.GeneralQuestion:
@@ -58,11 +67,18 @@ public sealed class ContextBuilderService : IContextBuilder
                     sb.AppendLine($"Expected seed: {GoldenDemoSeedKeys.AnsiDefaultDecision} — Url: {BrowseUrl(GoldenDemoSeedKeys.AnsiDefaultDecision)}");
                     sb.AppendLine("Run Ingestion and retry.");
                 }
+
                 break;
         }
 
         return sb.ToString();
     }
+
+    private static bool HasLandscape(NavigatedContext navigation) =>
+        navigation.RelatedEpics.Count > 0
+        || navigation.RelatedStories.Count > 0
+        || navigation.StandaloneRelatedIssues.Count > 0
+        || navigation.DecisionComments.Count > 0;
 
     private static void AppendLandscape(StringBuilder sb, NavigatedContext navigation)
     {

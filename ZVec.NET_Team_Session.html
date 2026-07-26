@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZVec.NET — Internal Tech Session</title>
+  <title>ZVec.NET — Tech Session · ELM</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -58,7 +58,7 @@
   font-family: var(--font-body);
   font-size: var(--fs-body);
   line-height: 1.55;
-  padding: 56px 72px;
+  padding: 48px 72px 52px;
   box-sizing: border-box;
 }
 
@@ -197,6 +197,9 @@ body {
 }
 .topnav-left { display: flex; align-items: center; gap: 16px; }
 .topnav .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-heading);
   font-weight: 700;
   font-size: 15px;
@@ -205,6 +208,21 @@ body {
   white-space: nowrap;
 }
 .topnav .brand .accent { color: var(--accent); }
+.brand-logo {
+  display: block;
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.host-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.host-link:hover {
+  text-decoration: underline;
+}
 .topnav .controls { display: flex; align-items: center; gap: 12px; }
 .topnav button {
   background: var(--accent-soft);
@@ -497,6 +515,1649 @@ main.sidenav-collapsed { margin-left: 0; }
   .kbd-hint { display: none; }
 }
 
+/* ============================================================
+   SLIDE DESIGN SYSTEM — typography, cards, comparisons, flows
+   ============================================================ */
+
+/* Typography */
+.h1 {
+  font-family: var(--font-heading);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--primary);
+}
+.h3 {
+  font-family: var(--font-heading);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--primary);
+}
+.subhead {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--primary-dim);
+  max-width: 980px;
+}
+.body-sm {
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  color: var(--primary-dim);
+}
+.body-mute {
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--primary-muted);
+}
+.label-eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary-muted);
+}
+.label-eyebrow.accent { color: var(--accent); }
+.mono { font-family: var(--font-mono); color: var(--accent); }
+.em { color: var(--accent); font-weight: 600; }
+
+/* Utility layout helpers */
+.compare-grid,
+.feature-grid-2,
+.feature-grid-3,
+.feature-grid-4 {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+.compare-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+.feature-grid-2 { grid-template-columns: 1fr 1fr; }
+.feature-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.feature-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.slide .absolute { position: absolute; }
+
+/* Icon system */
+.icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.icon-wrap .material-icons { font-size: 22px; color: inherit; }
+
+/* Inset mono / code chips */
+.inset-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: #E6EEF8;
+  background: #07172C;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.code-block-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.code-block-label .tag {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* Comparison cards */
+.card-keyword,
+.card-vector,
+.compare-card,
+.friction-card,
+.feature-card,
+.pattern-card,
+.exp-card,
+.ingredient,
+.tile {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  box-sizing: border-box;
+}
+.arch-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  height: auto;
+  max-height: 430px;
+}
+.metric-card {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  height: auto;
+}
+.idx-card {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.card-keyword { border-color: rgba(255, 180, 84, 0.28); }
+.card-vector { border-color: rgba(0, 212, 255, 0.35); box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.08); }
+.card-left { border-left: 3px solid var(--accent); }
+.card-right { border-left: 3px solid var(--primary-muted); }
+.card-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Feature cards */
+.feature-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.feature-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.feature-body {
+  font-size: var(--fs-small);
+  color: var(--primary-dim);
+  line-height: 1.5;
+}
+
+/* Bento tiles */
+.tile-bento {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+  height: 380px;
+}
+.tile {
+  justify-content: flex-start;
+}
+.tile .t-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-top: 6px;
+}
+.tile .t-body {
+  font-size: var(--fs-small);
+  color: var(--primary-dim);
+  line-height: 1.5;
+  flex: 1;
+}
+.tile-wide { }
+.num-tag {
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* Ingredients / small cards */
+.ingredient {
+  gap: 10px;
+  padding: 16px 18px;
+}
+.ingredient .icon-wrap { margin-bottom: 2px; }
+
+/* Architecture stacks */
+.arch-card .card-title { font-size: 16px; }
+.stack { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.stack-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(7, 23, 44, 0.55);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--primary-dim);
+}
+.stack-row.accent {
+  border-color: rgba(0, 212, 255, 0.35);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.stack-row.warn {
+  border-color: rgba(255, 180, 84, 0.35);
+  color: var(--warn);
+  background: rgba(255, 180, 84, 0.12);
+  font-weight: 600;
+}
+.stack-arrow {
+  text-align: center;
+  color: var(--primary-muted);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  height: 14px;
+}
+.arch-card .footnote {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+/* Index grid */
+.index-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.idx-card { position: relative; }
+.idx-card.default {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.12);
+}
+.default-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #07172C;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.idx-head { display: flex; align-items: center; gap: 6px; }
+.idx-name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.idx-icon { color: var(--accent); font-size: 16px !important; }
+.idx-sub {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.idx-body {
+  font-size: 11px;
+  color: var(--primary-muted);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.ptype {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+
+/* Metrics / rerankers */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+.metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.metric-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.metric-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.metric-card .formula {
+  font-size: 12px;
+  padding: 8px 10px;
+  margin: 2px 0;
+}
+.metric-card .row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.metric-card .row-label {
+  color: var(--primary-muted);
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.metric-card .row-value {
+  color: var(--primary-dim);
+  text-align: right;
+}
+.metric-card .bottom-tag {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+/* Trade-off / metric strip */
+.tradeoff-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--primary-dim);
+  flex-wrap: nowrap;
+  align-items: start;
+}
+.tradeoff-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-right: 8px;
+  border-right: 1px solid var(--line);
+}
+.tradeoff-cell:last-child { border-right: 0; padding-right: 0; }
+.tradeoff-cell .to-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.tradeoff-cell .to-value {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--primary-dim);
+}
+.tradeoff-cell .sep { color: var(--line-strong); margin: 0 4px; }
+.tradeoff-cell .warn { color: var(--warn); }
+
+.metric-strip,
+.status-strip,
+.insight-strip,
+.tip-strip,
+.key-types {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--primary-dim);
+}
+.key-types .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-muted);
+}
+.key-types .accent { color: var(--accent); font-family: var(--font-mono); font-size: 12px; }
+.insight-strip .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.insight-strip .body { flex: 1; }
+
+/* Demo / info callouts */
+.demo-callout,
+.info-callout,
+.real-code-callout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 16px 20px;
+  align-items: start;
+}
+.demo-callout { border-left: 3px solid var(--accent); }
+
+/* Compact single-band callouts (platform limits, etc.) */
+.platform-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+.platform-callout .pc-icon {
+  color: var(--warn);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.platform-callout .pc-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--warn);
+  margin-bottom: 2px;
+}
+.platform-callout .pc-body {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--primary-dim);
+  margin: 0;
+}
+
+/* Reranker callout — compact 2-col, stays above footer */
+.reranker-callout {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  align-items: start;
+  border-left: 3px solid var(--accent);
+}
+.reranker-callout .rr-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.reranker-callout .rr-body {
+  font-size: 12px;
+  color: var(--primary-dim);
+  line-height: 1.4;
+  margin: 4px 0 6px;
+}
+.reranker-callout .rr-bullets {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--primary-dim);
+}
+.reranker-callout .rr-bullets li { margin-bottom: 4px; }
+.reranker-callout .rr-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  background: #07172C;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #E6EEF8;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.dc-label, .rcc-label, .rr-label, .to-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.dc-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-top: 4px;
+}
+.dc-body, .rcc-body, .rr-body, .fc-body, .pc-body {
+  font-size: var(--fs-small);
+  color: var(--primary-dim);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.dc-bullets { display: flex; flex-direction: column; gap: 8px; }
+.dc-bullet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--primary-dim);
+}
+.dc-bullet .ico { color: var(--accent); }
+
+/* Flow / steps */
+.flow, .step-row, .flow-steps, .step-list {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 16px;
+}
+.flow-box, .step {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flow-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flow-title, .step-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.flow-body, .step-body, .step-text {
+  font-size: 12px;
+  color: var(--primary-muted);
+  line-height: 1.45;
+}
+.step-num {
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.arrow, .arrow-cell, .down-arrow, .descent-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* Three-column wrap-up */
+.three-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+  align-items: start;
+}
+.three-col .col { display: flex; flex-direction: column; gap: 12px; }
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.col-head .material-icons { color: var(--accent); font-size: 20px; }
+
+/* Roadmap items */
+.rm-item, .link-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+}
+.rm-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+  background: var(--primary-muted);
+}
+.rm-dot.good { background: var(--good); box-shadow: 0 0 8px rgba(74, 222, 128, 0.45); }
+.rm-dot.accent { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.rm-dot.muted { background: var(--primary-muted); }
+.rm-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rm-body {
+  font-size: 12px;
+  color: var(--primary-muted);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+.rm-status {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+.rm-status.done { background: rgba(74, 222, 128, 0.15); color: var(--good); }
+.rm-status.progress { background: var(--accent-soft); color: var(--accent); }
+.rm-status.planned { background: rgba(255, 255, 255, 0.06); color: var(--primary-muted); }
+
+.link-row .ico {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.link-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.link-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-muted);
+}
+.link-value {
+  font-size: 12px;
+  color: var(--primary-dim);
+  word-break: break-word;
+}
+
+/* Q&A block */
+.qa-block { padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
+.qa-h2 {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+.qa-sub { font-size: 14px; color: var(--primary-dim); line-height: 1.55; }
+.qa-thanks { font-size: 13px; color: var(--primary-muted); margin-top: 4px; }
+
+/* Cover slide */
+.cover-logo {
+  display: block;
+  height: 100px;
+  min-height: 56px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 18px;
+}
+.cover-headline {
+  font-family: var(--font-heading);
+  font-size: 72px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--primary);
+}
+.qa-logo {
+  display: block;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  margin: 10px 0 6px;
+}
+.qa-host {
+  font-size: 12px;
+  color: var(--primary-muted);
+  margin-top: 2px;
+}
+.cover-sub {
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--primary-dim);
+  max-width: 620px;
+}
+.cover-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  position: relative;
+  z-index: 2;
+}
+.cover-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.cover-main { margin-top: 48px; }
+.cover-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+.meta-line {
+  font-size: 13px;
+  color: var(--primary-dim);
+  line-height: 1.7;
+}
+.meta-key {
+  color: var(--primary-muted);
+  font-weight: 600;
+}
+.nuget-tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.corner-mark {
+  position: absolute;
+  top: 56px;
+  right: 72px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.deck-label {
+  font-size: 12px;
+  color: var(--primary-muted);
+  letter-spacing: 0.04em;
+}
+.badge-beta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* Cover motif */
+.motif {
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 520px;
+  height: 520px;
+  pointer-events: none;
+  z-index: 0;
+}
+.motif .ring {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 212, 255, 0.18);
+}
+.motif .r1 { width: 120px; height: 120px; }
+.motif .r2 { width: 220px; height: 220px; }
+.motif .r3 { width: 340px; height: 340px; }
+.motif .r4 { width: 460px; height: 460px; border-color: rgba(0, 212, 255, 0.1); }
+.center-glow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 160px; height: 160px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.25), transparent 70%);
+}
+.motif .dot {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.motif .dot.dim { opacity: 0.55; width: 6px; height: 6px; }
+.motif .dot.faint { opacity: 0.28; width: 5px; height: 5px; box-shadow: none; }
+
+/* Decorative orb */
+.deco-orb {
+  position: absolute;
+  right: -80px;
+  top: -80px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+/* Pattern / friction / formula helpers */
+.pattern-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+.pattern-card .head, .use-case .uc-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pattern-card .body, .use-case .uc-body {
+  font-size: var(--fs-small);
+  color: var(--primary-dim);
+  line-height: 1.5;
+}
+.use-case {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+.pc-label, .fc-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pc-title, .fc-title, .title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.formula {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  background: #07172C;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.footnote, .bottom-tag {
+  font-size: 11px;
+  color: var(--primary-muted);
+  margin-top: 10px;
+}
+.highlight { color: var(--accent); }
+.good { color: var(--good); }
+.warn { color: var(--warn); }
+.result-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* HNSW slide + modal */
+.hnsw-layout {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 20px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+.hnsw-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.hnsw-left .lead {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--primary-dim);
+  margin: 0;
+}
+.hnsw-left .analogy {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 4px;
+}
+.hnsw-left .step {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+}
+.hnsw-left .step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.hnsw-left .step-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.2;
+}
+.hnsw-left .step-body {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--primary-muted);
+  margin: 2px 0 0;
+}
+.hnsw-footnote {
+  font-size: 11px;
+  color: var(--primary-muted);
+  line-height: 1.35;
+  margin: 4px 0 0;
+}
+
+.hnsw-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  height: 100%;
+  box-sizing: border-box;
+}
+.hnsw-preview-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hnsw-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.hnsw-mini-layer {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.hnsw-mini-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1.25;
+}
+.hnsw-mini-canvas {
+  position: relative;
+  height: 48px;
+  border-radius: 8px;
+  background: #07172C;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.hnsw-mini-canvas .dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(200, 214, 232, 0.5);
+  transform: translate(-50%, -50%);
+}
+.hnsw-mini-canvas .dot.entry {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  width: 9px;
+  height: 9px;
+}
+.hnsw-mini-canvas .dot.match {
+  background: var(--good);
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  width: 9px;
+  height: 9px;
+}
+.hnsw-mini-canvas .edge {
+  position: absolute;
+  height: 1.5px;
+  background: rgba(0, 212, 255, 0.55);
+  transform-origin: left center;
+}
+.hnsw-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  background: var(--accent);
+  color: #07172C;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.hnsw-open-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+}
+.hnsw-open-btn .material-icons { font-size: 18px; }
+
+/* Modal */
+.hnsw-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.hnsw-modal.open { display: flex; }
+.hnsw-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 14, 28, 0.78);
+  backdrop-filter: blur(6px);
+}
+.hnsw-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 92vw);
+  height: min(780px, 88vh);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hnsw-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+.hnsw-modal-header h2 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+}
+.hnsw-modal-header .sub {
+  font-size: 12px;
+  color: var(--primary-muted);
+  margin-top: 2px;
+}
+.hnsw-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hnsw-modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hnsw-modal-actions button.primary {
+  background: var(--accent-soft);
+  border-color: rgba(0, 212, 255, 0.4);
+  color: var(--accent);
+}
+.hnsw-modal-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hnsw-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hnsw-viz {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  border-radius: 14px;
+  background: #07172C;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.hnsw-viz svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.hnsw-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--primary-dim);
+}
+.hnsw-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hnsw-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.hnsw-legend .lg-query { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.hnsw-legend .lg-path { background: transparent; border: 2px solid var(--accent); border-radius: 2px; width: 16px; height: 0; }
+.hnsw-legend .lg-node { background: rgba(200, 214, 232, 0.55); }
+.hnsw-legend .lg-topk { background: var(--good); box-shadow: 0 0 8px rgba(74, 222, 128, 0.45); }
+.hnsw-modal-foot {
+  font-size: 11px;
+  color: var(--primary-muted);
+  font-family: var(--font-mono);
+}
+
+/* Animation states inside modal SVG */
+.hnsw-viz .anim-hide { opacity: 0; }
+.hnsw-viz.playing .hop,
+.hnsw-viz.playing .drop,
+.hnsw-viz.playing .query-star,
+.hnsw-viz.playing .topk-ring,
+.hnsw-viz.playing .beam,
+.hnsw-viz.playing .callout {
+  opacity: 0;
+}
+.hnsw-viz.playing[data-step="1"] .query-star,
+.hnsw-viz.playing[data-step="1"] .layer-l2 { opacity: 1; }
+.hnsw-viz.playing[data-step="2"] .query-star,
+.hnsw-viz.playing[data-step="2"] .hop-1,
+.hnsw-viz.playing[data-step="2"] .layer-l2 { opacity: 1; }
+.hnsw-viz.playing[data-step="3"] .query-star,
+.hnsw-viz.playing[data-step="3"] .hop-1,
+.hnsw-viz.playing[data-step="3"] .hop-2,
+.hnsw-viz.playing[data-step="3"] .drop-1,
+.hnsw-viz.playing[data-step="3"] .layer-l1,
+.hnsw-viz.playing[data-step="3"] .beam { opacity: 1; }
+.hnsw-viz.playing[data-step="4"] .query-star,
+.hnsw-viz.playing[data-step="4"] .hop-1,
+.hnsw-viz.playing[data-step="4"] .hop-2,
+.hnsw-viz.playing[data-step="4"] .hop-3,
+.hnsw-viz.playing[data-step="4"] .drop-1,
+.hnsw-viz.playing[data-step="4"] .drop-2,
+.hnsw-viz.playing[data-step="4"] .layer-l0,
+.hnsw-viz.playing[data-step="4"] .beam { opacity: 1; }
+.hnsw-viz.playing[data-step="5"] .query-star,
+.hnsw-viz.playing[data-step="5"] .hop-1,
+.hnsw-viz.playing[data-step="5"] .hop-2,
+.hnsw-viz.playing[data-step="5"] .hop-3,
+.hnsw-viz.playing[data-step="5"] .drop-1,
+.hnsw-viz.playing[data-step="5"] .drop-2,
+.hnsw-viz.playing[data-step="5"] .topk-ring,
+.hnsw-viz.playing[data-step="5"] .callout,
+.hnsw-viz.playing[data-step="5"] .layer-l0,
+.hnsw-viz.playing[data-step="5"] .beam { opacity: 1; }
+.hnsw-viz.done .hop,
+.hnsw-viz.done .drop,
+.hnsw-viz.done .query-star,
+.hnsw-viz.done .topk-ring,
+.hnsw-viz.done .beam,
+.hnsw-viz.done .callout { opacity: 1; }
+
+.hnsw-viz .hop,
+.hnsw-viz .drop,
+.hnsw-viz .query-star,
+.hnsw-viz .topk-ring,
+.hnsw-viz .beam,
+.hnsw-viz .callout {
+  transition: opacity 0.35s ease;
+}
+.hnsw-viz .topk-ring {
+  transform-origin: center;
+}
+.hnsw-viz.playing[data-step="5"] .topk-ring,
+.hnsw-viz.done .topk-ring {
+  animation: hnswTopkPulse 1.2s ease-in-out 1;
+}
+/* ── Code snippet modal (slides 10–13, 17) ── */
+.code-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  background: var(--accent);
+  color: #07172C;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.code-open-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+}
+.code-open-btn .material-icons { font-size: 18px; }
+.code-open-btn.block { width: 100%; }
+
+.code-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+.code-step-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.code-step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.code-step-card:hover {
+  border-color: rgba(0, 212, 255, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+.code-step-card .csc-num {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.code-step-card .csc-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.3;
+}
+.code-step-card .csc-teaser {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--primary-muted);
+  flex: 1;
+}
+.code-step-card .csc-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.code-step-card .csc-cta .material-icons { font-size: 16px; }
+
+.code-cta-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.hnsw-modal.code-modal .hnsw-modal-panel {
+  width: min(920px, 92vw);
+  height: min(720px, 88vh);
+}
+.code-modal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+.code-modal-tabs[hidden] { display: none !important; }
+.code-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--primary-muted);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 14px 11px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.code-tab:hover { color: var(--primary); }
+.code-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.code-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.code-pack { display: none; flex: 1; min-height: 0; flex-direction: column; }
+.code-pack.active { display: flex; }
+.code-panel { display: none; flex: 1; min-height: 0; overflow: auto; }
+.code-panel.active { display: block; }
+.code-panel pre.code {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  overflow: auto;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.code-modal-foot {
+  padding: 0 18px 14px;
+  font-size: 11px;
+  color: var(--primary-muted);
+  font-family: var(--font-mono);
+}
+
+@keyframes hnswTopkPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Slides 14–16: dual-path flows + CLIP matrix */
+.col-grid {
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  gap: 16px;
+  margin-top: 12px;
+  align-items: stretch;
+  min-height: 0;
+}
+.col-grid > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.exp-card {
+  padding: 12px 14px !important;
+  gap: 4px !important;
+  height: auto !important;
+}
+.exp-card .head {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.exp-card .body {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--primary-dim);
+}
+.exp-card.accent-left {
+  border-left: 3px solid var(--accent);
+}
+.explain-line {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--primary-dim);
+}
+.flow-path {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 10px;
+}
+.flow-path .flow-label {
+  flex: 0 0 72px;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.flow-path .flow {
+  flex: 1;
+  margin-top: 0;
+  gap: 8px;
+}
+.flow-path .flow-box {
+  padding: 10px 12px;
+}
+.flow-path .flow-title { font-size: 13px; }
+.flow-path .flow-body { font-size: 11px; }
+.flow-path .arrow { padding: 0 2px; }
+.flow-box.highlight {
+  border-color: rgba(0, 212, 255, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.12);
+}
+
+.matrix-panel {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.matrix-grid {
+  display: grid;
+  grid-template-columns: minmax(88px, 1.1fr) repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-items: stretch;
+}
+.matrix-grid .col-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary-muted);
+  text-align: center;
+  line-height: 1.3;
+  padding: 4px 2px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.matrix-grid .row-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.25;
+}
+.matrix-grid .row-head .emoji { font-size: 16px; line-height: 1; }
+.matrix-grid .cell {
+  border-radius: 8px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  background: rgba(7, 23, 44, 0.45);
+  min-height: 48px;
+}
+.matrix-grid .cell .mark { font-size: 14px; font-weight: 700; line-height: 1; }
+.matrix-grid .cell .num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+.matrix-grid .cell.diag {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.matrix-grid .cell.diag .mark { color: var(--good); }
+.matrix-grid .cell.diag .num { color: var(--good); }
+.matrix-grid .cell.off {
+  background: rgba(126, 147, 181, 0.06);
+  border-color: rgba(126, 147, 181, 0.2);
+}
+.matrix-grid .cell.off .mark { color: var(--primary-muted); }
+.matrix-grid .cell.off .num { color: var(--primary-muted); }
+.matrix-caption {
+  font-size: 11.5px;
+  color: var(--primary-muted);
+  margin-top: 10px;
+  line-height: 1.4;
+}
+.after-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  font-size: 12px;
+  color: var(--primary-dim);
+  line-height: 1.4;
+}
+.after-line .material-icons {
+  color: var(--accent);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* PDDM finale helpers */
+.pddm-stack {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+.pddm-stack .cell {
+  padding: 14px 12px;
+  text-align: center;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--primary-dim);
+  font-weight: 600;
+}
+.pddm-stack .cell .material-icons {
+  display: block;
+  margin: 0 auto 8px;
+  color: var(--accent);
+  font-size: 22px;
+}
+.golden-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.golden-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+.golden-item .q {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  line-height: 1.45;
+}
+.golden-item .hint {
+  font-size: 12px;
+  color: var(--primary-muted);
+  margin-top: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -506,14 +2167,17 @@ main.sidenav-collapsed { margin-left: 0; }
       <button class="menu-toggle" id="menu-toggle" title="Toggle sidebar (M)">
         <span class="material-icons" style="font-size:20px">menu</span>
       </button>
-      <div class="brand">ZVec<span class="accent">.NET</span> &middot; Internal Tech Session</div>
+      <div class="brand">
+        <img class="brand-logo" src="assets/zvec-net-logo.png" alt="ZVec.NET" />
+        <span>ZVec<span class="accent">.NET</span> &middot; Internal Tech Session</span>
+      </div>
     </div>
     <div class="controls">
       <button id="notes-toggle" title="Toggle all notes (N)">
         <span class="material-icons" style="font-size:16px">notes</span>
         <span id="notes-toggle-label">Show notes</span>
       </button>
-      <span class="counter"><strong id="current-slide">01</strong> / 18</span>
+      <span class="counter"><strong id="current-slide">01</strong> / 20</span>
     </div>
   </nav>
 
@@ -540,7 +2204,9 @@ main.sidenav-collapsed { margin-left: 0; }
       <li><a href="#slide-15" data-slide="15"><span class="nav-num">15</span><span class="nav-title">How CLIP is Trained</span></a></li>
       <li><a href="#slide-16" data-slide="16"><span class="nav-num">16</span><span class="nav-title">CLIP Multimodal Search</span></a></li>
       <li><a href="#slide-17" data-slide="17"><span class="nav-num">17</span><span class="nav-title">ONNX Embeddings in .NET</span></a></li>
-      <li><a href="#slide-18" data-slide="18"><span class="nav-num">18</span><span class="nav-title">Roadmap, Links & Q&A</span></a></li>
+      <li><a href="#slide-18" data-slide="18"><span class="nav-num">18</span><span class="nav-title">PDDM — Advanced RAG</span></a></li>
+      <li><a href="#slide-19" data-slide="19"><span class="nav-num">19</span><span class="nav-title">PDDM Architecture</span></a></li>
+      <li><a href="#slide-20" data-slide="20"><span class="nav-num">20</span><span class="nav-title">Roadmap, Links & Q&A</span></a></li>
     </ol>
   </aside>
 
@@ -564,7 +2230,6 @@ main.sidenav-collapsed { margin-left: 0; }
       <div class="ring r2"></div>
       <div class="ring r1"></div>
       <div class="center-glow"></div>
-      <!-- Glowing accent dots scattered across the field -->
       <div class="dot"     style="left: 50%; top: 50%; transform: translate(-50%,-50%);"></div>
       <div class="dot"     style="left: 78%; top: 32%;"></div>
       <div class="dot"     style="left: 22%; top: 70%;"></div>
@@ -579,51 +2244,51 @@ main.sidenav-collapsed { margin-left: 0; }
       <div class="dot faint" style="left: 72%; top: 22%;"></div>
     </div>
 
-    <!-- Top-right corner: deck label + BETA badge -->
-    <div class="corner-mark">
-      <span class="deck-label">ZVec.NET · v1.0.0-beta.2</span>
-      <span class="badge-beta">
-        <span class="material-icons md-14">science</span>
-        BETA · net8 / net9 / net10
-      </span>
-    </div>
+    <div class="cover-layout">
+      <div class="cover-top">
+        <span class="chip">
+          <span class="material-icons md-14">bolt</span>
+          Tech Session · ELM
+        </span>
+        <div class="corner-mark" style="position:static;">
+          <span class="deck-label">ZVec.NET · v1.0.0-beta.2</span>
+          <span class="badge-beta">
+            <span class="material-icons md-14">science</span>
+            BETA · net8 / net9 / net10
+          </span>
+        </div>
+      </div>
 
-    <!-- Top-left chip -->
-    <div class="absolute" style="top:56px; left:72px; z-index:2;">
-      <span class="chip">
-        <span class="material-icons md-14">bolt</span>
-        Internal Tech Session
-      </span>
-    </div>
+      <div class="cover-main">
+        <img class="cover-logo" src="assets/zvec-net-logo.png" alt="ZVec.NET" />
+        <h1 class="cover-headline">ZVec.NET</h1>
+        <p class="cover-sub" style="margin-top:22px;">
+          Production .NET SDK for Alibaba ZVec — In-Process Vector Search with Zero Infrastructure
+        </p>
+      </div>
 
-    <!-- Main content block -->
-    <div class="absolute" style="left:72px; top:200px; z-index:2;">
-      <h1 class="cover-headline">ZVec.NET</h1>
-      <p class="cover-sub" style="margin-top:22px;">
-        Production .NET SDK for Alibaba ZVec — In-Process Vector Search with Zero Infrastructure
-      </p>
-    </div>
-
-    <!-- Lower-left meta block -->
-    <div class="absolute" style="left:72px; bottom:56px; z-index:2;">
-      <div class="meta-line"><span class="meta-key">Presenter:</span>&nbsp;Ahmed Samir</div>
-      <div class="meta-line"><span class="meta-key">Audience:</span>&nbsp;Engineering Team</div>
-      <div class="meta-line"><span class="meta-key">Duration:</span>&nbsp;~35 min + demo + Q&amp;A</div>
-      <div class="meta-line"><span class="meta-key">Version:</span>&nbsp;1.0.0-beta.2+zvec.0.5.1</div>
-      <div class="meta-line"><span class="meta-key">Repo:</span>&nbsp;github.com/ahmedSamir50/AdamSystems.ZVec.NET</div>
-    </div>
-
-    <!-- Lower-right NuGet tag -->
-    <div class="absolute" style="right:72px; bottom:56px; z-index:2; display:flex; align-items:center; gap:8px;">
-      <span class="material-icons md-18" style="color: var(--accent);">package_2</span>
-      <span class="nuget-tag">NuGet: ZVec.NET</span>
+      <div class="cover-bottom">
+        <div>
+          <div class="meta-line"><span class="meta-key">Presenter:</span>&nbsp;Ahmed Samir</div>
+          <div class="meta-line"><span class="meta-key">Host:</span>&nbsp;ELM KSA · <a class="host-link" href="https://elm.sa/ar/Pages/default.aspx" target="_blank" rel="noopener noreferrer">elm.sa</a></div>
+          <div class="meta-line"><span class="meta-key">Audience:</span>&nbsp;ELM Engineering</div>
+          <div class="meta-line"><span class="meta-key">Duration:</span>&nbsp;~35 min + demo + Q&amp;A</div>
+          <div class="meta-line"><span class="meta-key">Version:</span>&nbsp;1.0.0-beta.2+zvec.0.5.1</div>
+          <div class="meta-line"><span class="meta-key">SDK:</span>&nbsp;github.com/ahmedSamir50/AdamSystems.ZVec.NET</div>
+          <div class="meta-line"><span class="meta-key">Demos:</span>&nbsp;github.com/ahmedSamir50/ZVec.Net-DemosAndPOCs</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-icons md-18" style="color: var(--accent);">package_2</span>
+          <span class="nuget-tag">NuGet: ZVec.NET</span>
+        </div>
+      </div>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Good afternoon, everyone — and thanks, Manager, for giving me the slot to share this. Over the next thirty-five minutes plus a live demo and Q&amp;A, I want to walk you through what vector search actually is and how it differs from the keyword search we already know, the infrastructure problem it usually creates when you reach for a managed cloud vector database, the production .NET SDK I just shipped for Alibaba's open-source ZVec engine, a technical deep-dive into the eight supported index types and the three similarity metrics, how multimodal models like CLIP are trained to share one vector space across text and image, and then five concrete code patterns the team can lift directly into our own features. Heads up: this is a beta — version 1.0.0-beta.2 targeting net8, net9, and net10. Please interrupt with questions whenever they come up.</div>
+        <div class="notes-content">Good afternoon, everyone. Over the next thirty-five minutes plus live demos and Q&amp;A, I want to walk you through what vector search actually is, the infrastructure problem cloud vector DBs create, the production .NET SDK I shipped for Alibaba's open-source ZVec engine, the eight index types and three similarity metrics, how CLIP shares one vector space across text and image, and concrete code patterns you can lift into features. Live demo this session: PDDM — advanced Jira RAG in `Advanced/`. CLIP + local ONNX (`examples/01-clip-onnx`) is planned in the demos repo. This is beta 1.0.0-beta.2 targeting net8, net9, and net10. Interrupt with questions anytime.</div>
       </details>
     </section>
 
@@ -648,43 +2313,43 @@ main.sidenav-collapsed { margin-left: 0; }
     <h1 class="h1" style="margin-top:14px;">What is Vector Search?</h1>
 
     <!-- TOP — split-screen comparison -->
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; margin-top:24px;">
+    <div class="compare-grid">
 
       <!-- LEFT — Keyword search -->
-      <div class="surface card-keyword" style="padding:20px 22px;">
+      <div class="surface card-keyword">
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="material-icons md-24" style="color: var(--primary-muted);">find_in_page</span>
           <span class="label-eyebrow">Keyword Search</span>
         </div>
         <h3 class="h3" style="color: var(--primary-muted); margin-top:10px;">Keyword / Lexical Search</h3>
-        <div class="inset-mono" style="margin-top:10px;">SQL: WHERE body LIKE '%error%'</div>
-        <p class="body-sm" style="margin-top:12px;">Matches exact strings and wildcards. Fails when vocabulary shifts.</p>
+        <div class="inset-mono">SQL: WHERE body LIKE '%error%'</div>
+        <p class="body-sm">Matches exact strings and wildcards. Fails when vocabulary shifts.</p>
         <p style="font-family: var(--font-body); font-size: var(--fs-small); color: var(--warn); margin-top:10px; font-weight:600;">
           "System crash" ✗ "Application breakdown"
         </p>
-        <p class="body-mute" style="margin-top:8px;">These two phrases mean the same thing but share zero keywords — keyword search returns nothing.</p>
+        <p class="body-mute">These two phrases mean the same thing but share zero keywords — keyword search returns nothing.</p>
       </div>
 
       <!-- RIGHT — Vector search -->
-      <div class="surface card-vector" style="padding:20px 22px;">
+      <div class="surface card-vector">
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="material-icons md-24" style="color: var(--accent);">hub</span>
           <span class="label-eyebrow accent">Vector Search</span>
         </div>
         <h3 class="h3" style="color: var(--accent); margin-top:10px;">Vector / Semantic Search</h3>
-        <div class="inset-mono" style="margin-top:10px;">cosine(query_vec, doc_vec) → 0.94</div>
-        <p class="body-sm" style="margin-top:12px;">Matches meaning. Synonyms and paraphrases land close in vector space.</p>
+        <div class="inset-mono">cosine(query_vec, doc_vec) → 0.94</div>
+        <p class="body-sm">Matches meaning. Synonyms and paraphrases land close in vector space.</p>
         <p style="font-family: var(--font-body); font-size: var(--fs-small); color: var(--good); margin-top:10px; font-weight:600;">
           "Network issue" ✓ "Connection timeout"
         </p>
-        <p class="body-mute" style="margin-top:8px;">These phrases share no keywords but mean similar things — vector search finds the match.</p>
+        <p class="body-mute">These phrases share no keywords but mean similar things — vector search finds the match.</p>
       </div>
     </div>
 
     <!-- BOTTOM — three ingredient chips -->
     <div style="margin-top:24px;">
       <div class="label-eyebrow" style="margin-bottom:10px;">Three ingredients</div>
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:18px;">
+      <div class="feature-grid-3">
         <div class="surface ingredient">
           <div class="icon-wrap"><span class="material-icons md-24">memory</span></div>
           <div style="font-family: var(--font-heading); font-size: 16px; font-weight:600; color: var(--primary);">Embedding model</div>
@@ -706,14 +2371,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>02 / 18</span>
+      <span>02 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">If you search our knowledge base for "system crash" with a SQL LIKE query, you won't find a doc titled "application breakdown" — even though they mean the same thing. Keyword search is dumb about synonyms. Vector search turns text into numbers — a float array called an embedding — and measures geometric distance. Synonyms land close together in vector space, so "system crash" and "application breakdown" become nearby points. The search finds the match. There are three ingredients: an embedding model converts input to vectors, a similarity metric — cosine, L2, or dot — measures distance in that space, and an ANN index like HNSW makes the search fast enough for production, sub-millisecond on top-K queries. Now let's see where we'd actually use this.</div>
+        <div class="notes-content">If you search our knowledge base for "system crash" with a SQL LIKE query, you won't find a doc titled "application breakdown" — even though they mean the same thing. Keyword search is dumb about synonyms. Vector search turns text into numbers — a float array called an embedding — and measures geometric distance. Synonyms land close together in vector space, so "system crash" and "application breakdown" become nearby points. The search finds the match. There are three ingredients: an embedding model converts input to vectors, a similarity metric — cosine, L2, or dot — measures distance in that space, and an ANN index like HNSW makes the search fast enough for production, fast top-K queries at modest scale (often sub-ms warm, in-process). Now let's see where we'd actually use this.</div>
       </details>
     </section>
 
@@ -739,7 +2404,7 @@ main.sidenav-collapsed { margin-left: 0; }
     </p>
 
     <!-- BENTO GRID — 3 top, 2 wider bottom -->
-    <div style="display:grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: 1fr 1fr; gap:16px; margin-top:20px; height:380px;">
+    <div class="tile-bento">
 
       <!-- Tile 1 — Semantic Search -->
       <div class="surface tile" style="grid-column: span 2;">
@@ -775,7 +2440,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <div class="surface tile tile-wide" style="grid-column: span 3;">
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div class="icon-wrap"><span class="material-icons md-24">image</span></div>
-          <span class="num-tag">04 · WIDER</span>
+          <span class="num-tag">04</span>
         </div>
         <div class="t-title">CLIP Multimodal Search</div>
         <p class="t-body">Joint image+text embedding model — search screenshots / asset library by natural-language description. Same vector space for both.</p>
@@ -785,7 +2450,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <div class="surface tile tile-wide" style="grid-column: span 3;">
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div class="icon-wrap"><span class="material-icons md-24">memory</span></div>
-          <span class="num-tag">05 · WIDER</span>
+          <span class="num-tag">05</span>
         </div>
         <div class="t-title">Local ONNX Embeddings</div>
         <p class="t-body">Run sentence-transformers natively in .NET via ONNX Runtime. No Python sidecar, no model server, single-container deployment.</p>
@@ -796,14 +2461,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>03 / 18</span>
+      <span>03 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Five concrete places vector search shows up. Semantic search — type natural-language queries against Confluence, KB articles, and ticket history; results match intent. RAG pipelines — pull relevant context from internal SOPs and hand it to an LLM to ground answers, killing hallucinations for an internal assistant. Recommendations — embed user behaviour and item profiles, and nearest-neighbour becomes a real-time recommender with no extra service. CLIP multimodal search — same vector space for image and text, so "find me that screenshot of the deploy dashboard" just works. Local ONNX embeddings — run sentence-transformers natively in .NET through ONNX Runtime, no Python sidecar, no model server, single-container. All of these need the same primitive — store vectors, query nearest neighbours. But before I show you the SDK, let's talk about why building these features has historically been painful.</div>
+        <div class="notes-content">Five concrete places vector search shows up. Semantic search — type natural-language queries against Confluence, KB articles, and ticket history; results match intent. RAG pipelines — pull relevant context from internal SOPs and hand it to an LLM to ground answers, reducing hallucinations by grounding answers for an internal assistant. Recommendations — embed user behaviour and item profiles, and nearest-neighbour becomes a real-time recommender with no extra service. CLIP multimodal search — same vector space for image and text, so "find me that screenshot of the deploy dashboard" just works. Local ONNX embeddings — run sentence-transformers natively in .NET through ONNX Runtime, no Python sidecar, no model server, single-container. All of these need the same primitive — store vectors, query nearest neighbours. But before I show you the SDK, let's talk about why building these features has historically been painful.</div>
       </details>
     </section>
 
@@ -871,7 +2536,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>04 / 18</span>
+      <span>04 / 20</span>
     </div>
 
   </div>
@@ -954,7 +2619,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>05 / 18</span>
+      <span>05 / 20</span>
     </div>
 
   </div>
@@ -981,10 +2646,10 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-14">schema</span>
       05 / Architecture
     </span>
-    <h1 class="h1" style="margin-top:12px;">In-Process vs. Managed Cloud Vector DB</h1>
+    <h1 class="h1" style="margin-top:10px;">In-Process vs. Managed Cloud Vector DB</h1>
 
     <!-- Two architecture cards -->
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:18px;">
+    <div class="compare-grid" style="margin-top:12px; gap:16px;">
 
       <!-- LEFT — ZVec.NET In-Process -->
       <div class="surface arch-card card-left">
@@ -1058,39 +2723,37 @@ main.sidenav-collapsed { margin-left: 0; }
     </div>
 
     <!-- Trade-offs strip -->
-    <div style="margin-top:16px;">
-      <div class="tradeoff-strip">
-        <div class="tradeoff-cell">
-          <div class="to-label">Latency</div>
-          <div class="to-value">
-            <span class="accent">0.5 ms warm / 2.9 ms / 10k</span> (in-proc)
-            <span class="sep">·</span>
-            <span class="warn">5–30 ms</span> (cloud)
-          </div>
+    <div class="tradeoff-strip">
+      <div class="tradeoff-cell">
+        <div class="to-label">Latency</div>
+        <div class="to-value">
+          <span class="accent">0.5 ms warm / 2.9 ms / 10k</span> (in-proc)
+          <span class="sep">·</span>
+          <span class="warn">5–30 ms</span> (cloud)
         </div>
-        <div class="tradeoff-cell">
-          <div class="to-label">Ops Cost</div>
-          <div class="to-value">
-            <span class="accent">Zero</span>
-            <span class="sep">·</span>
-            Cluster + secrets + upgrades
-          </div>
+      </div>
+      <div class="tradeoff-cell">
+        <div class="to-label">Ops Cost</div>
+        <div class="to-value">
+          <span class="accent">Zero</span>
+          <span class="sep">·</span>
+          Cluster + secrets + upgrades
         </div>
-        <div class="tradeoff-cell">
-          <div class="to-label">Scale Ceiling</div>
-          <div class="to-value">
-            Single-node (~M vectors)
-            <span class="sep">·</span>
-            Horizontal (B+ vectors)
-          </div>
+      </div>
+      <div class="tradeoff-cell">
+        <div class="to-label">Scale Ceiling</div>
+        <div class="to-value">
+          Single-node (~M vectors)
+          <span class="sep">·</span>
+          Horizontal (B+ vectors)
         </div>
-        <div class="tradeoff-cell">
-          <div class="to-label">Best Fit</div>
-          <div class="to-value">
-            Apps / prototyping / edge / mobile
-            <span class="sep">·</span>
-            Planet-scale multi-tenant
-          </div>
+      </div>
+      <div class="tradeoff-cell">
+        <div class="to-label">Best Fit</div>
+        <div class="to-value">
+          Apps / prototyping / edge / mobile
+          <span class="sep">·</span>
+          Planet-scale multi-tenant
         </div>
       </div>
     </div>
@@ -1098,7 +2761,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>06 / 18</span>
+      <span>06 / 20</span>
     </div>
 
   </div>
@@ -1125,11 +2788,11 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-14">grid_view</span>
       06 / Index Types
     </span>
-    <h1 class="h1" style="margin-top:12px;">Eight Index Types — Full ZVec Coverage</h1>
-    <p class="subhead" style="margin-top:8px;">Every index type ZVec supports is exposed via a typed <span style="font-family:var(--font-mono); color:var(--accent);">*Param</span> class. Pick based on dataset size, latency SLA, and platform.</p>
+    <h1 class="h1" style="margin-top:8px;">Eight Index Types — Full ZVec Coverage</h1>
+    <p class="subhead" style="margin-top:4px; font-size:15px;">Every index type ZVec supports is exposed via a typed <span style="font-family:var(--font-mono); color:var(--accent);">*Param</span> class. Pick based on dataset size, latency SLA, and platform.</p>
 
     <!-- 4×2 index grid -->
-    <div class="index-grid" style="margin-top:20px;">
+    <div class="index-grid">
 
       <!-- Row 1 -->
       <div class="surface idx-card default">
@@ -1232,13 +2895,13 @@ main.sidenav-collapsed { margin-left: 0; }
 
     </div>
 
-    <!-- Platform-limits callout -->
-    <div class="surface-elev platform-callout" style="margin-top:18px;">
+    <!-- Platform-limits callout — compact single band -->
+    <div class="surface-elev platform-callout">
       <span class="material-icons md-24 pc-icon">warning_amber</span>
       <div>
         <div class="pc-label">Platform Limits</div>
         <p class="pc-body">
-          HNSW-RaBitQ requires x86_64 with AVX2 (throws <span class="em">PlatformNotSupportedException</span> on ARM). DiskANN requires Linux + libaio. The SDK gates these before the native call — you get a clean .NET exception, not a crash.
+          HNSW-RaBitQ requires x86_64 with AVX2 (throws <span class="em">PlatformNotSupportedException</span> on ARM). DiskANN requires Linux + libaio. The SDK gates these before the native call — clean .NET exception, not a crash.
         </p>
       </div>
     </div>
@@ -1246,7 +2909,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>07 / 18</span>
+      <span>07 / 20</span>
     </div>
 
   </div>
@@ -1273,11 +2936,11 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-14">straighten</span>
       06 / Metrics &amp; Rerankers
     </span>
-    <h1 class="h1" style="margin-top:12px;">Distance Metrics &amp; In-DB Rerankers</h1>
-    <p class="subhead" style="margin-top:8px;">Pick the metric on the <span class="mono">[ZVecVector]</span> attribute. When you query multiple vectors or hybrid dense+FTS, the SDK's built-in rerankers fuse the results in native code.</p>
+    <h1 class="h1" style="margin-top:8px;">Distance Metrics &amp; In-DB Rerankers</h1>
+    <p class="subhead" style="margin-top:4px; font-size:15px;">Pick the metric on the <span class="mono">[ZVecVector]</span> attribute. Multi-vector / hybrid dense+FTS queries fuse in-DB via built-in rerankers.</p>
 
     <!-- Three metric cards -->
-    <div class="metric-grid" style="margin-top:18px;">
+    <div class="metric-grid">
 
       <!-- Card 1 — Cosine -->
       <div class="surface metric-card">
@@ -1343,7 +3006,7 @@ main.sidenav-collapsed { margin-left: 0; }
         <div>
           <div class="row">
             <span class="row-label">ZVecMetricType</span>
-            <span class="row-value"><span class="mono">InnerProduct</span></span>
+            <span class="row-value"><span class="mono">Ip</span></span>
           </div>
           <div class="row">
             <span class="row-label">Measures</span>
@@ -1363,36 +3026,39 @@ main.sidenav-collapsed { margin-left: 0; }
     </div>
 
     <!-- In-DB rerankers callout -->
-    <div class="surface-elev reranker-callout" style="margin-top:16px;">
+    <div class="surface-elev reranker-callout">
       <div>
-        <div class="rr-label">In-DB Rerankers — No Extra Service Needed</div>
-        <p class="rr-body">Two reranker types ship with the SDK, executed natively inside ZVec:</p>
+        <div class="rr-label">In-DB Rerankers — No Extra Service</div>
+        <p class="rr-body">Two rerankers execute natively inside ZVec:</p>
         <ul class="rr-bullets">
-          <li><span class="mono">ZVecRrfReranker</span> — Reciprocal Rank Fusion. Combines results from multiple sub-queries (e.g. title_vec + body_vec) into one ranked list.</li>
-          <li><span class="mono">ZVecWeightedReranker</span> — Weighted score fusion. Assign per-field weights (e.g. dense 0.7 / FTS 0.3) and let ZVec compute the final ranking.</li>
+          <li><span class="mono">ZVecRrfReranker</span> — Reciprocal Rank Fusion across sub-queries (e.g. title_vec + body_vec).</li>
+          <li><span class="mono">ZVecWeightedReranker</span> — Weighted fusion (e.g. dense 0.7 / FTS 0.3).</li>
         </ul>
       </div>
       <div>
         <div class="rr-label" style="color:var(--primary-muted);">Multi-Query Overload</div>
-        <div class="rr-code" style="margin-top:6px;"><span class="c">// fuse [q1, q2] with RRF, take TopN</span>
-<span class="k">var</span> hits = col.<span class="t">Query</span>([q1, q2], topk,
-    reranker: <span class="k">new</span> <span class="t">ZVecRrfReranker</span> {
-        TopN = <span class="n">10</span>
-    });</div>
+        <div class="rr-code"><span class="c">// untyped multi-query + RRF (README)</span>
+<span class="k">var</span> hits = col.<span class="t">Query</span>(
+    [
+        <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"title_vec"</span>, Vector = titleVec },
+        <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"body_vec"</span>, Vector = bodyVec }
+    ],
+    topk: <span class="n">10</span>,
+    reranker: <span class="k">new</span> <span class="t">ZVecRrfReranker</span> { TopN = <span class="n">10</span> });</div>
       </div>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>08 / 18</span>
+      <span>08 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Three metrics, one enum. Cosine is your safe default for normalized text embeddings — it ignores magnitude and just measures the angle between vectors. L2 is geometric straight-line distance — the right choice for image or audio embeddings where magnitude carries signal. Dot product, exposed as InnerProduct, is angle and magnitude combined — useful when the vector norm encodes information like popularity or confidence. Now the rerankers — this is a feature most vector DBs charge extra for. When you query multiple vectors at once — say, a title vector and a body vector — ZVec fuses the results in native code using RRF or weighted scoring. You pass a reranker to the multi-query overload and ZVec does the rest. No external re-ranking service, no extra latency from a Python sidecar. We'll see this on the RAG slide when we blend dense and FTS results.</div>
+        <div class="notes-content">Three metrics, one enum. Cosine is your safe default for normalized text embeddings — it ignores magnitude and just measures the angle between vectors. L2 is geometric straight-line distance — the right choice for image or audio embeddings where magnitude carries signal. Dot product, exposed as <span class="mono">ZVecMetricType.Ip</span> (inner product), is angle and magnitude combined — useful when the vector norm encodes information like popularity or confidence. Now the rerankers. Multi-vector fusion (RRF / weighted) runs on the untyped <span class="mono">IZvecCollection.Query</span> overload — use <span class="mono">.Untyped</span> from a typed collection. Pass two or more <span class="mono">ZVecQuery</span> values plus a reranker; fusion stays in-process, no external re-ranking service. We'll see this on the RAG slide when we blend dense and FTS results.</div>
       </details>
     </section>
 
@@ -1411,22 +3077,21 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-14">device_hub</span>
       06 / HNSW Internals
     </span>
-    <h1 class="h1" style="margin-top:12px;">How HNSW Works</h1>
+    <h1 class="h1" style="margin-top:8px;">How HNSW Works</h1>
 
-    <!-- Split layout -->
-    <div style="display:grid; grid-template-columns: 48% 52%; gap:24px; margin-top:14px; height:520px;">
+    <div class="hnsw-layout">
 
-      <!-- LEFT — text -->
-      <div style="display:flex; flex-direction:column;">
+      <div class="hnsw-left">
+        <p class="analogy">HNSW = stacked graphs (sparse top → dense bottom)</p>
         <p class="lead">
-          HNSW builds a multi-layer navigable small-world graph. Top layers are sparse (few nodes, long-range connections); bottom layer is dense (every node, short-range connections). Search descends layer-by-layer, narrowing in on the query neighbourhood.
+          Like the classic hierarchy diagram: search hops greedily <em>inside</em> a layer (solid arrows), then <em>drops</em> to a denser layer (dashed). Layer 0 holds every vector — that’s where you refine nearest neighbours. Link length shrinks as you go down (“decreasing characteristic radius”).
         </p>
 
         <div class="step">
           <span class="step-num">1</span>
           <div>
             <div class="step-title">Insert</div>
-            <p class="step-body">Walk down from the top layer. At each layer, find the nearest neighbours and connect. New nodes get assigned a layer based on a probabilistic decay.</p>
+            <p class="step-body">Link each new vector to nearby nodes; some nodes also get promoted to higher layers.</p>
           </div>
         </div>
 
@@ -1434,7 +3099,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="step-num">2</span>
           <div>
             <div class="step-title">Search</div>
-            <p class="step-body">Start at the top, greedy descent: at each layer, move to the neighbour closest to the query until no improvement. Drop one layer. Repeat.</p>
+            <p class="step-body">Greedy descent from the top: hop to the closest neighbour, then drop one zoom level.</p>
           </div>
         </div>
 
@@ -1442,124 +3107,64 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="step-num">3</span>
           <div>
             <div class="step-title">Refine</div>
-            <p class="step-body">At the bottom layer (all nodes), exhaustively check the local neighbourhood for top-K results.</p>
+            <p class="step-body">On Layer 0 (all nodes), expand the local neighbourhood and take top-K.</p>
           </div>
         </div>
 
-        <div class="surface tunables">
-          <div class="tun-label">Tunables (on [ZVecVector])</div>
-          <div class="tun-body">
-<span class="k">M</span> = <span class="n">32</span>          <span class="c">// graph degree</span><br>
-<span class="k">EfConstruction</span> = <span class="n">256</span>  <span class="c">// build-time beam width</span><br>
-<span class="k">efSearch</span>            <span class="c">// runtime beam width — higher = better recall, slower</span>
-          </div>
-        </div>
+        <p class="hnsw-footnote">Tunables via <span class="mono">ZVecHnswIndexParam</span> / <span class="mono">[ZVecVector(M=, EfConstruction=)]</span>. SDK defaults: <span class="mono">M=16</span>, <span class="mono">EfConstruction=200</span>. Examples often use 32 / 256 (overrides).</p>
       </div>
 
-      <!-- RIGHT — layered graph visual -->
-      <div class="graph-wrap">
-
-        <!-- TOP layer — sparse -->
-        <div class="layer l2">
-          <div class="layer-label">Layer 2 · sparse</div>
-          <div class="layer-canvas">
-            <!-- 3 dots at 12%, 50%, 84% -->
-            <div class="dot entry" style="left:12%; top:50%;"></div>
-            <div class="dot" style="left:50%; top:32%;"></div>
-            <div class="dot" style="left:84%; top:65%;"></div>
-            <!-- edges -->
-            <div class="edge accent" style="left:12%; top:50%; width:38.6%; transform: rotate(-12.4deg);"></div>
-            <div class="edge" style="left:50%; top:32%; width:34.5%; transform: rotate(28.6deg);"></div>
+      <div class="hnsw-preview-panel">
+        <div class="hnsw-preview-title">Preview · HNSW hierarchy</div>
+        <div class="hnsw-mini" aria-hidden="true">
+          <div class="hnsw-mini-layer">
+            <div class="hnsw-mini-tag">Layer = 2</div>
+            <div class="hnsw-mini-canvas">
+              <div class="dot entry" style="left:28%; top:50%; background:#FF5C7A;"></div>
+              <div class="dot" style="left:72%; top:42%; background:#5B9FD4;"></div>
+              <div class="edge" style="left:28%; top:50%; width:44%; transform: rotate(-8deg); background:#FF5C7A;"></div>
+            </div>
+          </div>
+          <div class="hnsw-mini-layer">
+            <div class="hnsw-mini-tag">Layer = 1</div>
+            <div class="hnsw-mini-canvas">
+              <div class="dot" style="left:18%; top:55%; background:#5B9FD4;"></div>
+              <div class="dot" style="left:42%; top:35%; background:#5B9FD4;"></div>
+              <div class="dot entry" style="left:65%; top:48%; background:#5B9FD4;"></div>
+              <div class="dot" style="left:88%; top:58%; background:#5B9FD4;"></div>
+              <div class="edge" style="left:18%; top:55%; width:48%; transform: rotate(-10deg); background:#FF5C7A;"></div>
+            </div>
+          </div>
+          <div class="hnsw-mini-layer">
+            <div class="hnsw-mini-tag">Layer = 0</div>
+            <div class="hnsw-mini-canvas">
+              <div class="dot" style="left:12%; top:40%; background:#5B9FD4;"></div>
+              <div class="dot" style="left:28%; top:62%; background:#5B9FD4;"></div>
+              <div class="dot" style="left:45%; top:38%; background:#5B9FD4;"></div>
+              <div class="dot" style="left:60%; top:55%; background:#5B9FD4;"></div>
+              <div class="dot match" style="left:82%; top:50%;"></div>
+              <div class="edge" style="left:45%; top:38%; width:38%; transform: rotate(12deg); background:#FF5C7A;"></div>
+            </div>
           </div>
         </div>
-
-        <!-- MIDDLE layer — medium -->
-        <div class="layer l1">
-          <div class="layer-label">Layer 1</div>
-          <div class="layer-canvas">
-            <!-- 7 dots -->
-            <div class="dot entry" style="left:8%; top:55%;"></div>
-            <div class="dot" style="left:24%; top:30%;"></div>
-            <div class="dot" style="left:40%; top:62%;"></div>
-            <div class="dot" style="left:55%; top:35%;"></div>
-            <div class="dot" style="left:70%; top:60%;"></div>
-            <div class="dot" style="left:84%; top:30%;"></div>
-            <div class="dot" style="left:94%; top:60%;"></div>
-            <!-- edges -->
-            <div class="edge accent" style="left:8%; top:55%; width:17.4%; transform: rotate(-44.4deg);"></div>
-            <div class="edge" style="left:24%; top:30%; width:17.4%; transform: rotate(43.6deg);"></div>
-            <div class="edge" style="left:40%; top:62%; width:16.4%; transform: rotate(-44.4deg);"></div>
-            <div class="edge" style="left:55%; top:35%; width:16.4%; transform: rotate(44.4deg);"></div>
-            <div class="edge" style="left:70%; top:60%; width:15.4%; transform: rotate(-44.7deg);"></div>
-            <div class="edge" style="left:84%; top:30%; width:11.2%; transform: rotate(43.6deg);"></div>
-            <div class="edge" style="left:24%; top:30%; width:33.5%; transform: rotate(7.6deg);"></div>
-            <div class="edge" style="left:55%; top:35%; width:30.5%; transform: rotate(7.5deg);"></div>
-          </div>
-        </div>
-
-        <!-- BOTTOM layer — dense -->
-        <div class="layer l0">
-          <div class="layer-label">Layer 0 · all nodes</div>
-          <div class="layer-canvas" style="height:90px;">
-            <!-- 14 dots, 2 rows -->
-            <div class="dot entry" style="left:6%; top:38%;"></div>
-            <div class="dot" style="left:18%; top:68%;"></div>
-            <div class="dot" style="left:30%; top:32%;"></div>
-            <div class="dot" style="left:42%; top:62%;"></div>
-            <div class="dot" style="left:54%; top:38%;"></div>
-            <div class="dot" style="left:66%; top:70%;"></div>
-            <div class="dot" style="left:78%; top:35%;"></div>
-            <div class="dot match" style="left:92%; top:55%;"></div>
-            <div class="dot" style="left:12%; top:80%;"></div>
-            <div class="dot" style="left:24%; top:18%;"></div>
-            <div class="dot" style="left:36%; top:88%;"></div>
-            <div class="dot" style="left:48%; top:14%;"></div>
-            <div class="dot" style="left:60%; top:88%;"></div>
-            <div class="dot" style="left:72%; top:14%;"></div>
-            <div class="dot" style="left:84%; top:88%;"></div>
-            <!-- accent descent path: from entry (6%,38%) to match (92%,55%) via several hops -->
-            <div class="edge accent" style="left:6%; top:38%; width:13.2%; transform: rotate(43.6deg);"></div>
-            <div class="edge accent" style="left:18%; top:68%; width:13.2%; transform: rotate(-43.6deg);"></div>
-            <div class="edge accent" style="left:30%; top:32%; width:13.2%; transform: rotate(43.6deg);"></div>
-            <div class="edge accent" style="left:42%; top:62%; width:13.2%; transform: rotate(-43.6deg);"></div>
-            <div class="edge accent" style="left:54%; top:38%; width:13.2%; transform: rotate(43.6deg);"></div>
-            <div class="edge accent" style="left:66%; top:70%; width:13.2%; transform: rotate(-43.6deg);"></div>
-            <div class="edge accent" style="left:78%; top:35%; width:18.4%; transform: rotate(15.5deg);"></div>
-            <!-- some background edges for density -->
-            <div class="edge" style="left:24%; top:18%; width:13.2%; transform: rotate(50deg);"></div>
-            <div class="edge" style="left:36%; top:88%; width:13.2%; transform: rotate(-50deg);"></div>
-            <div class="edge" style="left:48%; top:14%; width:13.2%; transform: rotate(50deg);"></div>
-            <div class="edge" style="left:60%; top:88%; width:13.2%; transform: rotate(-50deg);"></div>
-            <div class="edge" style="left:12%; top:80%; width:13.2%; transform: rotate(-50deg);"></div>
-            <div class="edge" style="left:72%; top:14%; width:13.2%; transform: rotate(50deg);"></div>
-          </div>
-        </div>
-
-        <!-- vertical descent overlay between layers -->
-        <div class="descent" aria-hidden="true" data-decor>
-          <!-- gap between l2 and l1: from ~top 152 to 168 — show arrow -->
-          <span class="material-icons descent-arrow" style="left:8%; top:34%; transform: translate(-50%, -50%) rotate(180deg);">arrow_back</span>
-          <!-- gap between l1 and l0 -->
-          <span class="material-icons descent-arrow" style="left:6%; top:67%; transform: translate(-50%, -50%) rotate(180deg);">arrow_back</span>
-        </div>
-
+        <button type="button" class="hnsw-open-btn" id="hnsw-open-btn">
+          <span class="material-icons">play_circle</span>
+          Watch the search walk
+        </button>
       </div>
 
     </div>
 
-    <p class="footnote">HNSW is the default index in ZVec — configured via <span class="mono">ZVecHnswIndexParam</span> or the <span class="mono">[ZVecVector(M=, EfConstruction=)]</span> attribute.</p>
-
-    <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>09 / 18</span>
+      <span>09 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Think of HNSW as a zoom-in map. At the top layer, you're looking at the whole country — few cities, long flights between them. You pick the city closest to your destination. Drop a layer: now you're looking at a region — more towns, shorter hops. Pick the closest town. Drop another layer: now you're at street level, every building visible, you walk to the nearest door. That greedy descent is what makes it O(log N) instead of O(N). The two knobs that matter at build time are M — graph degree, higher means more memory but better recall — and EfConstruction, the beam width at insert time. At query time, efSearch trades recall for latency. The defaults — M equals 32, EfConstruction equals 256 — are what the SDK uses if you don't override them on the attribute.</div>
+        <div class="notes-content">Open with: HNSW stacks graphs like the classic hierarchy diagram (sparse Layer 2 on top, all vectors on Layer 0). Click “Watch the search walk.” Narrate: red entry → solid red arrow (greedy hop in-layer) → dashed red drop to the denser layer → repeat until Layer 0 → green nearest neighbour. Point at “decreasing characteristic radius” on the right. Then tunables: M = max neighbours, efSearch = search candidate list (query-time), EfConstruction = build-time list. SDK defaults M=16 / EfConstruction=200; walkthrough examples may show 32 / 256. Close and move on.</div>
       </details>
     </section>
 
@@ -1579,92 +3184,47 @@ main.sidenav-collapsed { margin-left: 0; }
       07 / Getting Started
     </span>
     <h1 class="h1" style="margin-top:12px;">Three Steps to a Typed Collection</h1>
+    <p class="lead" style="margin-top:10px; max-width:920px;">
+      Install the package, register ZVec in DI, define a POCO with <span class="mono">[ZVecVector]</span>. The factory initializes the native engine in-process; the collection opens on-disk and is ready for inserts and queries.
+    </p>
 
-    <!-- Split layout: 32% / 68% -->
-    <div style="display:grid; grid-template-columns: 32% 68%; gap:24px; margin-top:16px;">
+    <div class="code-step-grid">
+      <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="install">
+        <span class="csc-num">01 · INSTALL</span>
+        <span class="csc-title">Install the NuGet package</span>
+        <span class="csc-teaser">dotnet add package ZVec.NET --version 1.0.0-beta.2</span>
+        <span class="csc-cta"><span class="material-icons">code</span> View code</span>
+      </button>
+      <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="register">
+        <span class="csc-num">02 · REGISTER</span>
+        <span class="csc-title">AddZVec + AddZVecCollection&lt;T&gt;</span>
+        <span class="csc-teaser">builder.Services.AddZVec(…) · Path · Create · EnableMmap</span>
+        <span class="csc-cta"><span class="material-icons">code</span> View code</span>
+      </button>
+      <button type="button" class="code-step-card" data-code-pack="10" data-code-tab="poco">
+        <span class="csc-num">03 · POCO</span>
+        <span class="csc-title">Define POCO with [ZVecVector]</span>
+        <span class="csc-teaser">[ZVecVector(384, Metric=Cosine, M=32, EfConstruction=256)]</span>
+        <span class="csc-cta"><span class="material-icons">code</span> View code</span>
+      </button>
+    </div>
 
-      <!-- LEFT — explanation -->
-      <div style="display:flex; flex-direction:column;">
-        <p class="lead">
-          Install the package, register ZVec in DI, define a POCO with <span class="mono">[ZVecVector]</span>. The factory initializes the native engine in-process; the collection opens on-disk and is ready for inserts and queries.
-        </p>
-
-        <div class="step">
-          <span class="step-num">1</span>
-          <span class="step-text">Install the NuGet package</span>
-        </div>
-        <div class="step">
-          <span class="step-num">2</span>
-          <span class="step-text">Register <span class="mono">AddZVec</span> + <span class="mono">AddZVecCollection&lt;T&gt;</span></span>
-        </div>
-        <div class="step">
-          <span class="step-num">3</span>
-          <span class="step-text">Define your POCO with <span class="mono">[ZVecVector]</span></span>
-        </div>
-
-        <div class="surface real-code-callout">
-          <div class="rcc-label">Real code from the README</div>
-          <p class="rcc-body"><span class="mono">net8.0</span> · <span class="mono">net9.0</span> · <span class="mono">net10.0</span></p>
-        </div>
-      </div>
-
-      <!-- RIGHT — three stacked code blocks -->
-      <div style="display:flex; flex-direction:column; gap:10px;">
-
-        <!-- Step 1 — Install -->
-        <div>
-          <div class="code-block-label"><span class="num">01</span> Install</div>
-          <pre class="code">$ dotnet add package ZVec.NET --version <span class="n">1.0.0-beta.2</span></pre>
-        </div>
-
-        <!-- Step 2 — Register -->
-        <div>
-          <div class="code-block-label"><span class="num">02</span> Register in Program.cs</div>
-<pre class="code">builder.Services.<span class="t">AddZVec</span>(options =&gt;
-{
-    options.LogLevel = <span class="t">ZVecLogLevel</span>.Warn;
-    options.QueryThreads = <span class="n">-1</span>;
-    options.MemoryLimitMb = <span class="n">512</span>;
-});
-
-builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Product</span>&gt;(options =&gt;
-{
-    options.Path = <span class="s">"/data/products"</span>;
-    options.EnableMmap = <span class="k">true</span>;
-    options.Create = <span class="k">true</span>;   <span class="c">// first run; set false to Open</span>
-});</pre>
-        </div>
-
-        <!-- Step 3 — Define POCO -->
-        <div>
-          <div class="code-block-label"><span class="num">03</span> Define the POCO</div>
-<pre class="code"><span class="k">public sealed class</span> <span class="t">Product</span>
-{
-    <span class="k">public string</span> Id { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
-    <span class="k">public string</span> Title { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
-    <span class="k">public string</span> Category { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
-
-    [<span class="t">ZVecVector</span>(<span class="n">768</span>, Metric = <span class="t">ZVecMetricType</span>.Cosine,
-                M = <span class="n">32</span>, EfConstruction = <span class="n">256</span>)]
-    <span class="k">public</span> <span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; Embedding { <span class="k">get</span>; <span class="k">set</span>; }
-}</pre>
-        </div>
-
-      </div>
-
+    <div class="surface real-code-callout" style="margin-top:18px; max-width:420px;">
+      <div class="rcc-label">Real code from the README</div>
+      <p class="rcc-body"><span class="mono">net8.0</span> · <span class="mono">net9.0</span> · <span class="mono">net10.0</span></p>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>10 / 18</span>
+      <span>10 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Three steps and you have a typed collection. Step one — install the package, one CLI command. Version 1.0.0-beta.2 is the current release on NuGet. Step two — DI registration. AddZVec configures the factory: log level, query threads (negative one means use all cores), and memory limit. AddZVecCollection&lt;Product&gt; opens or creates the on-disk collection. The Create flag matters: set true on first run, false on subsequent restarts — ZVec throws if you try to CreateAndOpen an existing path. Step three — the POCO. Id is the identity by convention. Title and Category are scalar fields stored alongside the vector. The ZVecVector attribute declares the dimension — 768 must match your embedding model — the metric, and the HNSW tunables M equals 32 and EfConstruction equals 256. All three steps are real code from the README — nothing illustrative here. Schema is enforced at the binding layer, so a typo in a field name fails at compile time, not at runtime.</div>
+        <div class="notes-content">Open each step card to show the code. Step one — install the package (1.0.0-beta.2). Step two — DI: AddZVec (log level, QueryThreads=-1, MemoryLimitMb) then AddZVecCollection&lt;Product&gt; — Create=true first run, false later. Step three — POCO: Id by convention, scalars + [ZVecVector(384, Cosine, M=32, EfConstruction=256)] — example overrides; SDK defaults are M=16 / EfConstruction=200. Dim must match the embedder. Attribute mapping fails at compile time for bad property names.</div>
       </details>
     </section>
 
@@ -1686,46 +3246,19 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
     <h1 class="h1" style="margin-top:10px;">CRUD &amp; Query — <span style="font-family:var(--font-mono); color:var(--accent); font-size:34px;">IZvecCollection&lt;T&gt;</span></h1>
     <p class="subhead" style="margin-top:6px;">Inject <span class="mono">IZvecCollection&lt;T&gt;</span> anywhere. Typed filters compile to native filter strings — no magic field names. Sync + async variants; async is cancellation-aware.</p>
 
-    <!-- Two code blocks side by side -->
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; margin-top:14px;">
-
-      <!-- LEFT — CRUD -->
-      <div>
-        <div class="code-block-label"><span class="tag">CRUD</span> (Typed)</div>
-<pre class="code"><span class="k">public class</span> <span class="t">ProductService</span>(<span class="t">IZvecCollection</span>&lt;<span class="t">Product</span>&gt; products)
-{
-    <span class="k">public async</span> <span class="t">Task</span> <span class="t">UpsertAsync</span>(<span class="t">Product</span> p) =&gt;
-        <span class="k">await</span> products.<span class="t">UpsertAsync</span>(p);
-
-    <span class="k">public async</span> <span class="t">Task</span> <span class="t">DeleteAsync</span>(<span class="k">string</span> id) =&gt;
-        <span class="k">await</span> products.<span class="t">DeleteAsync</span>(id);
-
-    <span class="k">public</span> <span class="t">Task</span>&lt;<span class="t">Product</span>?&gt; <span class="t">FetchAsync</span>(<span class="k">string</span> id) =&gt;
-        products.<span class="t">FetchAsync</span>(id);
-
-    <span class="k">public</span> <span class="t">Task</span> <span class="t">DeleteExpiredAsync</span>() =&gt;
-        products.<span class="t">DeleteByFilterAsync</span>(
-            p =&gt; p.Category == <span class="s">"expired"</span>);
-}</pre>
-      </div>
-
-      <!-- RIGHT — Query -->
-      <div>
-        <div class="code-block-label"><span class="tag">QUERY</span> (Typed + Filter)</div>
-<pre class="code"><span class="k">public async</span> <span class="t">Task</span>&lt;<span class="t">IReadOnlyList</span>&lt;<span class="t">ZVecHit</span>&lt;<span class="t">Product</span>&gt;&gt;&gt; <span class="t">SearchAsync</span>(
-    <span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; queryVector,
-    <span class="k">string</span>? category = <span class="k">null</span>)
-{
-    <span class="k">return await</span> products.<span class="t">QueryAsync</span>(
-        p =&gt; p.Embedding,           <span class="c">// vector field</span>
-        queryVector,                <span class="c">// query</span>
-        topK: <span class="n">10</span>,
-        filter: category <span class="k">is null</span>
-            ? <span class="k">null</span>
-            : p =&gt; p.Category == category);
-}</pre>
-      </div>
-
+    <div class="code-step-grid cols-2" style="margin-top:14px;">
+      <button type="button" class="code-step-card" data-code-pack="11" data-code-tab="crud">
+        <span class="csc-num">CRUD · TYPED</span>
+        <span class="csc-title">Upsert · Delete · Fetch · Filter</span>
+        <span class="csc-teaser">ProductService(IZvecCollection&lt;Product&gt;) · UpsertAsync · DeleteByFilterAsync</span>
+        <span class="csc-cta"><span class="material-icons">code</span> View code</span>
+      </button>
+      <button type="button" class="code-step-card" data-code-pack="11" data-code-tab="query">
+        <span class="csc-num">QUERY · TYPED + FILTER</span>
+        <span class="csc-title">QueryAsync with vector + filter</span>
+        <span class="csc-teaser">p =&gt; p.Embedding · topK: 10 · optional Category filter</span>
+        <span class="csc-cta"><span class="material-icons">code</span> View code</span>
+      </button>
     </div>
 
     <!-- Key types row -->
@@ -1737,22 +3270,22 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
     <!-- Demo preview callout -->
     <div class="surface-elev demo-callout">
       <div>
-        <div class="dc-label">Up Next · Live Demo</div>
-        <div class="dc-title">Semantic Search Over a Docs Corpus</div>
-        <p class="dc-body">I'll spin up the Console sample from the repo, index ~1,000 doc chunks with sentence-transformers MiniLM via ONNX Runtime, and run live queries — showing insert latency, query latency, and result relevance.</p>
+        <div class="dc-label">Live Demo · This Session</div>
+        <div class="dc-title">Advanced RAG (PDDM)</div>
+        <p class="dc-body">Live today: PDDM in <span class="mono">Advanced/</span> — an advanced Jira navigator that shows what an in-process vector DB unlocks beyond simple retrieve-and-answer. CLIP + local ONNX gallery lives at <span class="mono">examples/01-clip-onnx</span> (download ONNX weights per its README).</p>
       </div>
       <div class="dc-bullets">
         <div class="dc-bullet">
+          <span class="material-icons md-18 ico">psychology</span>
+          <span><span class="mono">Advanced/</span> PDDM (slides 18–19) — live</span>
+        </div>
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">image</span>
+          <span><span class="mono">examples/01-clip-onnx</span> — planned</span>
+        </div>
+        <div class="dc-bullet">
           <span class="material-icons md-18 ico">bolt</span>
-          <span>Sub-ms warm query</span>
-        </div>
-        <div class="dc-bullet">
-          <span class="material-icons md-18 ico">storage</span>
-          <span>1,000+ vectors indexed live</span>
-        </div>
-        <div class="dc-bullet">
-          <span class="material-icons md-18 ico">code</span>
-          <span>Sample: <span class="mono">samples/ZVec.NET.Samples.Console</span></span>
+          <span>In-process ZVec — no cloud vector DB</span>
         </div>
       </div>
     </div>
@@ -1760,14 +3293,14 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>11 / 18</span>
+      <span>11 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Walk through the code. ProductService takes IZvecCollection of Product via primary constructor — that's standard .NET 8 DI. CRUD is exactly what you'd expect: Upsert, Delete, Fetch, and DeleteByFilter — all with async variants that are cancellation-aware. QueryAsync takes a lambda selecting the vector field — that lambda is compile-time checked, so a typo in the property name fails to compile, not blow up at runtime. Then the query vector, topK, and an optional typed filter expression that compiles to a native filter string. Mention the escape hatch: if you need something the expression filter can't express — like StartsWith or Contains — drop down to products.Untyped and use ZVecFilterBuilder. The live demo will use the Console sample from the repo. It's the same code path you see here — typed ODM, async, real latency numbers from my machine.</div>
+        <div class="notes-content">Open the CRUD card first — ProductService takes IZvecCollection of Product via primary constructor. Upsert, Delete, Fetch, DeleteByFilter — async and cancellation-aware. Then open Query: QueryAsync takes a lambda selecting the vector field (compile-time checked), query vector, topK, optional typed filter. Escape hatch: products.Untyped + ZVecFilterBuilder (also required for multi-query RRF). Live demo: PDDM; CLIP ONNX planned.</div>
       </details>
     </section>
 
@@ -1810,7 +3343,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <div class="surface flow-box">
         <div class="flow-icon-wrap"><span class="material-icons md-24">memory</span></div>
         <div class="flow-title">Embedder</div>
-        <p class="flow-body">sentence-transformers MiniLM · 768-dim</p>
+        <p class="flow-body">sentence-transformers MiniLM · 384-dim</p>
       </div>
 
       <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
@@ -1818,7 +3351,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <div class="surface flow-box highlight">
         <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
         <div class="flow-title"><span class="mono">IZvecCollection&lt;T&gt;.QueryAsync</span></div>
-        <p class="flow-body">HNSW · cosine · ~3ms / 10k</p>
+        <p class="flow-body">HNSW · cosine · ~2.9 ms / 10k</p>
       </div>
 
       <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
@@ -1831,33 +3364,25 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
 
     </div>
 
-    <!-- Code snippet -->
-    <div style="margin-top:18px;">
-      <div class="code-block-label"><span class="tag">Step-by-Step</span></div>
-<pre class="code"><span class="c">// 1. Embed the user query (e.g. via ONNX Runtime — see slide 17)</span>
-<span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; q = <span class="k">await</span> embedder.<span class="t">EmbedAsync</span>(userQuery);
-
-<span class="c">// 2. Search the index</span>
-<span class="k">var</span> hits = <span class="k">await</span> products.<span class="t">QueryAsync</span>(
-    p =&gt; p.Embedding, q, topK: <span class="n">5</span>,
-    filter: p =&gt; p.Category == <span class="s">"runbook"</span>);
-
-<span class="c">// 3. Render — each hit is a typed Product + score</span>
-<span class="k">foreach</span> (<span class="k">var</span> hit <span class="k">in</span> hits)
-    Console.<span class="t">WriteLine</span>($<span class="s">"{hit.Score:F3}  {hit.Record.Title}"</span>);</pre>
+    <!-- Code CTA -->
+    <div class="code-cta-row">
+      <button type="button" class="code-open-btn" data-code-pack="12" data-code-tab="steps">
+        <span class="material-icons">code</span>
+        View step-by-step code
+      </button>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>12 / 18</span>
+      <span>12 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Walk through the flow left to right. The user types a natural-language question — "how do I rotate API keys?". The embedder turns that into a 768-dim vector — assuming MiniLM via ONNX Runtime, which we'll cover on slide 17. The IZvecCollection query does an HNSW cosine search top-5 with a typed filter — Category equals runbook — and runs in roughly three milliseconds across ten thousand docs. Results come back as ZVecHit of Product — each carries the Score and the full typed Record — Title, Category, and the rest. Notice we didn't have to do a second lookup to get the title — the typed API hydrates the scalar fields for you. That's the ODM doing its job. Gotchas: chunk long docs before embedding — 512 tokens is a common chunk size; the filter compiles to a native filter string — no N plus 1 queries; cache embedding results for repeated queries. This is the building block — RAG, recommendations, and CLIP are all variations on it.</div>
+        <div class="notes-content">Walk the flow left to right, then open “View step-by-step code.” Embed the query → QueryAsync (HNSW cosine, top-5, Category=runbook) → render ZVecHit&lt;Product&gt; with Score + Record. Chunk long docs; filter is native; cache embeddings. Building block for RAG, recommendations, CLIP.</div>
       </details>
     </section>
 
@@ -1882,7 +3407,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
       <div>
         <span class="uc-label">Use Case</span>
-        <span class="uc-body" style="margin-left:8px;">Internal SOP assistant: answer questions grounded in our own runbooks. Sample ships in the MAUI sample app.</span>
+        <span class="uc-body" style="margin-left:8px;">Internal SOP assistant: answer questions grounded in our own runbooks. Advanced live demo: PDDM (slides 19–20).</span>
       </div>
     </div>
 
@@ -1926,53 +3451,38 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
     <div style="display:flex; justify-content:center; margin-top:2px;">
       <span class="result-chip">
         <span class="material-icons" style="font-size:16px;">verified</span>
-        Grounded answer with citations
+        Grounded answer (app can cite sources)
       </span>
     </div>
 
-    <!-- Code + Tip side-by-side -->
-    <div style="display:grid; grid-template-columns: 1.55fr 1fr; gap:14px; margin-top:14px;">
-      <div>
-        <div class="code-block-label"><span class="tag">Retrieve</span> → Build Prompt → Call LLM</div>
-<pre class="code"><span class="c">// 1. Retrieve relevant chunks (typed query + filter)</span>
-<span class="k">var</span> hits = <span class="k">await</span> docs.<span class="t">QueryAsync</span>(
-    p =&gt; p.Embedding,
-    <span class="k">await</span> embedder.<span class="t">EmbedAsync</span>(question),
-    topK: <span class="n">4</span>,
-    filter: p =&gt; p.Source == <span class="s">"runbooks"</span>);
-
-<span class="c">// 2. Build prompt with retrieved context</span>
-<span class="k">var</span> context = <span class="t">string</span>.<span class="t">Join</span>(<span class="s">"\n---\n"</span>,
-    hits.<span class="t">Select</span>(h =&gt; h.Record.Text));
-<span class="k">var</span> prompt = $<span class="s">"Context:\n{context}\n\nQuestion: {question}\nAnswer:"</span>;
-
-<span class="c">// 3. Send to LLM (LM Studio, OpenAI, etc.)</span>
-<span class="t">string</span> answer = <span class="k">await</span> llm.<span class="t">CompleteAsync</span>(prompt);</pre>
-      </div>
-
+    <!-- Tip + View code -->
+    <div style="display:grid; grid-template-columns: 1.2fr auto; gap:14px; margin-top:14px; align-items:stretch;">
       <div class="surface-elev tip-strip" style="flex-direction:column; align-items:flex-start; padding:14px 16px;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="material-icons md-18" style="color:var(--accent);">tips_and_updates</span>
           <span class="lbl">Tip</span>
         </div>
-        <p class="body" style="margin-top:6px;">For maximum relevance, query two vector fields (title + body) and fuse with <span class="mono">ZVecRrfReranker</span>:</p>
-        <pre style="margin-top:8px; font-family:var(--font-mono); font-size:11.5px; color:#E6EEF8; line-height:1.55; white-space:pre-wrap; background:rgba(0,0,0,0.18); padding:8px 10px; border-radius:8px; border:1px solid var(--line);">col.<span style="color:#00D4FF;">Query</span>([titleQ, bodyQ], topK,
-  reranker: <span style="color:#FF7AB6;">new</span> <span style="color:#00D4FF;">ZVecRrfReranker</span> { TopN = <span style="color:#FFB454;">4</span> })</pre>
-        <p class="body" style="margin-top:8px; font-size:11.5px; color:var(--primary-muted);">Runs in-DB, no extra service.</p>
+        <p class="body" style="margin-top:6px;">For maximum relevance, fuse title + body sub-queries with <span class="mono">ZVecRrfReranker</span> on the untyped multi-query API (<span class="mono">.Untyped</span>). Runs in-DB — no extra service. Open the code modal for RAG + RRF snippets.</p>
+      </div>
+      <div style="display:flex; align-items:center;">
+        <button type="button" class="code-open-btn" data-code-pack="13" data-code-tab="rag">
+          <span class="material-icons">code</span>
+          View RAG code
+        </button>
       </div>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>13 / 18</span>
+      <span>13 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Walk through the flow left to right: the user types a question — "how to failover DB?". We embed it with sentence-transformers, run a typed QueryAsync against the docs collection with a typed filter — Source equals "runbooks" — and grab top four chunks. We stuff those chunks into the prompt as context, send it to the LLM, and the LLM returns a grounded answer with citations. The MAUI sample in the repo ships a full offline RAG host — LM Studio plus Gemma plus ZVec — running on a phone. That's the kind of workload that just isn't possible with a cloud vector DB. Three gotchas: keep top-K small — three to five chunks, more dilutes the prompt; the typed filter means you're only retrieving from the right source, no need to filter client-side; and the reranker tip — when you have two vector fields like title and body, use ZVecRrfReranker to fuse them in-DB. No external re-ranking service, no extra latency. ZVec's sub-ms retrieval means the RAG pipeline bottleneck is the LLM, not the database.</div>
+        <div class="notes-content">Walk the flow, then open “View RAG code.” Tab 1: retrieve top-4 runbooks → stuff context into prompt → LLM. Tab 2: RRF tip — untyped multi-query via docs.Untyped.Query([ZVecQuery…], reranker: ZVecRrfReranker). Typed QueryAsync is single-vector only. PDDM is the advanced live demo.</div>
       </details>
     </section>
 
@@ -2001,103 +3511,79 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       </div>
     </div>
 
-    <!-- Bidirectional architecture: 5 cols × 5 rows -->
-    <div class="arch">
-      <!-- Row 1: indexing path (left → right) -->
-      <div class="surface arch-box">
-        <span class="lbl">Index · Source</span>
-        <div class="icon-wrap"><span class="material-icons md-24">description</span></div>
-        <div class="title">Item content (text)</div>
-      </div>
-      <div class="arrow-cell"><span class="material-icons md-32">arrow_forward</span></div>
-      <div class="surface arch-box">
-        <span class="lbl">Index · Encode</span>
-        <div class="icon-wrap"><span class="material-icons md-24">memory</span></div>
-        <div class="title">Item encoder</div>
-        <p class="body">sentence-transformers · MiniLM</p>
-      </div>
-      <div class="arrow-cell"><span class="material-icons md-32">arrow_downward</span></div>
-      <!-- Top-right: empty (clean column alignment) -->
-      <div></div>
-
-      <!-- Row 2: spacer -->
-      <div></div><div></div><div></div><div></div><div></div>
-
-      <!-- Row 3: Center ZVec box (spans columns 1-5 visualized through positioning) -->
-      <div class="center-box" style="grid-column: 1 / span 5; padding: 14px 18px; flex-direction: row; justify-content: center; gap: 16px;">
-        <div class="icon-wrap"><span class="material-icons md-24">storage</span></div>
-        <div style="display:flex; flex-direction:column; align-items:flex-start;">
-          <span class="title"><span class="mono">IZvecCollection&lt;T&gt;</span> · item embeddings</span>
-          <span class="body">shared vector space · HNSW · cosine</span>
+    <!-- Index path -->
+    <div class="flow-path">
+      <div class="flow-label">Index</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">description</span></div>
+          <div class="flow-title">Item content</div>
+          <p class="flow-body">ticket / doc text</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">memory</span></div>
+          <div class="flow-title">Item encoder</div>
+          <p class="flow-body">MiniLM · 384-dim</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title"><span class="mono">IZvecCollection&lt;T&gt;</span></div>
+          <p class="flow-body">UpsertAsync · HNSW · cosine</p>
         </div>
       </div>
+    </div>
 
-      <!-- Row 4: spacer -->
-      <div></div><div></div><div></div><div></div><div></div>
-
-      <!-- Row 5: query path (right → left, into ZVec, out to results) -->
-      <div class="surface arch-box" style="grid-column: 1;">
-        <span class="lbl">Query · Output</span>
-        <div class="icon-wrap" style="background: rgba(74,222,128,0.16); color: var(--good);"><span class="material-icons md-24">recommend</span></div>
-        <div class="title">Top-K recommended items <span class="mono">(ZVecHit&lt;T&gt;)</span></div>
-      </div>
-      <div class="arrow-cell" style="grid-column: 2;"><span class="material-icons md-32">arrow_back</span></div>
-      <div class="center-box" style="grid-column: 3; padding: 12px 14px; flex-direction: row; gap: 10px; box-shadow: none; background: var(--bg-elev); border: 1px solid var(--accent);">
-        <div class="icon-wrap" style="width:34px; height:34px;"><span class="material-icons md-18">storage</span></div>
-        <div>
-          <span class="title" style="font-size:12.5px;"><span class="mono">IZvecCollection&lt;T&gt;</span></span>
-          <span class="body" style="font-size:11px;">cosine · top-10</span>
+    <!-- Query path -->
+    <div class="flow-path">
+      <div class="flow-label">Query</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">person</span></div>
+          <div class="flow-title">User behaviour vector</div>
+          <p class="flow-body">same vector space</p>
         </div>
-      </div>
-      <div class="arrow-cell" style="grid-column: 4;"><span class="material-icons md-32">arrow_back</span></div>
-      <div class="surface arch-box" style="grid-column: 5;">
-        <span class="lbl">Query · Source</span>
-        <div class="icon-wrap"><span class="material-icons md-24">person</span></div>
-        <div class="title">User behaviour vector</div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title"><span class="mono">QueryAsync</span></div>
+          <p class="flow-body">cosine · top-10</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap" style="background: rgba(74,222,128,0.16); color: var(--good);"><span class="material-icons md-24">recommend</span></div>
+          <div class="flow-title">Top-K recommendations</div>
+          <p class="flow-body"><span class="mono">ZVecHit&lt;T&gt;</span></p>
+        </div>
       </div>
     </div>
 
     <!-- Key insight strip -->
-    <div class="surface insight-strip">
+    <div class="surface insight-strip" style="margin-top:12px;">
       <span class="material-icons md-18" style="color: var(--accent);">key</span>
       <span class="lbl">Key Insight</span>
       <span class="body">User behaviour and item content must live in the <b style="color:var(--primary);">SAME</b> vector space. Either train a joint model, or aggregate item vectors the user interacted with into a user vector.</span>
     </div>
 
-    <!-- Code snippet -->
-    <div style="margin-top:12px;">
-      <div class="code-block-label"><span class="tag">Index Once</span> · Query Per Request</div>
-<pre class="code"><span class="c">// Precompute item embeddings once at startup</span>
-<span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> items)
-{
-    <span class="k">var</span> emb = <span class="k">await</span> itemEncoder.<span class="t">EmbedAsync</span>(item.Content);
-    <span class="k">await</span> products.<span class="t">UpsertAsync</span>(<span class="k">new</span> <span class="t">Product</span>
-    {
-        Id       = item.Id,
-        Title    = item.Title,
-        Category = item.Category,
-        Embedding = emb
-    });
-}
-
-<span class="c">// At request time: query by user vector</span>
-<span class="k">var</span> recs = <span class="k">await</span> products.<span class="t">QueryAsync</span>(
-    p =&gt; p.Embedding,
-    userBehaviorVector,
-    topK: <span class="n">10</span>);</pre>
+    <div class="code-cta-row" style="margin-top:14px;">
+      <button type="button" class="code-open-btn" data-code-pack="14" data-code-tab="index">
+        <span class="material-icons">code</span>
+        View index / query code
+      </button>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>14 / 18</span>
+      <span>14 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Recommendations are just nearest-neighbour search where the query is a user vector and the index is item vectors. The hard part isn't the search — it's making sure user vectors and item vectors live in the same space. Two common approaches: collaborative filtering, where the user vector is the average of item vectors they engaged with; or a two-tower model that outputs user vectors and item vectors in a shared space. For our internal use case — "similar tickets" — the simplest version is: embed ticket title plus description with sentence-transformers, query by the current ticket's embedding, return top-K similar. Note the code uses UpsertAsync on a typed Product POCO — the embedding is just a property. Sub-ms latency means you can compute recommendations inline in the ticket view without a background job.</div>
+        <div class="notes-content">Walk Index then Query flows. Key insight: user and item vectors must share one space. Open “View index / query code” — tab 1 UpsertAsync items at startup; tab 2 QueryAsync by userBehaviourVector top-10. Similar tickets = embed current ticket, nearest neighbours. ANN lookup is typically sub-ms after you already have the user/item vector — good enough to run inline in a ticket view.</div>
       </details>
     </section>
 
@@ -2116,8 +3602,8 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <span class="material-icons md-14">compare_arrows</span>
       09 / Multimodal Alignment
     </span>
-    <h1 class="h1" style="margin-top:10px;">How CLIP Learns to Match Images and Text</h1>
-    <p class="subhead">Contrastive joint training aligns two encoders into one shared vector space — no manual tagging required.</p>
+    <h1 class="h1" style="margin-top:8px;">How CLIP Learns to Match Images and Text</h1>
+    <p class="subhead" style="margin-top:4px;">Contrastive joint training aligns two encoders into one shared vector space — no manual tagging required.</p>
 
     <div class="col-grid">
       <!-- LEFT: 3 explanation cards -->
@@ -2128,7 +3614,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
         </div>
         <div class="surface exp-card accent-left">
           <div class="head">Contrastive Joint Training</div>
-          <p class="body">CLIP trains an image encoder and a text encoder simultaneously on millions of image-caption pairs. The training objective pulls matching pairs closer together and pushes mismatched pairs apart — iteratively aligning both encoders into the same 512-dim space.</p>
+          <p class="body">CLIP trains an image encoder and a text encoder simultaneously on ~400M image–text pairs (CLIP paper / WIT). The objective pulls matching pairs closer and pushes mismatches apart — aligning both encoders into a shared space (512-d for ViT-B/32–scale models).</p>
         </div>
         <div class="surface exp-card">
           <div class="head">The Result</div>
@@ -2187,7 +3673,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>15 / 18</span>
+      <span>15 / 20</span>
     </div>
 
   </div>
@@ -2223,61 +3709,58 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       </div>
     </div>
 
-    <p class="explain-line">Because of contrastive training (previous slide), CLIP's image and text encoders output vectors in the same <span class="mono">512-dim</span> space. Cosine similarity between an image vector and a text vector measures their semantic match.</p>
+    <p class="explain-line" style="margin-top:6px;">Because of contrastive training (previous slide), CLIP's image and text encoders output vectors in the same <span class="mono">512-dim</span> space. Cosine similarity between an image vector and a text vector measures their semantic match.</p>
 
-    <!-- Dual-encoder flow -->
-    <div class="arch">
-      <!-- Row 1: Path A (image → encoder) -->
-      <div class="surface arch-box">
-        <span class="lbl">Path A · Index</span>
-        <div class="icon-wrap"><span class="material-icons md-24">image</span></div>
-        <div class="title">Image</div>
-      </div>
-      <div class="arrow-cell"><span class="material-icons md-32">arrow_forward</span></div>
-      <div class="surface arch-box">
-        <span class="lbl">Path A · Encode</span>
-        <div class="icon-wrap"><span class="material-icons md-24">photo_camera</span></div>
-        <div class="title">CLIP image encoder</div>
-        <p class="body">512-dim · ONNX Runtime</p>
-      </div>
-      <div class="arrow-cell"><span class="material-icons md-32">arrow_downward</span></div>
-      <div></div>
-
-      <!-- Row 2: spacer -->
-      <div></div><div></div><div></div><div></div><div></div>
-
-      <!-- Row 3: center ZVec box spanning all 5 columns -->
-      <div class="center-box" style="grid-column: 1 / span 5; padding: 14px 18px; flex-direction: row; justify-content: center; gap: 14px;">
-        <div class="icon-wrap"><span class="material-icons md-24">storage</span></div>
-        <div style="display:flex; flex-direction:column; align-items:flex-start;">
-          <span class="title"><span class="mono">IZvecCollection&lt;T&gt;</span></span>
-          <span class="body">cosine · 512-dim shared space · HNSW</span>
+    <!-- Dual paths -->
+    <div class="flow-path">
+      <div class="flow-label">Path A</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">image</span></div>
+          <div class="flow-title">Image</div>
+          <p class="flow-body">screenshot / asset</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">photo_camera</span></div>
+          <div class="flow-title">CLIP image encoder</div>
+          <p class="flow-body">512-dim · ONNX</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title"><span class="mono">IZvecCollection&lt;T&gt;</span></div>
+          <p class="flow-body">index once · HNSW</p>
         </div>
       </div>
+    </div>
 
-      <!-- Row 4: spacer -->
-      <div></div><div></div><div></div><div></div><div></div>
-
-      <!-- Row 5: Path B (text → encoder) merging up; Output → matching image paths -->
-      <div class="surface arch-box" style="grid-column: 1;">
-        <span class="lbl">Query · Output</span>
-        <div class="icon-wrap" style="background: rgba(74,222,128,0.16); color: var(--good);"><span class="material-icons md-24">photo_library</span></div>
-        <div class="title"><span class="mono">ZVecHit&lt;T&gt;</span> — matching image paths</div>
-      </div>
-      <div class="arrow-cell" style="grid-column: 2;"><span class="material-icons md-32">arrow_back</span></div>
-      <div class="center-box" style="grid-column: 3; padding: 12px 14px; flex-direction: row; gap: 10px; box-shadow: none; background: var(--bg-elev); border: 1px solid var(--accent);">
-        <div class="icon-wrap" style="width:34px; height:34px;"><span class="material-icons md-18">storage</span></div>
-        <div>
-          <span class="title" style="font-size:12.5px;"><span class="mono">IZvecCollection&lt;T&gt;</span></span>
-          <span class="body" style="font-size:11px;">QueryAsync · top-5</span>
+    <div class="flow-path">
+      <div class="flow-label">Path B</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">text_fields</span></div>
+          <div class="flow-title">Text query</div>
+          <p class="flow-body">"deploy dashboard screenshot"</p>
         </div>
-      </div>
-      <div class="arrow-cell" style="grid-column: 4;"><span class="material-icons md-32">arrow_back</span></div>
-      <div class="surface arch-box" style="grid-column: 5;">
-        <span class="lbl">Path B · Query</span>
-        <div class="icon-wrap"><span class="material-icons md-24">text_fields</span></div>
-        <div class="title">Text query</div>
-        <p class="body">"deploy dashboard screenshot"</p>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">memory</span></div>
+          <div class="flow-title">CLIP text encoder</div>
+          <p class="flow-body">same 512-dim space</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title"><span class="mono">QueryAsync</span></div>
+          <p class="flow-body">cosine · top-5</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap" style="background: rgba(74,222,128,0.16); color: var(--good);"><span class="material-icons md-24">photo_library</span></div>
+          <div class="flow-title">Matching images</div>
+          <p class="flow-body"><span class="mono">ZVecHit&lt;T&gt;</span> paths</p>
+        </div>
       </div>
     </div>
 
@@ -2288,37 +3771,35 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <span class="body">Both encoders were trained together (contrastive learning) so that <span class="mono">"a photo of a cat"</span> and an actual cat photo land at nearby vectors. Same metric (Cosine), same dimension (512).</span>
     </div>
 
-    <!-- Code snippet -->
-    <div style="margin-top:10px;">
-      <div class="code-block-label"><span class="tag">Index Images</span> · Query by Text</div>
-<pre class="code"><span class="c">// Index images (one-time pass)</span>
-<span class="k">foreach</span> (<span class="k">var</span> img <span class="k">in</span> images)
-{
-    <span class="k">var</span> vec = <span class="k">await</span> clip.<span class="t">EncodeImageAsync</span>(img.Path); <span class="c">// 512-dim</span>
-    <span class="k">await</span> assets.<span class="t">UpsertAsync</span>(<span class="k">new</span> <span class="t">Asset</span>
-    {
-        Id   = img.Id,
-        Path = img.Path,
-        Embedding = vec   <span class="c">// ReadOnlyMemory&lt;float&gt;, [ZVecVector(512)]</span>
-    });
-}
-
-<span class="c">// Query by text description</span>
-<span class="k">var</span> q = <span class="k">await</span> clip.<span class="t">EncodeTextAsync</span>(<span class="s">"deploy dashboard screenshot"</span>);
-<span class="k">var</span> matches = <span class="k">await</span> assets.<span class="t">QueryAsync</span>(p =&gt; p.Embedding, q, topK: <span class="n">5</span>);</pre>
+    <div class="surface-elev demo-callout" style="margin-top:8px;">
+      <div>
+        <div class="dc-label">Planned Demo</div>
+        <div class="dc-title">CLIP + local ONNX gallery</div>
+        <p class="dc-body">Text query or image upload → same 512-d space → ZVec top-K. Path planned as <span class="mono">examples/01-clip-onnx</span> (Flickr8k patch ingest). Live advanced demo today: PDDM in <span class="mono">Advanced/</span>.</p>
+      </div>
+      <div class="dc-bullets">
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">folder</span>
+          <span class="mono">examples/01-clip-onnx</span> · planned
+        </div>
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">image</span>
+          <span>Path + vision embedding only</span>
+        </div>
+      </div>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>16 / 18</span>
+      <span>16 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Connecting to the previous slide: because of contrastive training, we can encode an image and a text query into the same 512-dim space and compare them directly. Walk through the flow: index images once — encode each with the CLIP image encoder, upsert as a typed Asset POCO with the ZVecVector 512 attribute — then at query time encode the text description with the CLIP text encoder and run a typed QueryAsync. Concrete use cases: search screenshots by description — "find me that deploy dashboard screenshot from last week"; find similar product images; automatic image tagging. For .NET: run CLIP via ONNX Runtime, Microsoft.ML.OnnxRuntime — the model is around 350 MB and runs on CPU in roughly 50 ms per image. Index once at startup, then sub-ms text queries. This is the kind of feature that feels like magic to users but is genuinely around 100 lines of code.</div>
+        <div class="notes-content">Connecting to the previous slide: because of contrastive training, we can encode an image and a text query into the same 512-dim space and compare them directly. Walk through the flow: index images once — encode each with the CLIP image encoder, upsert as a typed Asset POCO with the ZVecVector 512 attribute — then at query time encode the text description with the CLIP text encoder and run a typed QueryAsync. Concrete use cases: search screenshots by description — "find me that deploy dashboard screenshot from last week"; find similar product images; automatic image tagging. For .NET: run CLIP via ONNX Runtime, Microsoft.ML.OnnxRuntime — the model is around 350 MB and runs on CPU in roughly 50 ms per image. Index once at startup; ANN queries are typically sub-ms after encoding (encoding itself is tens of ms on CPU). Pattern is compact once encoders are in place.</div>
       </details>
     </section>
 
@@ -2343,7 +3824,7 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
       <div>
         <span class="uc-label">Use Case</span>
-        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. Same pattern used by the MAUI sample for offline RAG.</span>
+        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. CLIP ONNX gallery (<span class="mono">examples/01-clip-onnx</span>) is planned; SDK samples already show offline RAG via MAUI + LM Studio embeddings.</span>
       </div>
     </div>
 
@@ -2373,54 +3854,169 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
       </div>
     </div>
 
-    <!-- Code snippet -->
-    <div style="margin-top:12px;">
-      <div class="code-block-label"><span class="tag">Load</span> · Tokenize · Run · Upsert to ZVec</div>
-<pre class="code"><span class="k">using var</span> session = <span class="k">new</span> <span class="t">InferenceSession</span>(<span class="s">"all-MiniLM-L6-v2.onnx"</span>);
-
-<span class="c">// Tokenize + run inference</span>
-<span class="k">var</span> tokens = tokenizer.<span class="t">Encode</span>(input);
-<span class="k">var</span> inputs = <span class="k">new</span>[] {
-    <span class="t">NamedOnnxValue</span>.<span class="t">CreateFromTensor</span>(<span class="s">"input_ids"</span>, tokens)
-};
-
-<span class="k">using var</span> results = session.<span class="t">Run</span>(inputs);
-<span class="t">float</span>[] embedding = results.<span class="t">First</span>()
-    .<span class="t">AsTensor</span>&lt;<span class="t">float</span>&gt;().<span class="t">ToArray</span>();  <span class="c">// 384-dim</span>
-
-<span class="c">// Hand off to ZVec — typed UpsertAsync</span>
-<span class="k">await</span> products.<span class="t">UpsertAsync</span>(<span class="k">new</span> <span class="t">Product</span>
-{
-    Id = docId,
-    Title = title,
-    Embedding = embedding   <span class="c">// ReadOnlyMemory&lt;float&gt; implicit conv</span>
-});</pre>
+    <!-- Code CTA -->
+    <div class="code-cta-row" style="margin-top:14px;">
+      <button type="button" class="code-open-btn" data-code-pack="17" data-code-tab="onnx">
+        <span class="material-icons">code</span>
+        View ONNX → ZVec code
+      </button>
     </div>
 
     <!-- Why-it-matters callout -->
     <div class="surface-elev why-callout">
       <span class="material-icons md-24" style="color: var(--accent);">rocket_launch</span>
       <span class="lbl">Why This Matters</span>
-      <p class="body">End-to-end .NET pipeline · deployable as a single container · no Python/Node sidecar to operate · lower latency (no IPC) · simpler CI/CD. The same pattern works for CLIP, image encoders, audio encoders — anything with an ONNX export. The MAUI sample ships a full offline RAG host on this pattern.</p>
+      <p class="body">End-to-end .NET pipeline · single container · no Python/Node sidecar · lower latency (no IPC). The same ONNX pattern can power CLIP image/text encoders (<span class="mono">examples/01-clip-onnx</span>, planned). MAUI offline/edge RAG already ships in SDK <span class="mono">samples/ZVec.NET.Samples.Maui</span> (LM Studio embeddings today).</p>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>17 / 18</span>
+      <span>17 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">The pattern: HuggingFace has hundreds of sentence-transformers models exported as .onnx — download one, point OnnxRuntime at it, tokenize your text, run inference, get a float array. Mean-pool over the token dimension — the model outputs one vector per token; you average them, weighted by the attention mask — then L2-normalize. Now you have a 384-dim vector ready for ZVec — hand it off via typed UpsertAsync. The implicit conversion from float array to ReadOnlyMemory of float is free, so no allocation overhead. Why this is the right default for .NET teams: first, one container, one process — operations stays simple; second, no Python install in production; third, no HTTP hop to a model server, so latency is just model inference time — around 10 to 30 ms on CPU for MiniLM; fourth, the same pattern works for CLIP, image encoders, audio encoders. The MAUI sample in the repo ships a complete offline RAG host built on this pattern.</div>
+        <div class="notes-content">Walk The Pattern + Three Steps, then open “View ONNX → ZVec code” (schematic: real MiniLM needs attention_mask + mean-pool + L2). One container, no Python sidecar. CLIP ONNX gallery planned; MAUI RAG sample already in the SDK repo (LM Studio embeddings).</div>
       </details>
     </section>
 
     <section id="slide-18" class="slide-section" data-slide="18">
       <div class="section-header">
         <span class="section-num">18</span>
+        <div class="section-meta">
+          <span class="section-label">09 / Advanced Demo</span>
+          <h2 class="section-title">PDDM — Advanced RAG</h2>
+        </div>
+      </div>
+      <div class="slide-wrapper">
+        <div class="slide">
+    <span class="chip">
+      <span class="material-icons md-14">rocket_launch</span>
+      09 / Advanced Demo
+    </span>
+    <h1 class="h1" style="margin-top:12px;">PDDM — Projects Docs Deep Mind</h1>
+    <p class="subhead" style="margin-top:8px;">
+      An advanced RAG navigator over Apache Spark Jira — not a chunk dump. Shows what an <span class="em">in-process</span> vector DB unlocks at product shape.
+    </p>
+
+    <div class="pddm-stack">
+      <div class="cell surface"><span class="material-icons">storage</span>ZVec.NET<br/>in-process</div>
+      <div class="cell surface"><span class="material-icons">memory</span>LM Studio<br/>embed + chat</div>
+      <div class="cell surface"><span class="material-icons">api</span>ASP.NET<br/>API</div>
+      <div class="cell surface"><span class="material-icons">web</span>Blazor<br/>UI</div>
+      <div class="cell surface"><span class="material-icons">hub</span>.NET Aspire<br/>AppHost</div>
+    </div>
+
+    <div class="compare-grid" style="margin-top:18px;">
+      <div class="surface feature-card">
+        <div class="feature-label">What it does</div>
+        <div class="feature-title">Navigate, don’t paste</div>
+        <p class="feature-body">Assigned tickets, new requirements, and decision rationale — answers walk epic/siblings/comments with Jira browse links.</p>
+      </div>
+      <div class="surface feature-card">
+        <div class="feature-label">How to run</div>
+        <div class="feature-title"><span class="mono">Advanced/</span></div>
+        <p class="feature-body"><span class="mono">dotnet run --project src/PDDM.AppHost</span><br/>UI :5200 · API :5100 · Ingest then Chat.</p>
+      </div>
+    </div>
+
+    <div class="surface-elev demo-callout" style="grid-template-columns: 1fr;">
+      <div>
+        <div class="dc-label">Positioning</div>
+        <div class="dc-title">Beyond retrieve-and-answer</div>
+        <p class="dc-body">Simple RAG teaches the pattern. PDDM is the further example — intent routing, hierarchy, and citations over a real public Jira corpus, all with local vectors.</p>
+      </div>
+    </div>
+
+    <div class="page-foot">
+      <span>ZVec.NET · Internal Tech Session</span>
+      <span>18 / 20</span>
+    </div>
+  </div>
+      </div>
+      <details class="speaker-notes">
+        <summary><span class="material-icons">notes</span> Speaker notes</summary>
+        <div class="notes-content">This is the advanced finale. PDDM sits in the demos repo under Advanced/. Stack is ZVec.NET plus LM Studio embeddings and chat, ASP.NET controllers, Blazor UI, Aspire orchestration. The point is not “another chat bot” — it navigates Spark Jira hierarchy so developers get epic context, siblings, and decision comments with browse links. Run AppHost, ingest, then use the golden questions. Contrast with slide 13: that was the simple RAG pipeline; this is product-shaped navigation on top of the same in-process store.</div>
+      </details>
+    </section>
+
+    <section id="slide-19" class="slide-section" data-slide="19">
+      <div class="section-header">
+        <span class="section-num">19</span>
+        <div class="section-meta">
+          <span class="section-label">09 / Advanced Demo</span>
+          <h2 class="section-title">PDDM Architecture</h2>
+        </div>
+      </div>
+      <div class="slide-wrapper">
+        <div class="slide">
+    <span class="chip">
+      <span class="material-icons md-14">account_tree</span>
+      09 / Advanced Demo
+    </span>
+    <h1 class="h1" style="margin-top:10px;">Architecture + Golden Questions</h1>
+    <p class="subhead" style="margin-top:6px;">Ingest → 768-d embed → ZVec → hybrid intent → NavigationEngine → streamed answer with Jira links.</p>
+
+    <div class="flow" style="margin-top:14px;">
+      <div class="flow-box">
+        <div class="flow-icon-wrap"><span class="material-icons md-18">cloud_download</span></div>
+        <div class="flow-title">Ingest</div>
+        <div class="flow-body">Jira fetch · chunk · decision flags · embed · ZVec insert</div>
+      </div>
+      <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+      <div class="flow-box">
+        <div class="flow-icon-wrap"><span class="material-icons md-18">psychology</span></div>
+        <div class="flow-title">Intent</div>
+        <div class="flow-body">Assigned · NewRequirement · DecisionRationale</div>
+      </div>
+      <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+      <div class="flow-box">
+        <div class="flow-icon-wrap"><span class="material-icons md-18">hub</span></div>
+        <div class="flow-title">Navigate</div>
+        <div class="flow-body">Epic / siblings / decisions · HybridIndex</div>
+      </div>
+      <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+      <div class="flow-box">
+        <div class="flow-icon-wrap"><span class="material-icons md-18">chat</span></div>
+        <div class="flow-title">Answer</div>
+        <div class="flow-body">Context builder · LM Studio SSE · browse links</div>
+      </div>
+    </div>
+
+    <div class="label-eyebrow" style="margin-top:18px;">Golden questions · Advanced/DEMO.md</div>
+    <div class="golden-list">
+      <div class="golden-item">
+        <div class="q">I got assigned SPARK-57337 — help me understand it</div>
+        <div class="hint">Intent: AssignedIssue · epic → issue → siblings · no description dump</div>
+      </div>
+      <div class="golden-item">
+        <div class="q">I need to add ANSI mode validation so invalid string-to-number casts throw instead of returning null</div>
+        <div class="hint">Intent: NewRequirement · related landscape + where to attach a Story</div>
+      </div>
+      <div class="golden-item">
+        <div class="q">Why did they decide to enable ANSI mode by default in Spark 4.0?</div>
+        <div class="hint">Intent: DecisionRationale · decision comments · SPARK-44444</div>
+      </div>
+    </div>
+
+    <div class="page-foot">
+      <span>ZVec.NET · Internal Tech Session</span>
+      <span>19 / 20</span>
+    </div>
+  </div>
+      </div>
+      <details class="speaker-notes">
+        <summary><span class="material-icons">notes</span> Speaker notes</summary>
+        <div class="notes-content">Walk the four boxes: ingest builds the collection and HybridIndex; intent classifier routes the three scenarios; NavigationEngine assembles hierarchy instead of raw chunks; Chat streams from LM Studio with markdown Jira links. Then run the three golden questions from DEMO.md. Anti-patterns to call out: pasting the full CONTEXT block, inventing jira.example.com hosts, or refusing when landscape rows already exist.</div>
+      </details>
+    </section>
+
+    <section id="slide-20" class="slide-section" data-slide="20">
+      <div class="section-header">
+        <span class="section-num">20</span>
         <div class="section-meta">
           <span class="section-label">10 / Wrap-Up</span>
           <h2 class="section-title">Roadmap, Links & Q&A</h2>
@@ -2461,10 +4057,18 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
         </div>
 
         <div class="surface rm-item">
+          <span class="rm-dot good"></span>
+          <div>
+            <span class="rm-title">Demos repo live demos<span class="rm-status done">DONE</span></span>
+            <p class="rm-body">Live: <span class="mono">Advanced/</span> PDDM. Planned: <span class="mono">examples/01-clip-onnx</span> (CLIP + local ONNX) — demos repo.</p>
+          </div>
+        </div>
+
+        <div class="surface rm-item">
           <span class="rm-dot muted"></span>
           <div>
-            <span class="rm-title">Samples + contribution guide<span class="rm-status planned">PLANNED</span></span>
-            <p class="rm-body">Richer samples folder (MAUI RAG, ASP.NET, Console) and <span class="mono">CONTRIBUTING.md</span> for community PRs are next on the queue.</p>
+            <span class="rm-title">SDK samples + contribution guide<span class="rm-status planned">PLANNED</span></span>
+            <p class="rm-body">SDK samples already include MAUI offline/edge RAG + Console hosts. Further sample polish and <span class="mono">CONTRIBUTING.md</span> continue in the SDK repo.</p>
           </div>
         </div>
       </div>
@@ -2501,18 +4105,26 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
         </div>
 
         <div class="surface link-row">
-          <div class="ico"><span class="material-icons">menu_book</span></div>
+          <div class="ico"><span class="material-icons">science</span></div>
           <div class="link-text">
-            <span class="link-label">ZVec docs</span>
-            <span class="link-value"><span class="accent">zvec.org</span></span>
+            <span class="link-label">Demos repo</span>
+            <span class="link-value">github.com/<span class="accent">ahmedSamir50</span>/ZVec.Net-DemosAndPOCs</span>
           </div>
         </div>
 
         <div class="surface link-row">
-          <div class="ico"><span class="material-icons">forum</span></div>
+          <div class="ico"><span class="material-icons">menu_book</span></div>
           <div class="link-text">
-            <span class="link-label">Issues / PRs</span>
-            <span class="link-value">Welcome on <span class="accent">GitHub</span></span>
+            <span class="link-label">PDDM demo script</span>
+            <span class="link-value"><span class="accent">Advanced/DEMO.md</span></span>
+          </div>
+        </div>
+
+        <div class="surface link-row">
+          <div class="ico"><span class="material-icons">menu_book</span></div>
+          <div class="link-text">
+            <span class="link-label">ZVec docs</span>
+            <span class="link-value"><span class="accent">zvec.org</span></span>
           </div>
         </div>
       </div>
@@ -2532,25 +4144,398 @@ builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Pro
           <h2 class="qa-h2">What would you like to build?</h2>
           <p class="qa-sub">If you have a sprint coming up that touches <span class="accent">semantic search</span>, <span class="accent">RAG</span>, <span class="accent">recommendations</span>, <span class="accent">CLIP</span>, or <span class="accent">ONNX pipelines</span> — let's chat. I'd rather pair on a real use case than have you read docs alone.</p>
           <hr class="hr" style="margin-top:8px;" />
-          <p class="qa-thanks">Thanks for the time, team. — Ahmed</p>
+          <img class="qa-logo" src="assets/zvec-net-logo.png" alt="ZVec.NET" />
+          <p class="qa-thanks">Thanks for the time, ELM team. — Ahmed</p>
+          <p class="qa-host">Presented for ELM KSA · <a class="host-link" href="https://elm.sa/ar/Pages/default.aspx" target="_blank" rel="noopener noreferrer">elm.sa</a></p>
         </div>
       </div>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
-      <span>ZVec.NET · Internal Tech Session</span>
-      <span>18 / 18</span>
+      <span>ZVec.NET · Tech Session · ELM KSA</span>
+      <span>20 / 20</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Quick recap — we started with what vector search is and how it differs from keyword search; we saw the infrastructure tax it usually creates and how ZVec.NET kills it by running in-process on Alibaba's ZVec; we walked through the eight supported index types and the three distance metrics, plus the in-DB RRF and Weighted rerankers; we saw how CLIP is trained with contrastive learning to align images and text in one space; and we saw five concrete code patterns using the real typed API — semantic search, RAG, recommendations, CLIP, and ONNX. The SDK is in beta now — 1.0.0-beta.2 — supporting .NET 8, 9, and 10 across Windows, Linux, macOS, and Android. Two things I'd love from this room: first, PRs and issues on GitHub — even just typo fixes teach me what's unclear, and second, if you have a concrete project where this could land, let's pair on it. Questions?</div>
+        <div class="notes-content">Quick recap — vector search vs keywords, the infrastructure tax, ZVec.NET in-process on Alibaba's ZVec, eight indexes and three metrics, CLIP multimodal alignment, and five code patterns. Live demo: PDDM in Advanced/. CLIP ONNX gallery planned. SDK beta 1.0.0-beta.2 on net8/9/10. I'd love PRs and a real sprint use case to pair on. Questions?</div>
       </details>
     </section>
   </main>
+
+  <!-- HNSW walkthrough modal -->
+  <div class="hnsw-modal" id="hnsw-modal" aria-hidden="true" role="dialog" aria-labelledby="hnsw-modal-title">
+    <div class="hnsw-modal-backdrop" id="hnsw-modal-backdrop"></div>
+    <div class="hnsw-modal-panel">
+      <div class="hnsw-modal-header">
+        <div>
+          <h2 id="hnsw-modal-title">HNSW search walk</h2>
+          <div class="sub">Classic hierarchy — sparse top layers → dense Layer 0 → nearest neighbours</div>
+        </div>
+        <div class="hnsw-modal-actions">
+          <button type="button" class="primary" id="hnsw-replay-btn">
+            <span class="material-icons" style="font-size:16px">replay</span>
+            Replay
+          </button>
+          <button type="button" id="hnsw-close-btn" title="Close (Esc)">
+            <span class="material-icons" style="font-size:16px">close</span>
+            Close
+          </button>
+        </div>
+      </div>
+      <div class="hnsw-modal-body">
+        <div class="hnsw-viz" id="hnsw-viz">
+          <svg viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <filter id="hnswGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <linearGradient id="planeGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#163361"/>
+                <stop offset="100%" stop-color="#0B1F3A"/>
+              </linearGradient>
+              <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="#FF5C7A"/>
+              </marker>
+            </defs>
+
+            <!-- ===== LAYER 2 (top, sparse) — isometric plane ===== -->
+            <g class="layer-l2">
+              <polygon points="220,70 780,70 860,130 300,130" fill="url(#planeGrad)" stroke="rgba(0,212,255,0.35)" stroke-width="1.5"/>
+              <text x="236" y="92" fill="#00D4FF" font-family="Space Grotesk,Inter,sans-serif" font-size="14" font-weight="700">Layer = 2</text>
+              <text x="330" y="92" fill="#7E93B5" font-family="Inter,sans-serif" font-size="11">sparse · long-range links</text>
+
+              <!-- nodes: entry (red/query) + one neighbour -->
+              <circle class="query-star" cx="360" cy="108" r="11" fill="#FF5C7A" filter="url(#hnswGlow)"/>
+              <circle cx="620" cy="100" r="9" fill="#5B9FD4"/>
+              <!-- in-layer search hop -->
+              <line class="hop hop-1" x1="372" y1="106" x2="608" y2="100" stroke="#FF5C7A" stroke-width="2.5" marker-end="url(#arrowRed)" filter="url(#hnswGlow)"/>
+              <text class="query-star" x="360" y="64" text-anchor="middle" fill="#FF5C7A" font-size="11" font-family="Inter,sans-serif" font-weight="700">entry / query</text>
+            </g>
+
+            <!-- vertical projection lines (same nodes across layers) -->
+            <g opacity="0.35" stroke="rgba(200,214,232,0.5)" stroke-width="1" stroke-dasharray="3 4">
+              <line x1="360" y1="119" x2="340" y2="250"/>
+              <line x1="620" y1="109" x2="580" y2="245"/>
+              <line x1="340" y1="268" x2="300" y2="420"/>
+              <line x1="580" y1="262" x2="520" y2="410"/>
+              <line x1="700" y1="255" x2="720" y2="430"/>
+            </g>
+
+            <!-- descent L2 → L1 -->
+            <g class="drop drop-1">
+              <line x1="620" y1="110" x2="580" y2="245" stroke="#FF5C7A" stroke-width="2" stroke-dasharray="5 4"/>
+              <polygon points="580,252 574,240 586,240" fill="#FF5C7A"/>
+            </g>
+
+            <!-- ===== LAYER 1 ===== -->
+            <g class="layer-l1">
+              <polygon points="160,230 840,230 940,300 260,300" fill="url(#planeGrad)" stroke="rgba(0,212,255,0.35)" stroke-width="1.5"/>
+              <text x="176" y="252" fill="#00D4FF" font-family="Space Grotesk,Inter,sans-serif" font-size="14" font-weight="700">Layer = 1</text>
+              <text x="270" y="252" fill="#7E93B5" font-family="Inter,sans-serif" font-size="11">denser · shorter hops</text>
+
+              <!-- graph edges -->
+              <line x1="340" y1="268" x2="460" y2="278" stroke="rgba(126,147,181,0.55)" stroke-width="1.5"/>
+              <line x1="460" y1="278" x2="580" y2="258" stroke="rgba(126,147,181,0.55)" stroke-width="1.5"/>
+              <line x1="580" y1="258" x2="700" y2="272" stroke="rgba(126,147,181,0.55)" stroke-width="1.5"/>
+              <line x1="460" y1="278" x2="520" y2="290" stroke="rgba(126,147,181,0.4)" stroke-width="1"/>
+              <circle cx="340" cy="268" r="8" fill="#5B9FD4"/>
+              <circle cx="460" cy="278" r="7" fill="#5B9FD4"/>
+              <circle cx="580" cy="258" r="9" fill="#5B9FD4"/>
+              <circle cx="700" cy="272" r="7" fill="#5B9FD4"/>
+              <circle cx="520" cy="290" r="6" fill="#5B9FD4"/>
+
+              <!-- efSearch beam around current best -->
+              <ellipse class="beam" cx="580" cy="265" rx="78" ry="36" fill="rgba(255,92,122,0.06)" stroke="rgba(255,92,122,0.45)" stroke-width="1.5" stroke-dasharray="5 4"/>
+
+              <!-- in-layer hop -->
+              <line class="hop hop-2" x1="348" y1="268" x2="570" y2="258" stroke="#FF5C7A" stroke-width="2.5" marker-end="url(#arrowRed)" filter="url(#hnswGlow)"/>
+
+              <g class="callout">
+                <rect x="620" y="218" width="200" height="26" rx="7" fill="#163361" stroke="rgba(255,92,122,0.4)"/>
+                <text x="632" y="236" fill="#C8D6E8" font-size="11" font-family="Inter,sans-serif"><tspan fill="#FF5C7A" font-weight="700">efSearch</tspan> = search beam width</text>
+              </g>
+            </g>
+
+            <!-- descent L1 → L0 -->
+            <g class="drop drop-2">
+              <line x1="580" y1="267" x2="520" y2="418" stroke="#FF5C7A" stroke-width="2" stroke-dasharray="5 4"/>
+              <polygon points="520,425 514,413 526,413" fill="#FF5C7A"/>
+            </g>
+
+            <!-- ===== LAYER 0 (dense) ===== -->
+            <g class="layer-l0">
+              <polygon points="80,400 920,400 1020,500 180,500" fill="url(#planeGrad)" stroke="rgba(0,212,255,0.35)" stroke-width="1.5"/>
+              <text x="96" y="422" fill="#00D4FF" font-family="Space Grotesk,Inter,sans-serif" font-size="14" font-weight="700">Layer = 0</text>
+              <text x="190" y="422" fill="#7E93B5" font-family="Inter,sans-serif" font-size="11">all vectors · refine top-K</text>
+
+              <!-- dense graph mesh -->
+              <g stroke="rgba(126,147,181,0.4)" stroke-width="1">
+                <line x1="240" y1="455" x2="300" y2="440"/><line x1="300" y1="440" x2="360" y2="460"/>
+                <line x1="360" y1="460" x2="420" y2="445"/><line x1="420" y1="445" x2="480" y2="465"/>
+                <line x1="480" y1="465" x2="520" y2="448"/><line x1="520" y1="448" x2="580" y2="458"/>
+                <line x1="580" y1="458" x2="640" y2="445"/><line x1="640" y1="445" x2="700" y2="460"/>
+                <line x1="700" y1="460" x2="760" y2="448"/><line x1="300" y1="440" x2="320" y2="475"/>
+                <line x1="420" y1="445" x2="450" y2="480"/><line x1="580" y1="458" x2="600" y2="485"/>
+                <line x1="640" y1="445" x2="720" y2="480"/>
+              </g>
+              <circle cx="240" cy="455" r="5" fill="#5B9FD4"/>
+              <circle cx="300" cy="440" r="5" fill="#5B9FD4"/>
+              <circle cx="360" cy="460" r="5" fill="#5B9FD4"/>
+              <circle cx="420" cy="445" r="5" fill="#5B9FD4"/>
+              <circle cx="480" cy="465" r="5" fill="#5B9FD4"/>
+              <circle cx="520" cy="448" r="8" fill="#5B9FD4"/>
+              <circle cx="580" cy="458" r="5" fill="#5B9FD4"/>
+              <circle cx="640" cy="445" r="5" fill="#5B9FD4"/>
+              <circle cx="700" cy="460" r="5" fill="#5B9FD4"/>
+              <circle cx="760" cy="448" r="5" fill="#5B9FD4"/>
+              <circle cx="320" cy="475" r="4.5" fill="#5B9FD4"/>
+              <circle cx="450" cy="480" r="4.5" fill="#5B9FD4"/>
+              <circle cx="600" cy="485" r="4.5" fill="#5B9FD4"/>
+              <circle cx="720" cy="480" r="5" fill="#5B9FD4"/>
+
+              <!-- final hop to green target -->
+              <line class="hop hop-3" x1="528" y1="448" x2="708" y2="478" stroke="#FF5C7A" stroke-width="2.5" marker-end="url(#arrowRed)" filter="url(#hnswGlow)"/>
+              <circle class="topk-ring" cx="720" cy="480" r="11" fill="#4ADE80" filter="url(#hnswGlow)"/>
+              <circle class="topk-ring" cx="720" cy="480" r="18" fill="none" stroke="#4ADE80" stroke-width="2"/>
+              <text class="topk-ring" x="720" y="512" text-anchor="middle" fill="#4ADE80" font-size="11" font-family="Inter,sans-serif" font-weight="700">nearest neighbour</text>
+
+              <!-- M callout -->
+              <g class="callout">
+                <circle cx="420" cy="445" r="6" fill="#00D4FF"/>
+                <line x1="420" y1="445" x2="395" y2="420" stroke="#00D4FF" stroke-width="1.4"/>
+                <line x1="420" y1="445" x2="448" y2="418" stroke="#00D4FF" stroke-width="1.4"/>
+                <line x1="420" y1="445" x2="390" y2="455" stroke="#00D4FF" stroke-width="1.4"/>
+                <line x1="420" y1="445" x2="452" y2="458" stroke="#00D4FF" stroke-width="1.4"/>
+                <circle cx="395" cy="420" r="3" fill="rgba(0,212,255,0.75)"/>
+                <circle cx="448" cy="418" r="3" fill="rgba(0,212,255,0.75)"/>
+                <circle cx="390" cy="455" r="3" fill="rgba(0,212,255,0.75)"/>
+                <circle cx="452" cy="458" r="3" fill="rgba(0,212,255,0.75)"/>
+                <rect x="250" y="395" width="155" height="24" rx="6" fill="#163361" stroke="rgba(0,212,255,0.35)"/>
+                <text x="260" y="412" fill="#C8D6E8" font-size="11" font-family="Inter,sans-serif"><tspan fill="#00D4FF" font-weight="700">M</tspan> = max neighbours</text>
+              </g>
+
+              <g class="callout">
+                <rect x="760" y="405" width="230" height="24" rx="6" fill="#163361" stroke="rgba(255,180,84,0.4)"/>
+                <text x="770" y="422" fill="#C8D6E8" font-size="11" font-family="Inter,sans-serif"><tspan fill="#FFB454" font-weight="700">EfConstruction</tspan> = build beam</text>
+              </g>
+            </g>
+
+            <!-- Right-side annotation: decreasing characteristic radius -->
+            <g>
+              <line x1="955" y1="90" x2="955" y2="470" stroke="rgba(200,214,232,0.45)" stroke-width="2"/>
+              <polygon points="955,478 949,466 961,466" fill="rgba(200,214,232,0.7)"/>
+              <text transform="translate(978,280) rotate(90)" text-anchor="middle" fill="#7E93B5" font-size="12" font-family="Inter,sans-serif" letter-spacing="0.5">Decreasing characteristic radius</text>
+            </g>
+          </svg>
+        </div>
+        <div class="hnsw-legend">
+          <span><i class="lg-query" style="background:#FF5C7A"></i> Entry / query</span>
+          <span><i class="lg-path" style="border-color:#FF5C7A"></i> Greedy hop (in-layer)</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:14px;border-top:2px dashed #FF5C7A;display:inline-block"></span> Drop to lower layer</span>
+          <span><i class="lg-node" style="background:#5B9FD4"></i> Graph node</span>
+          <span><i class="lg-topk"></i> Nearest neighbour</span>
+        </div>
+        <div class="hnsw-modal-foot">Same idea as the classic HNSW hierarchy diagram · [ZVecVector(M=, EfConstruction=)] + runtime efSearch</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Code snippet modal (slides 10, 11, 12, 13, 17) -->
+  <div class="hnsw-modal code-modal" id="code-modal" aria-hidden="true" role="dialog" aria-labelledby="code-modal-title">
+    <div class="hnsw-modal-backdrop" id="code-modal-backdrop"></div>
+    <div class="hnsw-modal-panel">
+      <div class="hnsw-modal-header">
+        <div>
+          <h2 id="code-modal-title">Code</h2>
+          <div class="sub" id="code-modal-sub">Full snippet</div>
+        </div>
+        <div class="hnsw-modal-actions">
+          <button type="button" id="code-modal-close" title="Close (Esc)">
+            <span class="material-icons" style="font-size:16px">close</span>
+            Close
+          </button>
+        </div>
+      </div>
+      <div class="code-modal-tabs" id="code-modal-tabs" hidden></div>
+      <div class="code-modal-body">
+
+        <!-- Pack 10 -->
+        <div class="code-pack" id="code-pack-10" data-title="Three steps — typed collection" data-sub="Install · DI · POCO · real README code">
+          <div class="code-panel" data-tab="install" data-tab-label="01 Install">
+<pre class="code">$ dotnet add package ZVec.NET --version <span class="n">1.0.0-beta.2</span></pre>
+          </div>
+          <div class="code-panel" data-tab="register" data-tab-label="02 Register">
+<pre class="code">builder.Services.<span class="t">AddZVec</span>(options =&gt;
+{
+    options.LogLevel = <span class="t">ZVecLogLevel</span>.Warn;
+    options.QueryThreads = <span class="n">-1</span>;
+    options.MemoryLimitMb = <span class="n">512</span>;
+});
+
+builder.Services.<span class="t">AddZVecCollection</span>&lt;<span class="t">Product</span>&gt;(options =&gt;
+{
+    options.Path = <span class="s">"/data/products"</span>;
+    options.EnableMmap = <span class="k">true</span>;
+    options.Create = <span class="k">true</span>;   <span class="c">// first run; set false to Open</span>
+});</pre>
+          </div>
+          <div class="code-panel" data-tab="poco" data-tab-label="03 POCO">
+<pre class="code"><span class="k">public sealed class</span> <span class="t">Product</span>
+{
+    <span class="k">public string</span> Id { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
+    <span class="k">public string</span> Title { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
+    <span class="k">public string</span> Category { <span class="k">get</span>; <span class="k">set</span>; } = <span class="s">""</span>;
+
+    [<span class="t">ZVecVector</span>(<span class="n">384</span>, Metric = <span class="t">ZVecMetricType</span>.Cosine,
+                M = <span class="n">32</span>, EfConstruction = <span class="n">256</span>)]
+    <span class="k">public</span> <span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; Embedding { <span class="k">get</span>; <span class="k">set</span>; }
+}</pre>
+          </div>
+        </div>
+
+        <!-- Pack 11 -->
+        <div class="code-pack" id="code-pack-11" data-title="CRUD &amp; Query" data-sub="IZvecCollection&lt;T&gt; — typed filters, sync + async">
+          <div class="code-panel" data-tab="crud" data-tab-label="CRUD">
+<pre class="code"><span class="k">public class</span> <span class="t">ProductService</span>(<span class="t">IZvecCollection</span>&lt;<span class="t">Product</span>&gt; products)
+{
+    <span class="k">public async</span> <span class="t">Task</span> <span class="t">UpsertAsync</span>(<span class="t">Product</span> p) =&gt;
+        <span class="k">await</span> products.<span class="t">UpsertAsync</span>(p);
+
+    <span class="k">public async</span> <span class="t">Task</span> <span class="t">DeleteAsync</span>(<span class="k">string</span> id) =&gt;
+        <span class="k">await</span> products.<span class="t">DeleteAsync</span>(id);
+
+    <span class="k">public</span> <span class="t">Task</span>&lt;<span class="t">Product</span>?&gt; <span class="t">FetchAsync</span>(<span class="k">string</span> id) =&gt;
+        products.<span class="t">FetchAsync</span>(id);
+
+    <span class="k">public</span> <span class="t">Task</span> <span class="t">DeleteExpiredAsync</span>() =&gt;
+        products.<span class="t">DeleteByFilterAsync</span>(
+            p =&gt; p.Category == <span class="s">"expired"</span>);
+}</pre>
+          </div>
+          <div class="code-panel" data-tab="query" data-tab-label="Query">
+<pre class="code"><span class="k">public async</span> <span class="t">Task</span>&lt;<span class="t">IReadOnlyList</span>&lt;<span class="t">ZVecHit</span>&lt;<span class="t">Product</span>&gt;&gt;&gt; <span class="t">SearchAsync</span>(
+    <span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; queryVector,
+    <span class="k">string</span>? category = <span class="k">null</span>)
+{
+    <span class="k">return await</span> products.<span class="t">QueryAsync</span>(
+        p =&gt; p.Embedding,           <span class="c">// vector field</span>
+        queryVector,                <span class="c">// query</span>
+        topK: <span class="n">10</span>,
+        filter: category <span class="k">is null</span>
+            ? <span class="k">null</span>
+            : p =&gt; p.Category == category);
+}</pre>
+          </div>
+        </div>
+
+        <!-- Pack 12 -->
+        <div class="code-pack" id="code-pack-12" data-title="Semantic search" data-sub="Embed → QueryAsync → render ZVecHit&lt;T&gt;">
+          <div class="code-panel" data-tab="steps" data-tab-label="Step-by-step">
+<pre class="code"><span class="c">// 1. Embed the user query (e.g. via ONNX Runtime — see slide 17)</span>
+<span class="t">ReadOnlyMemory</span>&lt;<span class="k">float</span>&gt; q = <span class="k">await</span> embedder.<span class="t">EmbedAsync</span>(userQuery);
+
+<span class="c">// 2. Search the index</span>
+<span class="k">var</span> hits = <span class="k">await</span> products.<span class="t">QueryAsync</span>(
+    p =&gt; p.Embedding, q, topK: <span class="n">5</span>,
+    filter: p =&gt; p.Category == <span class="s">"runbook"</span>);
+
+<span class="c">// 3. Render — each hit is a typed Product + score</span>
+<span class="k">foreach</span> (<span class="k">var</span> hit <span class="k">in</span> hits)
+    Console.<span class="t">WriteLine</span>($<span class="s">"{hit.Score:F3}  {hit.Record.Title}"</span>);</pre>
+          </div>
+        </div>
+
+        <!-- Pack 13 -->
+        <div class="code-pack" id="code-pack-13" data-title="RAG pipeline" data-sub="Retrieve → build prompt → LLM · RRF tip">
+          <div class="code-panel" data-tab="rag" data-tab-label="Retrieve → LLM">
+<pre class="code"><span class="c">// 1. Retrieve relevant chunks (typed query + filter)</span>
+<span class="k">var</span> hits = <span class="k">await</span> docs.<span class="t">QueryAsync</span>(
+    p =&gt; p.Embedding,
+    <span class="k">await</span> embedder.<span class="t">EmbedAsync</span>(question),
+    topK: <span class="n">4</span>,
+    filter: p =&gt; p.Source == <span class="s">"runbooks"</span>);
+
+<span class="c">// 2. Build prompt with retrieved context</span>
+<span class="k">var</span> context = <span class="t">string</span>.<span class="t">Join</span>(<span class="s">"\n---\n"</span>,
+    hits.<span class="t">Select</span>(h =&gt; h.Record.Text));
+<span class="k">var</span> prompt = $<span class="s">"Context:\n{context}\n\nQuestion: {question}\nAnswer:"</span>;
+
+<span class="c">// 3. Send to LLM (LM Studio, OpenAI, etc.)</span>
+<span class="t">string</span> answer = <span class="k">await</span> llm.<span class="t">CompleteAsync</span>(prompt);</pre>
+          </div>
+          <div class="code-panel" data-tab="rrf" data-tab-label="RRF tip">
+<pre class="code"><span class="c">// Untyped multi-query + RRF (from typed: docs.Untyped)</span>
+<span class="k">var</span> hits = docs.<span class="t">Untyped</span>.<span class="t">Query</span>(
+    [
+        <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"title_vec"</span>, Vector = titleQ },
+        <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"body_vec"</span>, Vector = bodyQ }
+    ],
+    topk: <span class="n">4</span>,
+    reranker: <span class="k">new</span> <span class="t">ZVecRrfReranker</span> { TopN = <span class="n">4</span> },
+    includeVector: <span class="k">false</span>);</pre>
+          </div>
+        </div>
+
+        <!-- Pack 14 -->
+        <div class="code-pack" id="code-pack-14" data-title="Recommendations" data-sub="Index once · query per request">
+          <div class="code-panel" data-tab="index" data-tab-label="Index once">
+<pre class="code"><span class="c">// Precompute item embeddings once at startup</span>
+<span class="k">foreach</span> (<span class="k">var</span> item <span class="k">in</span> items)
+{
+    <span class="k">var</span> emb = <span class="k">await</span> itemEncoder.<span class="t">EmbedAsync</span>(item.Content);
+    <span class="k">await</span> products.<span class="t">UpsertAsync</span>(<span class="k">new</span> <span class="t">Product</span>
+    {
+        Id       = item.Id,
+        Title    = item.Title,
+        Category = item.Category,
+        Embedding = emb
+    });
+}</pre>
+          </div>
+          <div class="code-panel" data-tab="query" data-tab-label="Query per request">
+<pre class="code"><span class="c">// At request time: query by user vector</span>
+<span class="k">var</span> recs = <span class="k">await</span> products.<span class="t">QueryAsync</span>(
+    p =&gt; p.Embedding,
+    userBehaviorVector,
+    topK: <span class="n">10</span>);</pre>
+          </div>
+        </div>
+
+        <!-- Pack 17 -->
+        <div class="code-pack" id="code-pack-17" data-title="ONNX → ZVec" data-sub="InferenceSession · tokenize · UpsertAsync">
+          <div class="code-panel" data-tab="onnx" data-tab-label="Load · Run · Upsert">
+<pre class="code"><span class="c">// Schematic — real MiniLM also needs attention_mask,</span>
+<span class="c">// then mean-pool over tokens + L2-normalize → 384-d</span>
+<span class="k">using var</span> session = <span class="k">new</span> <span class="t">InferenceSession</span>(<span class="s">"all-MiniLM-L6-v2.onnx"</span>);
+
+<span class="k">var</span> tokens = tokenizer.<span class="t">Encode</span>(input);
+<span class="k">var</span> inputs = <span class="k">new</span>[] {
+    <span class="t">NamedOnnxValue</span>.<span class="t">CreateFromTensor</span>(<span class="s">"input_ids"</span>, tokens)
+    <span class="c">/*, attention_mask tensor */</span>
+};
+
+<span class="k">using var</span> results = session.<span class="t">Run</span>(inputs);
+<span class="t">float</span>[] embedding = MeanPoolAndL2(results);  <span class="c">// → 384-dim</span>
+
+<span class="k">await</span> products.<span class="t">UpsertAsync</span>(<span class="k">new</span> <span class="t">Product</span>
+{
+    Id = docId,
+    Title = title,
+    Embedding = embedding
+});</pre>
+          </div>
+        </div>
+
+      </div>
+      <div class="code-modal-foot" id="code-modal-foot">Esc to close · real README / pattern code</div>
+    </div>
+  </div>
 
   <!-- Keyboard hint -->
   <div class="kbd-hint">
@@ -2630,7 +4615,7 @@ function updateScrollSpy() {
 
 // ── Navigation ──
 function goToSlide(num) {
-  num = Math.max(1, Math.min(18, num));
+  num = Math.max(1, Math.min(20, num));
   var target = document.getElementById('slide-' + String(num).padStart(2, '0'));
   if (target) {
     window.scrollTo({ top: target.offsetTop - 58, behavior: 'smooth' });
@@ -2644,9 +4629,182 @@ document.getElementById('next-btn').addEventListener('click', function() {
   goToSlide(getCurrentSlide() + 1);
 });
 
+// ── HNSW modal walkthrough ──
+var hnswModalOpen = false;
+var hnswAnimTimers = [];
+var hnswModal = document.getElementById('hnsw-modal');
+var hnswViz = document.getElementById('hnsw-viz');
+
+function clearHnswAnimTimers() {
+  hnswAnimTimers.forEach(function(t) { clearTimeout(t); });
+  hnswAnimTimers = [];
+}
+
+function playHnswAnimation() {
+  if (!hnswViz) return;
+  clearHnswAnimTimers();
+  hnswViz.classList.remove('done');
+  hnswViz.classList.add('playing');
+  hnswViz.setAttribute('data-step', '0');
+
+  var steps = [
+    { at: 200, step: '1' },
+    { at: 1100, step: '2' },
+    { at: 2200, step: '3' },
+    { at: 3400, step: '4' },
+    { at: 4600, step: '5' }
+  ];
+  steps.forEach(function(s) {
+    hnswAnimTimers.push(setTimeout(function() {
+      hnswViz.setAttribute('data-step', s.step);
+    }, s.at));
+  });
+  hnswAnimTimers.push(setTimeout(function() {
+    hnswViz.classList.remove('playing');
+    hnswViz.classList.add('done');
+    hnswViz.removeAttribute('data-step');
+  }, 5800));
+}
+
+function openHnswModal() {
+  if (!hnswModal) return;
+  hnswModalOpen = true;
+  hnswModal.classList.add('open');
+  hnswModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  playHnswAnimation();
+}
+
+function closeHnswModal() {
+  if (!hnswModal) return;
+  hnswModalOpen = false;
+  clearHnswAnimTimers();
+  hnswModal.classList.remove('open');
+  hnswModal.setAttribute('aria-hidden', 'true');
+  if (!codeModalOpen) document.body.style.overflow = '';
+  if (hnswViz) {
+    hnswViz.classList.remove('playing', 'done');
+    hnswViz.removeAttribute('data-step');
+  }
+}
+
+var hnswOpenBtn = document.getElementById('hnsw-open-btn');
+if (hnswOpenBtn) hnswOpenBtn.addEventListener('click', openHnswModal);
+var hnswCloseBtn = document.getElementById('hnsw-close-btn');
+if (hnswCloseBtn) hnswCloseBtn.addEventListener('click', closeHnswModal);
+var hnswReplayBtn = document.getElementById('hnsw-replay-btn');
+if (hnswReplayBtn) hnswReplayBtn.addEventListener('click', playHnswAnimation);
+var hnswBackdrop = document.getElementById('hnsw-modal-backdrop');
+if (hnswBackdrop) hnswBackdrop.addEventListener('click', closeHnswModal);
+
+// ── Code snippet modal (slides 10 / 11 / 12 / 13 / 17) ──
+var codeModalOpen = false;
+var codeModal = document.getElementById('code-modal');
+var codeModalTitle = document.getElementById('code-modal-title');
+var codeModalSub = document.getElementById('code-modal-sub');
+var codeModalTabs = document.getElementById('code-modal-tabs');
+var codeModalFoot = document.getElementById('code-modal-foot');
+var activeCodePackId = null;
+
+function anyModalOpen() {
+  return hnswModalOpen || codeModalOpen;
+}
+
+function setCodeTab(tabId) {
+  if (!activeCodePackId) return;
+  var pack = document.getElementById('code-pack-' + activeCodePackId);
+  if (!pack) return;
+  pack.querySelectorAll('.code-panel').forEach(function(panel) {
+    panel.classList.toggle('active', panel.getAttribute('data-tab') === tabId);
+  });
+  if (codeModalTabs) {
+    codeModalTabs.querySelectorAll('.code-tab').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+  }
+}
+
+function openCodeModal(packId, tabId) {
+  if (!codeModal) return;
+  var pack = document.getElementById('code-pack-' + packId);
+  if (!pack) return;
+
+  activeCodePackId = String(packId);
+  document.querySelectorAll('.code-pack').forEach(function(p) {
+    p.classList.toggle('active', p.id === 'code-pack-' + packId);
+  });
+
+  if (codeModalTitle) codeModalTitle.textContent = pack.getAttribute('data-title') || 'Code';
+  if (codeModalSub) codeModalSub.textContent = pack.getAttribute('data-sub') || '';
+
+  var panels = Array.prototype.slice.call(pack.querySelectorAll('.code-panel'));
+  if (codeModalTabs) {
+    codeModalTabs.innerHTML = '';
+    if (panels.length <= 1) {
+      codeModalTabs.hidden = true;
+    } else {
+      codeModalTabs.hidden = false;
+      panels.forEach(function(panel) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'code-tab';
+        btn.setAttribute('data-tab', panel.getAttribute('data-tab'));
+        btn.textContent = panel.getAttribute('data-tab-label') || panel.getAttribute('data-tab');
+        btn.addEventListener('click', function() {
+          setCodeTab(panel.getAttribute('data-tab'));
+        });
+        codeModalTabs.appendChild(btn);
+      });
+    }
+  }
+
+  var initial = tabId || (panels[0] && panels[0].getAttribute('data-tab'));
+  setCodeTab(initial);
+
+  codeModalOpen = true;
+  codeModal.classList.add('open');
+  codeModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCodeModal() {
+  if (!codeModal) return;
+  codeModalOpen = false;
+  codeModal.classList.remove('open');
+  codeModal.setAttribute('aria-hidden', 'true');
+  if (!hnswModalOpen) document.body.style.overflow = '';
+  activeCodePackId = null;
+}
+
+var codeCloseBtn = document.getElementById('code-modal-close');
+if (codeCloseBtn) codeCloseBtn.addEventListener('click', closeCodeModal);
+var codeBackdrop = document.getElementById('code-modal-backdrop');
+if (codeBackdrop) codeBackdrop.addEventListener('click', closeCodeModal);
+
+document.querySelectorAll('[data-code-pack]').forEach(function(el) {
+  el.addEventListener('click', function() {
+    openCodeModal(el.getAttribute('data-code-pack'), el.getAttribute('data-code-tab'));
+  });
+});
+
 // ── Keyboard nav ──
+
 document.addEventListener('keydown', function(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (anyModalOpen()) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (codeModalOpen) closeCodeModal();
+      else if (hnswModalOpen) closeHnswModal();
+    }
+    // Ignore slide navigation while a modal is open
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' ||
+        e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+    }
+    return;
+  }
 
   switch(e.key) {
     case 'ArrowDown':

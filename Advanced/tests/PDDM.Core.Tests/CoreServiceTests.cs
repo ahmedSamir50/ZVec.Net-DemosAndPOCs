@@ -52,6 +52,14 @@ public class IntentClassifierTests
         => _sut.Classify("I need to add validation for casting").Should().Be(QueryIntent.NewRequirement);
 
     [Fact]
+    public void Classify_NewRequirement_StringToNumberParaphrase()
+        => _sut.Classify("Please handle string-to-number casts that return null").Should().Be(QueryIntent.NewRequirement);
+
+    [Fact]
+    public void Classify_Decision_EnableByDefaultParaphrase()
+        => _sut.Classify("What is the rationale for enable by default?").Should().Be(QueryIntent.DecisionRationale);
+
+    [Fact]
     public void Classify_GeneralQuestion()
         => _sut.Classify("Tell me about streaming shuffle").Should().Be(QueryIntent.GeneralQuestion);
 
@@ -92,7 +100,23 @@ public class HybridIntentClassifierTests
             .Returns("""{"intent":"DecisionRationale","issueKey":null}""");
 
         var sut = new HybridIntentClassifier(new IntentClassifier(), chat);
+        (await sut.ClassifyAsync("Walk me through the historical tradeoffs for SQL mode defaults"))
+            .Should().Be(QueryIntent.DecisionRationale);
+        await chat.Received(1).CompleteAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>(),
+            Arg.Any<float?>(),
+            Arg.Any<int?>());
+    }
+
+    [Fact]
+    public async Task ClassifyAsync_HeuristicCatchesAnsiDecisionParaphrase()
+    {
+        var chat = Substitute.For<IChatService>();
+        var sut = new HybridIntentClassifier(new IntentClassifier(), chat);
         (await sut.ClassifyAsync("Explain the ANSI mode choice in Spark 4")).Should().Be(QueryIntent.DecisionRationale);
+        await chat.DidNotReceiveWithAnyArgs().CompleteAsync(default!, default!, default);
     }
 
     [Fact]
@@ -115,6 +139,7 @@ public class HybridIntentClassifierTests
     [InlineData("""{"intent":"NewRequirement"}""", QueryIntent.NewRequirement)]
     [InlineData("```json\n{\"intent\":\"AssignedIssue\",\"issueKey\":\"SPARK-1\"}\n```", QueryIntent.AssignedIssue)]
     [InlineData("noise {\"intent\":\"DecisionRationale\"} trailing", QueryIntent.DecisionRationale)]
+    [InlineData("<think>reasoning</think>{\"intent\":\"NewRequirement\"}", QueryIntent.NewRequirement)]
     public void ParseIntent_AcceptsJsonVariants(string raw, QueryIntent expected)
         => HybridIntentClassifier.ParseIntent(raw).Should().Be(expected);
 }
@@ -126,6 +151,7 @@ public class PromptBuilderTests
     {
         var prompt = PddmDefaults.BuildUserPrompt("ctx", "q?", QueryIntent.DecisionRationale);
         prompt.Should().Contain("SCENARIO: DecisionRationale").And.Contain("ctx").And.Contain("q?");
+        prompt.Should().Contain("Follow the system Structure").And.Contain("Sources last");
     }
 
     [Fact]
@@ -133,6 +159,23 @@ public class PromptBuilderTests
     {
         var prompt = PddmDefaults.BuildSystemPrompt(QueryIntent.AssignedIssue);
         prompt.Should().Contain("Assigned ticket").And.NotContain("New requirement");
+        prompt.Should().Contain("### Your issue").And.Contain("Sources");
+    }
+
+    [Fact]
+    public void BuildSystemPrompt_Decision_IncludesRationaleSkeleton()
+    {
+        var prompt = PddmDefaults.BuildSystemPrompt(QueryIntent.DecisionRationale);
+        prompt.Should().Contain("### Rationale")
+            .And.Contain("Never invent SPARK keys not present in CONTEXT");
+    }
+
+    [Fact]
+    public void IntentClassifySystemPrompt_IncludesExamples()
+    {
+        PddmDefaults.IntentClassifySystemPrompt.Should().Contain("SPARK-57337")
+            .And.Contain("NewRequirement")
+            .And.Contain("DecisionRationale");
     }
 }
 
@@ -301,6 +344,36 @@ public class ContextBuilderServiceTests
     }
 
     [Fact]
+    public void Build_AssignedIssue_OrdersEpicCentralThenSiblings()
+    {
+        var sut = new ContextBuilderService();
+        var ctx = new NavigatedContext
+        {
+            ParentEpic = new JiraDocChunk { Key = "SPARK-10", Summary = "Epic", Description = "D", Status = "Open" },
+            CentralIssue = new JiraDocChunk { Key = "SPARK-11", IssueType = "Story", Summary = "Story", Status = "Open", Priority = "Major" },
+            SiblingIssues =
+            [
+                new JiraDocChunk { Key = "SPARK-12", Summary = "Sibling", Status = "Open", Tier = (int)DocTier.Issue }
+            ],
+            SubTasks =
+            [
+                new JiraDocChunk { Key = "SPARK-13", Summary = "Sub", Status = "Open", Tier = (int)DocTier.SubTask }
+            ]
+        };
+
+        var text = sut.Build(ctx, QueryIntent.AssignedIssue);
+        var epicAt = text.IndexOf("EPIC: SPARK-10", StringComparison.Ordinal);
+        var centralAt = text.IndexOf("Central issue: SPARK-11", StringComparison.Ordinal);
+        var siblingAt = text.IndexOf("Sibling work:", StringComparison.Ordinal);
+        var subAt = text.IndexOf("Sub-tasks:", StringComparison.Ordinal);
+        epicAt.Should().BeGreaterThanOrEqualTo(0);
+        centralAt.Should().BeGreaterThan(epicAt);
+        siblingAt.Should().BeGreaterThan(centralAt);
+        subAt.Should().BeGreaterThan(siblingAt);
+        text.Should().Contain("SPARK-13");
+    }
+
+    [Fact]
     public void Build_AssignedIssue_IncludesJiraBrowseUrls()
     {
         var sut = new ContextBuilderService();
@@ -340,11 +413,31 @@ public class ContextBuilderServiceTests
     }
 
     [Fact]
-    public void Build_NewRequirement_MentionsNoExactMatch()
+    public void Build_NewRequirement_Empty_UsesIngestMessage()
     {
         var sut = new ContextBuilderService();
         var text = sut.Build(new NavigatedContext(), QueryIntent.NewRequirement);
-        text.Should().Contain("No exact match found for this requirement.");
+        text.Should().Contain("No related tickets in the index yet");
+        text.Should().NotContain("No exact match found for this requirement.");
+        text.Should().NotContain("No exact ticket for this ask");
+    }
+
+    [Fact]
+    public void Build_NewRequirement_WithLandscape_UsesSoftPrefix()
+    {
+        var sut = new ContextBuilderService();
+        var ctx = new NavigatedContext
+        {
+            StandaloneRelatedIssues =
+            [
+                new JiraDocChunk { Key = "SPARK-44444", Summary = "ANSI default", Status = "Resolved", Tier = (int)DocTier.Issue }
+            ]
+        };
+
+        var text = sut.Build(ctx, QueryIntent.NewRequirement);
+        text.Should().Contain("No exact ticket for this ask; related landscape:");
+        text.Should().Contain("SPARK-44444");
+        text.Should().NotContain("No exact match found for this requirement.");
     }
 
     [Fact]
@@ -363,6 +456,70 @@ public class ContextBuilderServiceTests
         var text = sut.Build(ctx, QueryIntent.AssignedIssue);
         text.Should().Contain("SPARK-404");
         text.Should().Contain(string.Format(SharedPddmDefaults.JiraBrowseUrlFormat, "SPARK-404"));
+    }
+
+    [Fact]
+    public void Build_TruncatesLongDescriptions_KeepsKeyAndSummary()
+    {
+        var sut = new ContextBuilderService();
+        var longDesc = new string('x', PddmDefaults.ContextMaxDescriptionChars + 200);
+        var ctx = new NavigatedContext
+        {
+            CentralIssue = new JiraDocChunk
+            {
+                Key = "SPARK-11",
+                IssueType = "Story",
+                Summary = "Keep me",
+                Description = longDesc,
+                Status = "Open",
+                Priority = "Major"
+            }
+        };
+
+        var text = sut.Build(ctx, QueryIntent.AssignedIssue);
+        text.Should().Contain("SPARK-11").And.Contain("Keep me").And.Contain("...");
+        text.Length.Should().BeLessThan(longDesc.Length);
+    }
+}
+
+public class OfflineGoldenPromptHarnessTests
+{
+    [Theory]
+    [InlineData(QueryIntent.AssignedIssue, "### Your issue")]
+    [InlineData(QueryIntent.NewRequirement, "### Related landscape")]
+    [InlineData(QueryIntent.DecisionRationale, "### Rationale")]
+    [InlineData(QueryIntent.GeneralQuestion, "### Related landscape")]
+    public void SystemPrompt_ContainsScenarioSkeleton(QueryIntent intent, string expectedSection)
+    {
+        var system = PddmDefaults.BuildSystemPrompt(intent);
+        system.Should().Contain(expectedSection).And.Contain("Sources");
+        system.Should().Contain("Suggest running Ingestion ONLY when CONTEXT is empty");
+    }
+
+    [Fact]
+    public void UserPrompt_ForDemoAssigned_IncludesContextAndScenario()
+    {
+        var ctx = new ContextBuilderService().Build(
+            new NavigatedContext
+            {
+                ParentEpic = new JiraDocChunk { Key = "SPARK-1", Summary = "Epic", Description = "biz", Status = "Open" },
+                CentralIssue = new JiraDocChunk
+                {
+                    Key = GoldenDemoSeedKeys.AssignedTicket,
+                    IssueType = "Bug",
+                    Summary = "Assigned",
+                    Description = "desc",
+                    Status = "Open",
+                    Priority = "Major"
+                }
+            },
+            QueryIntent.AssignedIssue);
+
+        var user = PddmDefaults.BuildUserPrompt(ctx, GoldenDemoQuestions.AssignedTicket, QueryIntent.AssignedIssue);
+        user.Should().Contain("SCENARIO: AssignedIssue")
+            .And.Contain(GoldenDemoSeedKeys.AssignedTicket)
+            .And.Contain(GoldenDemoQuestions.AssignedTicket)
+            .And.Contain("markdown links only from CONTEXT Url lines");
     }
 }
 

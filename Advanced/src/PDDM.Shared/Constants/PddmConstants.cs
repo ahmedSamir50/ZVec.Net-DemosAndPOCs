@@ -83,8 +83,13 @@ public static class SharedPddmDefaults
     /// <summary>Locked embedding dimension for the ZVec collection schema.</summary>
     public const int EmbeddingDimensions = 768;
 
-    /// <summary>Default chat model id (LM Studio).</summary>
+    /// <summary>Default chat model id (LM Studio) — shipped fallback.</summary>
     public const string DefaultChatModel = "google/gemma-4-e2b";
+
+    /// <summary>
+    /// Recommended chat model for demos (LM Studio). Use Q4_K_M; on 4 GB VRAM enable GPU+CPU/RAM offload.
+    /// </summary>
+    public const string RecommendedChatModel = "lmstudio-community/Qwen2.5-7B-Instruct-GGUF";
 
     /// <summary>Default embedding model id (LM Studio).</summary>
     public const string DefaultEmbeddingModel = "text-embedding-nomic-embed-text-v1.5";

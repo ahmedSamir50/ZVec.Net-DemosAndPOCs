@@ -69,6 +69,8 @@ public sealed partial class HybridIntentClassifier : IIntentClassifier
             return null;
 
         var text = raw.Trim();
+        text = ThinkBlockRegex().Replace(text, string.Empty).Trim();
+
         var fence = JsonFenceRegex().Match(text);
         if (fence.Success)
             text = fence.Groups[1].Value.Trim();
@@ -104,4 +106,7 @@ public sealed partial class HybridIntentClassifier : IIntentClassifier
 
     [GeneratedRegex(@"```(?:json)?\s*([\s\S]*?)```", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex JsonFenceRegex();
+
+    [GeneratedRegex(@"<think>[\s\S]*?</think>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ThinkBlockRegex();
 }

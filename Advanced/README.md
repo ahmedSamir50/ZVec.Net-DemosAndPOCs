@@ -80,10 +80,15 @@ Quick prompts (also as Chat empty-state chips):
 
 Flow: open UI → **Ingest** (wipes `./data/spark-docs`, seeds SPARK-57337 + SPARK-44444 + ANSI hits) → confirm Stats Tier3/Decision > 0 → **Chat** with the questions above.
 
+## LM Studio ChatModel
+
+- **Recommended:** [`lmstudio-community/Qwen2.5-7B-Instruct-GGUF`](https://huggingface.co/lmstudio-community/Qwen2.5-7B-Instruct-GGUF) at **Q4_K_M** (~4.68 GB). On **4 GB VRAM**, load with **GPU + CPU/RAM offload**, keep context ~4k–8k, and consider unloading the embedding model when not ingesting.
+- Set the Chat Model ID in **Settings** (or `Pddm:LmStudio:ChatModel`) to the exact id LM Studio shows after load.
+- **Shipped default** (fallback): `google/gemma-4-e2b`. Thinking-style 3B experiments (e.g. VibeThinker) often ramble unless prompts stay strict.
+
 ## Notes
 
 - Chat flow: **heuristic intent fast-path** (Jira key / phrase lists) → optional **LLM JSON classify** when the ask is ambiguous → retrieval by scenario → **intent-aware** system/user prompts → streamed answer.
-- Default chat model: `google/gemma-4-e2b` (VibeThinker 3B is an optional Settings experiment).
 - Embedding dimension is locked at **768**; changing it requires destroying `./data/spark-docs` and re-ingesting (Ingest now recreates the collection each run).
 - HybridIndex rebuilds from `chunk-ids.json` + ZVec `Fetch` on API startup.
 - UI never references ZVec.NET (API-only).

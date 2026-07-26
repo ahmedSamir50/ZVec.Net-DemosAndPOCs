@@ -12,6 +12,11 @@ obj/
 **/data/
 **/spark-docs/
 
+## CLIP example models / local data
+**/models/
+examples/01-clip-onnx/**/models/
+examples/01-clip-onnx/**/data/
+
 ## CodeGraph (local machine index — not for commit)
 .codegraph/
 **/.codegraph/

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CLIP Gallery · ZVec.NET</title>
+  <style>
+    :root {
+      --bg: #0B1F3A;
+      --bg-soft: #102A4E;
+      --line: rgba(255,255,255,0.12);
+      --text: #E6EEF8;
+      --muted: #7E93B5;
+      --accent: #00D4FF;
+      --good: #4ADE80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, Segoe UI, system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #163361, var(--bg));
+      color: var(--text); min-height: 100vh;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    .sub { color: var(--muted); margin-bottom: 22px; }
+    .panel {
+      background: var(--bg-soft); border: 1px solid var(--line);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 16px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    input[type=text], input[type=number] {
+      background: #07172C; border: 1px solid var(--line); color: var(--text);
+      border-radius: 8px; padding: 10px 12px; min-width: 220px;
+    }
+    button {
+      background: var(--accent); color: #07172C; border: 0; border-radius: 8px;
+      padding: 10px 14px; font-weight: 700; cursor: pointer;
+    }
+    button.secondary { background: transparent; color: var(--accent); border: 1px solid rgba(0,212,255,0.4); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      background: rgba(0,212,255,0.14); color: var(--accent);
+    }
+    .badge.ready { background: rgba(74,222,128,0.16); color: var(--good); }
+    .badge.failed { background: rgba(255,122,182,0.16); color: #FF7AB6; }
+    .bar {
+      margin-top: 10px; height: 10px; border-radius: 999px; background: #07172C; overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .bar > i {
+      display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #00D4FF, #4ADE80);
+      transition: width 0.25s ease;
+    }
+    .file-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px; margin-top: 14px;
+    }
+    .card {
+      background: #07172C; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    }
+    .card img { width: 100%; height: 140px; object-fit: cover; display: block; background: #000; }
+    .meta { padding: 8px 10px; font-size: 12px; color: var(--muted); }
+    .score { color: var(--accent); font-weight: 700; }
+    .err { color: #FF7AB6; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>CLIP gallery search</h1>
+  <p class="sub">Flickr8k · CLIP ViT-B/32 ONNX · ZVec.NET in-process · fit-contain pad 224</p>
+
+  <div class="panel">
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <strong>Models</strong>
+        <span class="badge" id="stateBadge">…</span>
+      </div>
+      <button class="secondary" type="button" id="refreshStatus">Refresh</button>
+    </div>
+    <p class="muted" id="modelMessage" style="margin:10px 0 4px">Checking…</p>
+    <div class="mono" id="modelsDir"></div>
+    <div class="bar" title="Overall download / ready progress"><i id="overallBar"></i></div>
+    <div class="muted" id="overallPct" style="margin-top:6px"></div>
+    <div id="fileList"></div>
+    <p class="err" id="modelError" style="margin-top:8px"></p>
+  </div>
+
+  <div class="panel">
+    <strong>Ingest Flickr8k patch</strong>
+    <div class="row" style="margin-top:10px">
+      <label>batchSize <input type="number" id="batchSize" value="100" min="1" max="500" /></label>
+      <label>maxBatches <input type="number" id="maxBatches" value="1" min="1" max="50" /></label>
+      <button type="button" id="ingestBtn" disabled>Ingest next patch</button>
+    </div>
+    <div id="ingestOut" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+  </div>
+
+  <div class="panel">
+    <strong>Text → image</strong>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="query" placeholder='e.g. "a dog running in the snow"' style="flex:1" disabled />
+      <button type="button" id="searchTextBtn" disabled>Search</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <strong>Image → image</strong>
+    <div class="row" style="margin-top:10px">
+      <input type="file" id="file" accept="image/*" disabled />
+      <button type="button" id="searchImageBtn" disabled>Search upload</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <strong>Results</strong>
+    <div id="results" class="grid"></div>
+  </div>
+</main>
+<script>
+let pollTimer = null;
+let ready = false;
+
+function setActionsEnabled(on) {
+  ready = on;
+  ['ingestBtn','searchTextBtn','searchImageBtn','query','file'].forEach(id => {
+    document.getElementById(id).disabled = !on;
+  });
+}
+
+function fmtBytes(n) {
+  if (n == null) return '—';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(1) + ' MB';
+}
+
+async function refreshStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const j = await r.json();
+    const m = j.models || {};
+    const badge = document.getElementById('stateBadge');
+    badge.textContent = m.state || '…';
+    badge.className = 'badge' + (m.state === 'Ready' ? ' ready' : m.state === 'Failed' ? ' failed' : '');
+
+    document.getElementById('modelMessage').textContent = m.message || '';
+    document.getElementById('modelsDir').textContent = m.modelsDir
+      ? ('Models path: ' + m.modelsDir)
+      : '';
+    const pct = m.overallPercent != null ? m.overallPercent : (j.encoderReady ? 100 : 0);
+    document.getElementById('overallBar').style.width = pct + '%';
+    document.getElementById('overallPct').textContent =
+      (m.overallPercent != null ? ('Progress: ' + m.overallPercent + '%') : '') +
+      (j.encoderReady ? ' · encoder ready' : '');
+
+    const err = document.getElementById('modelError');
+    err.textContent = m.error || (!j.encoderReady && m.state === 'Failed' ? (j.encoderMessage || '') : '');
+
+    const list = document.getElementById('fileList');
+    list.innerHTML = '';
+    (m.files || []).forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      const left = f.name + ' · ' + f.status;
+      const right = (f.percent != null ? f.percent + '% · ' : '') +
+        fmtBytes(f.bytesReceived) + (f.bytesTotal ? ' / ' + fmtBytes(f.bytesTotal) : '');
+      row.innerHTML = '<span>' + left + '</span><span>' + right + '</span>';
+      list.appendChild(row);
+    });
+
+    setActionsEnabled(!!j.encoderReady);
+    if (j.encoderReady && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  } catch (e) {
+    document.getElementById('modelError').textContent = String(e);
+  }
+}
+
+function renderHits(hits) {
+  const root = document.getElementById('results');
+  root.innerHTML = '';
+  if (!hits || !hits.length) {
+    root.innerHTML = '<div style="color:var(--muted)">No hits</div>';
+    return;
+  }
+  for (const h of hits) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const src = '/gallery/' + encodeURIComponent(h.fileName || h.FileName);
+    card.innerHTML = `<img src="${src}" alt="" /><div class="meta"><div class="score">${(h.score ?? h.Score).toFixed(3)}</div><div>${h.fileName || h.FileName}</div></div>`;
+    root.appendChild(card);
+  }
+}
+
+document.getElementById('refreshStatus').onclick = refreshStatus;
+document.getElementById('ingestBtn').onclick = async () => {
+  if (!ready) return;
+  const btn = document.getElementById('ingestBtn');
+  const out = document.getElementById('ingestOut');
+  btn.disabled = true; out.textContent = 'Ingesting (may download Flickr8k on first run)…';
+  try {
+    const r = await fetch('/api/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batchSize: Number(document.getElementById('batchSize').value),
+        maxBatches: Number(document.getElementById('maxBatches').value)
+      })
+    });
+    const j = await r.json();
+    out.textContent = r.ok ? JSON.stringify(j, null, 2) : (j.error || JSON.stringify(j));
+    out.className = r.ok ? '' : 'err';
+  } catch (e) {
+    out.textContent = String(e); out.className = 'err';
+  } finally { btn.disabled = !ready; }
+};
+
+document.getElementById('searchTextBtn').onclick = async () => {
+  if (!ready) return;
+  const q = document.getElementById('query').value;
+  const r = await fetch('/api/search/text', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: q, topK: 10 })
+  });
+  const j = await r.json();
+  if (!r.ok) { alert(j.error || 'search failed'); return; }
+  renderHits(j);
+};
+
+document.getElementById('searchImageBtn').onclick = async () => {
+  if (!ready) return;
+  const f = document.getElementById('file').files[0];
+  if (!f) { alert('choose an image'); return; }
+  const fd = new FormData();
+  fd.append('file', f);
+  fd.append('topK', '10');
+  const r = await fetch('/api/search/image', { method: 'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { alert(j.error || 'search failed'); return; }
+  renderHits(j);
+};
+
+refreshStatus();
+pollTimer = setInterval(refreshStatus, 1000);
+</script>
+</body>
+</html>

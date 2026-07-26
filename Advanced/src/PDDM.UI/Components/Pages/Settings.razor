@@ -17,8 +17,10 @@
     </MudAlert>
 
     <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined">
-        Recommended chat model: <strong>@SharedPddmDefaults.DefaultChatModel</strong> (instruction-following).
-        Thinking-style 3B models (e.g. VibeThinker) are optional experiments in Settings — they often ramble or echo RAG dumps unless the prompt is strict.
+        Recommended chat model: <strong>@SharedPddmDefaults.RecommendedChatModel</strong> (Q4_K_M).
+        On 4 GB VRAM use GPU + CPU/RAM offload and a modest context (4k–8k).
+        Shipped fallback is <code>@SharedPddmDefaults.DefaultChatModel</code>.
+        Thinking-style 3B models (e.g. VibeThinker) are optional experiments — they often ramble or echo RAG dumps unless the prompt is strict.
     </MudAlert>
 
     @if (_settings is null)
