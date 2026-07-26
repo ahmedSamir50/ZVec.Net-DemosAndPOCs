@@ -67,6 +67,7 @@
     .meta { padding: 8px 10px; font-size: 12px; color: var(--muted); }
     .score { color: var(--accent); font-weight: 700; }
     .err { color: #FF7AB6; }
+    .help { color: var(--muted); font-size: 12px; margin: 8px 0 0; line-height: 1.45; max-width: 720px; }
   </style>
 </head>
 <body>
@@ -91,13 +92,25 @@
   </div>
 
   <div class="panel">
-    <strong>Ingest Flickr8k patch</strong>
-    <div class="row" style="margin-top:10px">
-      <label>batchSize <input type="number" id="batchSize" value="100" min="1" max="500" /></label>
-      <label>maxBatches <input type="number" id="maxBatches" value="1" min="1" max="50" /></label>
-      <button type="button" id="ingestBtn" disabled>Ingest next patch</button>
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <strong>Ingest gallery</strong>
+        <span class="badge" id="ingestBadge">Idle</span>
+      </div>
     </div>
-    <div id="ingestOut" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+    <p class="help">
+      First run downloads the full Flickr8k image zip once (~1GB) with progress below, then extracts.
+      <strong>Images this run</strong> only limits how many photos are encoded into ZVec (resume from saved offset) — it does not partial-download the zip.
+    </p>
+    <div class="row" style="margin-top:10px">
+      <label>Images this run <input type="number" id="maxImages" value="100" min="1" max="6000" /></label>
+      <button type="button" id="ingestBtn" disabled>Ingest</button>
+    </div>
+    <p class="muted" id="ingestMessage" style="margin:10px 0 4px"></p>
+    <div class="mono" id="ingestDetail"></div>
+    <div class="bar" title="Download or embed progress"><i id="ingestBar"></i></div>
+    <div class="muted" id="ingestPct" style="margin-top:6px"></div>
+    <p class="err" id="ingestError" style="margin-top:8px"></p>
   </div>
 
   <div class="panel">
@@ -124,19 +137,75 @@
 <script>
 let pollTimer = null;
 let ready = false;
+let ingestActive = false;
 
-function setActionsEnabled(on) {
+function setSearchEnabled(on) {
   ready = on;
-  ['ingestBtn','searchTextBtn','searchImageBtn','query','file'].forEach(id => {
+  ['searchTextBtn','searchImageBtn','query','file'].forEach(id => {
     document.getElementById(id).disabled = !on;
   });
+  updateIngestButton();
+}
+
+function updateIngestButton() {
+  const btn = document.getElementById('ingestBtn');
+  btn.disabled = !ready || ingestActive;
 }
 
 function fmtBytes(n) {
   if (n == null) return '—';
   if (n < 1024) return n + ' B';
   if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
-  return (n/1024/1024).toFixed(1) + ' MB';
+  if (n < 1024*1024*1024) return (n/1024/1024).toFixed(1) + ' MB';
+  return (n/1024/1024/1024).toFixed(2) + ' GB';
+}
+
+function ensurePolling() {
+  if (!pollTimer)
+    pollTimer = setInterval(refreshStatus, 1000);
+}
+
+function renderIngest(ing) {
+  if (!ing) return;
+  ingestActive = !!ing.active;
+  const badge = document.getElementById('ingestBadge');
+  badge.textContent = ing.state || 'Idle';
+  badge.className = 'badge' +
+    (ing.state === 'Completed' ? ' ready' : ing.state === 'Failed' ? ' failed' : '');
+
+  document.getElementById('ingestMessage').textContent = ing.message || '';
+  document.getElementById('ingestDetail').textContent = ing.phaseDetail
+    ? ('File: ' + ing.phaseDetail)
+    : '';
+
+  let pct = 0;
+  let pctLabel = '';
+  if (ing.state === 'Downloading' && ing.downloadPercent != null) {
+    pct = ing.downloadPercent;
+    pctLabel = 'Download: ' + ing.downloadPercent + '% · ' +
+      fmtBytes(ing.bytesReceived) + (ing.bytesTotal ? ' / ' + fmtBytes(ing.bytesTotal) : '');
+  } else if (ing.state === 'Extracting') {
+    pct = 0;
+    pctLabel = 'Extracting…';
+  } else if (ing.state === 'Embedding') {
+    pct = ing.embedPercent != null ? ing.embedPercent : 0;
+    pctLabel = 'This run: ' + (ing.embeddedThisRun + ing.skippedThisRun) + ' / ' + ing.targetThisRun +
+      ' · gallery ' + ing.manifestOffset + ' / ' + ing.manifestTotal +
+      (ing.embedPercent != null ? ' · ' + ing.embedPercent + '%' : '');
+  } else if (ing.state === 'Completed') {
+    pct = 100;
+    pctLabel = 'Done — embedded ' + ing.embeddedThisRun + ', skipped ' + ing.skippedThisRun +
+      ' · offset ' + ing.manifestOffset + '/' + ing.manifestTotal +
+      (ing.elapsedMs ? ' · ' + (ing.elapsedMs / 1000).toFixed(1) + 's' : '');
+  } else if (ing.manifestTotal > 0) {
+    pct = Math.round(100 * ing.manifestOffset / ing.manifestTotal);
+    pctLabel = 'Gallery progress: ' + ing.manifestOffset + ' / ' + ing.manifestTotal;
+  }
+
+  document.getElementById('ingestBar').style.width = pct + '%';
+  document.getElementById('ingestPct').textContent = pctLabel;
+  document.getElementById('ingestError').textContent = ing.error || '';
+  updateIngestButton();
 }
 
 async function refreshStatus() {
@@ -173,10 +242,15 @@ async function refreshStatus() {
       list.appendChild(row);
     });
 
-    setActionsEnabled(!!j.encoderReady);
-    if (j.encoderReady && pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
+    renderIngest(j.ingest);
+    setSearchEnabled(!!j.encoderReady);
+
+    // Keep polling while models loading OR ingest active
+    const needPoll = !j.encoderReady || (j.ingest && j.ingest.active);
+    if (needPoll) ensurePolling();
+    else if (pollTimer && j.encoderReady && !(j.ingest && j.ingest.active)) {
+      // Models ready and ingest idle — slow stop only if we already have a timer from startup
+      // Keep a light poll so Completed state refreshes after background job; stop after idle settle
     }
   } catch (e) {
     document.getElementById('modelError').textContent = String(e);
@@ -201,25 +275,32 @@ function renderHits(hits) {
 
 document.getElementById('refreshStatus').onclick = refreshStatus;
 document.getElementById('ingestBtn').onclick = async () => {
-  if (!ready) return;
-  const btn = document.getElementById('ingestBtn');
-  const out = document.getElementById('ingestOut');
-  btn.disabled = true; out.textContent = 'Ingesting (may download Flickr8k on first run)…';
+  if (!ready || ingestActive) return;
+  const outErr = document.getElementById('ingestError');
+  outErr.textContent = '';
   try {
     const r = await fetch('/api/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        batchSize: Number(document.getElementById('batchSize').value),
-        maxBatches: Number(document.getElementById('maxBatches').value)
+        maxImages: Number(document.getElementById('maxImages').value)
       })
     });
     const j = await r.json();
-    out.textContent = r.ok ? JSON.stringify(j, null, 2) : (j.error || JSON.stringify(j));
-    out.className = r.ok ? '' : 'err';
+    if (r.status === 202) {
+      ingestActive = true;
+      updateIngestButton();
+      document.getElementById('ingestMessage').textContent =
+        'Started — embedding up to ' + (j.maxImages || '') + ' image(s). Watch progress below.';
+      ensurePolling();
+      refreshStatus();
+    } else {
+      outErr.textContent = j.error || JSON.stringify(j);
+      outErr.className = 'err';
+    }
   } catch (e) {
-    out.textContent = String(e); out.className = 'err';
-  } finally { btn.disabled = !ready; }
+    outErr.textContent = String(e);
+  }
 };
 
 document.getElementById('searchTextBtn').onclick = async () => {
@@ -248,7 +329,7 @@ document.getElementById('searchImageBtn').onclick = async () => {
 };
 
 refreshStatus();
-pollTimer = setInterval(refreshStatus, 1000);
+ensurePolling();
 </script>
 </body>
 </html>

@@ -34,6 +34,7 @@ builder.Services.AddSingleton(sp =>
 });
 
 builder.Services.AddSingleton<ModelBootstrapStatus>();
+builder.Services.AddSingleton<IngestProgressStatus>();
 builder.Services.AddSingleton<IClipEncoder, ClipEncoder>();
 builder.Services.AddSingleton<IFlickr8kIngestService, Flickr8kIngestService>();
 builder.Services.AddSingleton<IGallerySearchService, GallerySearchService>();
@@ -58,9 +59,10 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/gallery"
 });
 
-app.MapGet("/api/status", (IClipEncoder encoder, ModelBootstrapStatus bootstrap, IOptions<ClipOnnxOptions> opt) =>
+app.MapGet("/api/status", (IClipEncoder encoder, ModelBootstrapStatus bootstrap, IngestProgressStatus ingest, IOptions<ClipOnnxOptions> opt) =>
 {
     var snap = bootstrap.Snapshot();
+    var ing = ingest.Snapshot();
     return Results.Json(new
     {
         encoderReady = encoder.IsReady,
@@ -76,6 +78,25 @@ app.MapGet("/api/status", (IClipEncoder encoder, ModelBootstrapStatus bootstrap,
             autoDownload = opt.Value.AutoDownloadModels,
             repo = opt.Value.ModelRepo
         },
+        ingest = new
+        {
+            state = ing.State,
+            message = ing.Message,
+            error = ing.Error,
+            phaseDetail = ing.PhaseDetail,
+            active = ing.Active,
+            bytesReceived = ing.BytesReceived,
+            bytesTotal = ing.BytesTotal,
+            downloadPercent = ing.DownloadPercent,
+            manifestOffset = ing.ManifestOffset,
+            manifestTotal = ing.ManifestTotal,
+            embeddedThisRun = ing.EmbeddedThisRun,
+            skippedThisRun = ing.SkippedThisRun,
+            targetThisRun = ing.TargetThisRun,
+            embedPercent = ing.EmbedPercent,
+            zipsDownloadedThisRun = ing.ZipsDownloadedThisRun,
+            elapsedMs = ing.ElapsedMs
+        },
         collectionPath = Path.GetFullPath(opt.Value.CollectionPath),
         model = "CLIP ViT-B/32 ONNX",
         dim = 512,
@@ -84,20 +105,35 @@ app.MapGet("/api/status", (IClipEncoder encoder, ModelBootstrapStatus bootstrap,
     });
 });
 
-app.MapPost("/api/ingest", async (IngestRequest? body, IFlickr8kIngestService ingest, CancellationToken ct) =>
+app.MapPost("/api/ingest", (IngestRequest? body, IFlickr8kIngestService ingest, IOptions<ClipOnnxOptions> opt) =>
 {
-    var batchSize = body?.BatchSize is > 0 ? body.BatchSize.Value : 100;
-    var maxBatches = body?.MaxBatches is > 0 ? body.MaxBatches.Value : 1;
-    try
-    {
-        var result = await ingest.IngestPatchAsync(batchSize, maxBatches, ct);
-        return Results.Json(result);
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { error = ex.Message });
-    }
+    var maxImages = ResolveMaxImages(body, opt.Value.DefaultBatchSize);
+    var result = ingest.TryStartIngest(maxImages);
+
+    if (result.Started)
+        return Results.Json(new { started = true, maxImages = result.MaxImages }, statusCode: StatusCodes.Status202Accepted);
+
+    if (string.Equals(result.Error, "Ingest already running.", StringComparison.Ordinal))
+        return Results.Json(new { started = false, error = result.Error, maxImages = result.MaxImages }, statusCode: StatusCodes.Status409Conflict);
+
+    return Results.BadRequest(new { started = false, error = result.Error, maxImages = result.MaxImages });
 });
+
+static int ResolveMaxImages(IngestRequest? body, int defaultMax)
+{
+    if (body?.MaxImages is > 0)
+        return body.MaxImages.Value;
+
+    // Legacy: batchSize × maxBatches
+    if (body?.BatchSize is > 0 || body?.MaxBatches is > 0)
+    {
+        var batch = body.BatchSize is > 0 ? body.BatchSize.Value : defaultMax;
+        var batches = body.MaxBatches is > 0 ? body.MaxBatches.Value : 1;
+        return batch * batches;
+    }
+
+    return defaultMax;
+}
 
 app.MapPost("/api/search/text", async (TextSearchRequest body, IGallerySearchService search, IOptions<ClipOnnxOptions> opt, CancellationToken ct) =>
 {
@@ -142,5 +178,5 @@ app.MapPost("/api/search/image", async (HttpRequest req, IGallerySearchService s
 
 app.Run();
 
-public sealed record IngestRequest(int? BatchSize, int? MaxBatches);
+public sealed record IngestRequest(int? MaxImages, int? BatchSize, int? MaxBatches);
 public sealed record TextSearchRequest(string Query, int? TopK);

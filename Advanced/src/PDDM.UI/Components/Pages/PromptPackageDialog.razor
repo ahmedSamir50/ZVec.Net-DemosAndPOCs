@@ -1,0 +1,61 @@
+@using PDDM.Shared.Dtos
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Sent to model</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Package is null)
+        {
+            <MudText>No prompt package available.</MudText>
+        }
+        else
+        {
+            <MudStack Spacing="3">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">System prompt</MudText>
+                    <MudPaper Class="pa-3" Outlined="true" Style="max-height: 180px; overflow: auto;">
+                        <MudText Style="white-space: pre-wrap; font-family: Consolas, monospace; font-size: 0.85rem;">@Package.SystemPrompt</MudText>
+                    </MudPaper>
+                </div>
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">User prompt (CONTEXT + QUESTION)</MudText>
+                    <MudPaper Class="pa-3" Outlined="true" Style="max-height: 280px; overflow: auto;">
+                        <MudText Style="white-space: pre-wrap; font-family: Consolas, monospace; font-size: 0.85rem;">@Package.UserPrompt</MudText>
+                    </MudPaper>
+                </div>
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Citations</MudText>
+                    @if (Package.Citations.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">No citation URLs in context.</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="1">
+                            @foreach (var c in Package.Citations)
+                            {
+                                <MudLink Href="@c.Url" Target="_blank" Typo="Typo.body2">
+                                    @(string.IsNullOrWhiteSpace(c.Key) ? "Link" : c.Key)
+                                </MudLink>
+                            }
+                        </MudStack>
+                    }
+                </div>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public PromptPackageEventDto? Package { get; set; }
+
+    private void Close() => MudDialog.Close();
+}

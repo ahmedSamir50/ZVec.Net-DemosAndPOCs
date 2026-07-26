@@ -42,6 +42,22 @@ public sealed class ProgressEventDto
     public string Message { get; set; } = "";
 }
 
+/// <summary>A single citation URL extracted from assembled context.</summary>
+public sealed class CitationDto
+{
+    public string Key { get; set; } = "";
+    public string Url { get; set; } = "";
+}
+
+/// <summary>SSE payload with the prompt package sent to the chat model.</summary>
+public sealed class PromptPackageEventDto
+{
+    public string SystemPrompt { get; set; } = "";
+    public string UserPrompt { get; set; } = "";
+    public string Context { get; set; } = "";
+    public List<CitationDto> Citations { get; set; } = [];
+}
+
 /// <summary>Ingestion progress for UI.</summary>
 public sealed class IngestionProgressDto
 {

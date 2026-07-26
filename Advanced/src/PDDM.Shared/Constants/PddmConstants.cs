@@ -34,6 +34,7 @@ public static class SseEventTypes
     public const string Done = "done";
     public const string Error = "error";
     public const string Progress = "progress";
+    public const string Prompt = "prompt";
 }
 
 /// <summary>Chunk document Id prefixes stored in ZVec.NET.</summary>

@@ -17,6 +17,7 @@ public sealed class SseEventParser
         SseEventTypes.Done => JsonSerializer.Deserialize<DoneEventDto>(dataJson, JsonOptions),
         SseEventTypes.Error => JsonSerializer.Deserialize<ErrorEventDto>(dataJson, JsonOptions),
         SseEventTypes.Progress => JsonSerializer.Deserialize<ProgressEventDto>(dataJson, JsonOptions),
+        SseEventTypes.Prompt => JsonSerializer.Deserialize<PromptPackageEventDto>(dataJson, JsonOptions),
         _ => null
     };
 }

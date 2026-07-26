@@ -1,7 +1,11 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components
 @using PDDM.Shared.Constants
+@using PDDM.Shared.Dtos
+@using PDDM.Shared.Text
 @inject ChatClientService Chat
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudStack Spacing="4">
     <div>
@@ -68,7 +72,7 @@
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
     }
 
-    @if (!string.IsNullOrEmpty(_userBubble) || !string.IsNullOrEmpty(_answer))
+    @if (!string.IsNullOrEmpty(_userBubble) || !string.IsNullOrEmpty(_answer) || _promptPackage is not null)
     {
         <MudStack Spacing="3">
             @if (!string.IsNullOrEmpty(_userBubble))
@@ -79,8 +83,19 @@
                 </MudPaper>
             }
             <MudPaper Class="pa-3" Style="max-width: 95%;" Outlined="true" Elevation="0">
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">PDDM</MudText>
-                <MudText Style="white-space: pre-wrap;">@(_answer + (_busy && !string.IsNullOrEmpty(_answer) ? "▍" : ""))</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">PDDM</MudText>
+                    <MudIconButton Icon="@Icons.Material.Outlined.Info"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Disabled="_promptPackage is null"
+                                   Title="Show prompt sent to model"
+                                   OnClick="ShowPromptPackageAsync"
+                                   aria-label="Show prompt sent to model" />
+                </MudStack>
+                <div class="chat-answer" style="white-space: pre-wrap;">
+                    @((MarkupString)ChatAnswerHtml.Format(_answer + (_busy && !string.IsNullOrEmpty(_answer) ? "▍" : "")))
+                </div>
             </MudPaper>
         </MudStack>
     }
@@ -93,9 +108,28 @@
     private string _status = "";
     private string? _error;
     private IntentEventDto? _intent;
+    private PromptPackageEventDto? _promptPackage;
     private bool _busy;
 
     private void UsePrompt(string prompt) => _question = prompt;
+
+    private async Task ShowPromptPackageAsync()
+    {
+        if (_promptPackage is null)
+            return;
+
+        var parameters = new DialogParameters<PromptPackageDialog>
+        {
+            { x => x.Package, _promptPackage }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+        await DialogService.ShowAsync<PromptPackageDialog>("Sent to model", parameters, options);
+    }
 
     private async Task SendAsync()
     {
@@ -104,6 +138,7 @@
         _answer = "";
         _error = null;
         _intent = null;
+        _promptPackage = null;
         _userBubble = _question;
         await InvokeAsync(StateHasChanged);
 
@@ -119,6 +154,11 @@
                 onProgress: p =>
                 {
                     _status = string.IsNullOrEmpty(p.Message) ? p.Phase : p.Message;
+                    _ = InvokeAsync(StateHasChanged);
+                },
+                onPrompt: p =>
+                {
+                    _promptPackage = p;
                     _ = InvokeAsync(StateHasChanged);
                 },
                 onToken: t =>

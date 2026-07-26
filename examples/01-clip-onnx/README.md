@@ -10,7 +10,7 @@ Index Flickr8k photos with **CLIP ViT-B/32** vision embeddings, store `{id, path
 | Vectors | ZVec.NET `1.0.0-beta.2` typed ODM (`ImageAsset`) |
 | Encoders | ONNX Runtime — `vision_model.onnx` + `text_model.onnx` |
 | Preprocess | SkiaSharp **fit-contain + pad** to **224×224** (no center-crop discard) |
-| Dataset | Flickr8k only, manifest-driven patch ingest (default batch **100**) |
+| Dataset | Flickr8k — one-time full zip download, then resumeable upserts (default **100** images/run) |
 
 ## Setup
 
@@ -46,16 +46,21 @@ Open the printed URL. Ingest/search stay disabled until **models state = Ready**
 
 ### Ingest + search
 
-1. **Ingest next patch** — first run downloads Flickr8k text + images zips (large), then embeds the next `batchSize` (default 100) manifest entries that are not already in ZVec.
+1. **Ingest gallery** — `POST /api/ingest` starts a **background** job and returns **202**. Progress is on `GET /api/status` → `ingest` (same poll as models).
+   - **First run:** downloads the full Flickr8k text + images zips (large, ~1GB images) with **byte %**, then extracts, then encodes.
+   - **`maxImages`** (default 100) only limits how many photos are **encoded+upserted** this run from the saved manifest offset — it does **not** partial-download the zip.
+   - Later clicks continue from `data/state/flickr8k.json`.
 2. **Text search** — natural language → text ONNX → ZVec top-K.
 3. **Image search** — upload → same SkiaSharp preprocess + vision ONNX → ZVec top-K.
 
 API:
 
-- `GET /api/status` — includes `models.state`, `models.modelsDir`, per-file progress, `encoderReady`
-- `POST /api/ingest` `{ "batchSize": 100, "maxBatches": 1 }`
+- `GET /api/status` — `models.*` (download/ready) + `ingest.*` (state, download %, embed offset/total, message) + `encoderReady`
+- `POST /api/ingest` `{ "maxImages": 100 }` → **202** `{ started, maxImages }` (or **409** if already running)
 - `POST /api/search/text` `{ "query": "…", "topK": 10 }`
 - `POST /api/search/image` multipart `file` (+ optional `topK`)
+
+Ingest states: `Idle` → `Downloading` → `Extracting` → `Embedding` → `Completed` | `Failed`.
 
 ## Data layout (gitignored)
 
@@ -86,5 +91,5 @@ No captions stored. Scores are cosine on L2-normalized 512-d vectors.
 ## Notes
 
 - Preprocess is **fit-contain + pad**, not CLIP’s original center-crop (keeps all content; slight distribution shift vs training).
-- First model download is hundreds of MB; first Flickr download is ~1GB — use `maxBatches: 1` while testing.
+- First model download is hundreds of MB; first Flickr download is ~1GB once. Use `maxImages: 100` while testing embeds.
 - CPU ONNX by default.

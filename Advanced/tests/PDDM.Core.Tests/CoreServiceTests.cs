@@ -781,6 +781,17 @@ public class SseEventParserTests
     }
 
     [Fact]
+    public void Parse_Prompt()
+    {
+        var result = _sut.Parse(
+            SseEventTypes.Prompt,
+            """{"SystemPrompt":"s","UserPrompt":"u","Context":"c","Citations":[]}""") as PromptPackageEventDto;
+        result!.SystemPrompt.Should().Be("s");
+        result.UserPrompt.Should().Be("u");
+        result.Context.Should().Be("c");
+    }
+
+    [Fact]
     public void Parse_Unknown_ReturnsNull()
         => _sut.Parse("nope", "{}").Should().BeNull();
 }

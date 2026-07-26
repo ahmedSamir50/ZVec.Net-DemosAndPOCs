@@ -22,6 +22,7 @@ public sealed class ChatClientService
         string question,
         Action<IntentEventDto>? onIntent,
         Action<ProgressEventDto>? onProgress,
+        Action<PromptPackageEventDto>? onPrompt,
         Action<string>? onToken,
         Action<string>? onError,
         Action? onDone,
@@ -63,6 +64,9 @@ public sealed class ChatClientService
                     break;
                 case ProgressEventDto progress:
                     onProgress?.Invoke(progress);
+                    break;
+                case PromptPackageEventDto prompt:
+                    onPrompt?.Invoke(prompt);
                     break;
                 case TokenEventDto token:
                     onToken?.Invoke(token.Token);

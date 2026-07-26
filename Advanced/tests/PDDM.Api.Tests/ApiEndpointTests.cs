@@ -81,6 +81,7 @@ public class ApiEndpointTests : IClassFixture<PddmApiFactory>
         body.Should().Contain(SseEventTypes.Intent);
         body.Should().Contain(SseEventTypes.Progress);
         body.Should().Contain(ChatProgressPhases.Classifying);
+        body.Should().Contain(SseEventTypes.Prompt);
         body.Should().Contain(SseEventTypes.Done);
     }
 }

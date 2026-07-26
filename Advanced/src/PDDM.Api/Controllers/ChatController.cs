@@ -4,6 +4,7 @@ using PDDM.Core.Abstractions;
 using PDDM.Core.Constants;
 using PDDM.Shared.Constants;
 using PDDM.Shared.Dtos;
+using PDDM.Shared.Text;
 
 namespace PDDM.Api.Controllers;
 
@@ -65,6 +66,14 @@ public sealed class ChatController : ControllerBase
             var nav = await _navigationEngine.NavigateAsync(question, intent, cancellationToken).ConfigureAwait(false);
             var systemPrompt = PddmDefaults.BuildSystemPrompt(nav.Intent);
             var userPrompt = PddmDefaults.BuildUserPrompt(nav.AssembledContext, question, nav.Intent);
+
+            await WriteEventAsync(SseEventTypes.Prompt, new PromptPackageEventDto
+            {
+                SystemPrompt = systemPrompt,
+                UserPrompt = userPrompt,
+                Context = nav.AssembledContext,
+                Citations = CitationExtractor.Extract(nav.AssembledContext).ToList()
+            }, cancellationToken).ConfigureAwait(false);
 
             await WriteEventAsync(SseEventTypes.Progress, new ProgressEventDto
             {
