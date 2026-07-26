@@ -35,7 +35,19 @@ Banned trap queries in search: bare `network`, `19`.
 
 ## Scores
 
-ZVec Cosine score ≈ `(1 + cosθ) / 2`. UI **similarity %** uses `cosine = 2*score - 1`.  
+ZVec Cosine metric exposes **cosine distance** on hit `Score` (lower = more similar), not raw CLIP cosθ.
+
+| ZVec distance | CLIP cosθ (`1 − distance`) | UI similarity % |
+|---------------|----------------------------|-----------------|
+| 0.00 | 1.00 | 100% |
+| 0.30 | 0.70 | 70% |
+| 0.50 | 0.50 | 50% |
+| 1.00 | 0.00 | 0% |
+| 2.00 | -1.00 | 0% |
+
+Conversion: `cosine = 1 - zvecScore`, then `similarityPercent = max(0, round(100 * cosine))`.  
+Results are sorted **highest cosine first**. Identical vectors → distance ≈ 0 → cos ≈ 1.
+
 Defaults: `MinCosine=0.30`, gap `0.05`, `MinConfidentHits=3` (empty beats junk).
 
 ## Setup

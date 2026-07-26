@@ -8,8 +8,10 @@ using Microsoft.Extensions.Options;
 namespace ClipOnnx.App.Services;
 
 /// <summary>
-/// One gallery hit. <see cref="Score"/> is ZVec Cosine normalized score ≈ (1+cos)/2.
-/// <see cref="Cosine"/> is CLIP-style cosθ; <see cref="SimilarityPercent"/> is display % from cosine.
+/// One gallery hit.
+/// <see cref="Score"/> is ZVec Cosine <b>distance</b> (lower = more similar).
+/// <see cref="Cosine"/> is CLIP-style cosθ = 1 − distance (higher = better).
+/// <see cref="SimilarityPercent"/> is display % from cosine (≥0).
 /// <see cref="Caption"/> is optional Flickr text for UI only — not used to rank.
 /// </summary>
 public sealed record SearchHitDto(
@@ -42,7 +44,9 @@ public interface IGallerySearchService
 
 /// <summary>
 /// Multimodal gallery search against the Cosine HNSW index on vision embeddings.
-/// ZVec Cosine score ≈ (1 + cosθ) / 2 — convert before showing % or filtering.
+/// ZVec Cosine hit scores are <b>distances</b> (lower better); convert with
+/// <see cref="ClipScoreSemantics.CosineFromZVecScore"/> before showing % or filtering.
+/// Results are ordered best→worst by true CLIP cosine.
 /// Refuses to search when the gallery stamp does not match the active CLIP model.
 /// </summary>
 public sealed class GallerySearchService : IGallerySearchService
@@ -141,7 +145,7 @@ public sealed class GallerySearchService : IGallerySearchService
         topK = topK <= 0 ? 5 : topK;
         var (vector, templates, summary) = EncodeTextEnsemble(query.Trim());
         var hits = await _gallery.QueryAsync(vector, topK, ct);
-        var mapped = Map(hits);
+        var mapped = Map(hits).OrderByDescending(h => h.Cosine).ToList();
         var def = _models.ActiveDefinition;
         return new SearchResponse(mapped, summary, templates, mapped.Count, 0, null, null, null, def.Id, def.EmbeddingDim);
     }
@@ -221,7 +225,11 @@ public sealed class GallerySearchService : IGallerySearchService
         long queryMs)
     {
         var def = _models.ActiveDefinition;
-        var mapped = Map(raw);
+        // Map + sort by true CLIP cosine (higher better). ZVec returns distance-ascending;
+        // after conversion we make display order explicit.
+        var mapped = Map(raw)
+            .OrderByDescending(h => h.Cosine)
+            .ToList();
         var rawCount = mapped.Count;
         if (rawCount == 0)
         {

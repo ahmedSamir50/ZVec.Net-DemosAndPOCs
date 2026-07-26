@@ -5,7 +5,10 @@ using ZVec.NET;
 
 namespace ClipOnnx.App.Storage;
 
-/// <summary>One ANN hit from the active gallery (ZVec Cosine score, not yet converted to CLIP cosθ).</summary>
+/// <summary>
+/// One ANN hit from the active gallery.
+/// <see cref="Score"/> is ZVec Cosine <b>distance</b> (lower = better); convert before UI %.
+/// </summary>
 public sealed record GalleryQueryHit(string Id, string Path, float Score);
 
 /// <summary>

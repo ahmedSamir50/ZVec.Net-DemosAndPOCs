@@ -197,7 +197,7 @@
 
   <div class="panel">
     <strong>Results</strong>
-    <p class="help" style="margin-top:6px">Similarity % = CLIP cosine (not ZVec raw score). Caption under each card is Flickr text for humans — not used for ranking.</p>
+    <p class="help" style="margin-top:6px">Similarity % and cosθ: <strong>higher = better match</strong> (CLIP cosine). ZVec stores cosine <em>distance</em> internally (lower better); we convert for display.</p>
     <div class="prompt-line" id="promptLine"></div>
     <div id="results" class="grid"></div>
   </div>
@@ -216,7 +216,13 @@ let pollTimer = null;
 let ready = false;
 let ingestActive = false;
 let catalog = [];
+/** Server-applied active model id. */
 let activeModelId = null;
+/** User's dropdown choice before Apply succeeds; preserves selection across status polls. */
+let pendingModelId = null;
+/** True while POST /api/models/select is in flight. */
+let modelSelectApplying = false;
+let catalogSignature = '';
 
 const DEMO_CHIPS = [
   'dogs in the snow',
@@ -225,6 +231,10 @@ const DEMO_CHIPS = [
   'a brown dog',
   'children playing'
 ];
+
+function displayedModelId() {
+  return pendingModelId || activeModelId;
+}
 
 function setSearchEnabled(on) {
   ready = on;
@@ -240,8 +250,9 @@ function updateIngestButton() {
   const reset = document.getElementById('resetIndexBtn');
   btn.disabled = !ready || ingestActive;
   reset.disabled = !ready || ingestActive;
-  document.getElementById('applyModelBtn').disabled = ingestActive;
-  document.getElementById('modelSelect').disabled = ingestActive;
+  const freeze = ingestActive || modelSelectApplying;
+  document.getElementById('applyModelBtn').disabled = freeze;
+  document.getElementById('modelSelect').disabled = freeze;
 }
 
 function fmtBytes(n) {
@@ -281,6 +292,9 @@ function showExpectations(id) {
   const m = findExpect(id);
   const el = document.getElementById('expectPanel');
   if (!m) { el.textContent = 'Unknown model.'; return; }
+  const appliedNote = (activeModelId && id !== activeModelId)
+    ? '<br/><em>Not applied yet — click Apply model to download/load. Status polls will keep this selection.</em>'
+    : '';
   el.innerHTML =
     '<strong>' + (m.displayName || m.DisplayName) + '</strong><br/>' +
     'Accuracy: ' + (m.accuracyTier || m.AccuracyTier) + '<br/>' +
@@ -288,21 +302,42 @@ function showExpectations(id) {
     'Latency: ' + (m.latencyExpectation || m.LatencyExpectation) + '<br/>' +
     'Download: ' + (m.downloadSizeNote || m.DownloadSizeNote) + '<br/>' +
     (m.vramNote || m.VramNote) + '<br/>' +
-    'When to pick: ' + (m.whenToPick || m.WhenToPick);
+    'When to pick: ' + (m.whenToPick || m.WhenToPick) +
+    appliedNote;
 }
 
-function fillModelSelect(list, selectedId) {
+function catalogIdsSignature(list) {
+  return (list || []).map(m => m.id || m.Id).join('|');
+}
+
+/** Rebuild options only when catalog changes; never force server active over pending selection. */
+function syncModelSelect(list, serverActiveId) {
   catalog = list || [];
   const sel = document.getElementById('modelSelect');
-  sel.innerHTML = '';
-  catalog.forEach(m => {
-    const id = m.id || m.Id;
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = (m.displayName || m.DisplayName) + ' (' + (m.embeddingDim || m.EmbeddingDim) + '-d)';
-    sel.appendChild(opt);
-  });
-  if (selectedId) sel.value = selectedId;
+  const sig = catalogIdsSignature(catalog);
+  if (sig !== catalogSignature) {
+    catalogSignature = sig;
+    sel.innerHTML = '';
+    catalog.forEach(m => {
+      const id = m.id || m.Id;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = (m.displayName || m.DisplayName) + ' (' + (m.embeddingDim || m.EmbeddingDim) + '-d)';
+      sel.appendChild(opt);
+    });
+  }
+
+  if (serverActiveId) activeModelId = serverActiveId;
+  // Clear pending once server caught up to what the user applied / chose.
+  if (pendingModelId && serverActiveId && pendingModelId === serverActiveId)
+    pendingModelId = null;
+
+  const displayId = displayedModelId() || serverActiveId || (catalog[0] && (catalog[0].id || catalog[0].Id));
+  if (displayId && sel.value !== displayId) {
+    // Only set if option exists
+    const has = Array.from(sel.options).some(o => o.value === displayId);
+    if (has) sel.value = displayId;
+  }
   showExpectations(sel.value);
 }
 
@@ -381,8 +416,19 @@ async function refreshStatus() {
       list.appendChild(row);
     });
 
-    if (j.modelsCatalog) fillModelSelect(j.modelsCatalog, (j.activeModel && j.activeModel.id) || activeModelId);
-    activeModelId = (j.activeModel && j.activeModel.id) || activeModelId;
+    if (j.modelsCatalog) {
+      const serverActive = (j.activeModel && j.activeModel.id) || activeModelId;
+      syncModelSelect(j.modelsCatalog, serverActive);
+    } else if (j.activeModel && j.activeModel.id) {
+      activeModelId = j.activeModel.id;
+      if (pendingModelId && pendingModelId === activeModelId) pendingModelId = null;
+    }
+
+    // During Apply, keep progress message but do not clobber pending selection.
+    if (modelSelectApplying && m.message) {
+      document.getElementById('modelMessage').textContent =
+        'Applying model… ' + (m.message || '');
+    }
 
     const demo = document.getElementById('demoReadyBadge');
     if (j.demoReady) {
@@ -410,8 +456,9 @@ async function refreshStatus() {
       warn.textContent = '';
     }
 
-    const needPoll = !j.encoderReady || (j.ingest && j.ingest.active) || (m.state === 'Downloading');
+    const needPoll = !j.encoderReady || (j.ingest && j.ingest.active) || (m.state === 'Downloading') || modelSelectApplying;
     if (needPoll) ensurePolling();
+    updateIngestButton();
   } catch (e) {
     document.getElementById('modelError').textContent = String(e);
   }
@@ -464,18 +511,20 @@ function renderSearchResponse(j) {
     const fileName = h.fileName || h.FileName;
     const pct = h.similarityPercent ?? h.SimilarityPercent;
     const cosine = h.cosine ?? h.Cosine;
+    const zdist = h.score ?? h.Score;
     const caption = h.caption || h.Caption;
     const pctLabel = (pct != null ? pct : 0) + '%';
     const src = '/gallery/' + encodeURIComponent(fileName);
     card.innerHTML =
       '<img src="' + src + '" alt="" /><div class="meta">' +
       '<div class="score-big">' + pctLabel + '</div>' +
-      '<div class="score-sub">similarity · cos ' + Number(cosine).toFixed(3) + '</div>' +
+      '<div class="score-sub">cos ' + Number(cosine).toFixed(3) +
+        ' (higher better) · zvecDist ' + Number(zdist).toFixed(3) + '</div>' +
       '<div>' + fileName + '</div>' +
       (caption ? '<div class="caption" title="Flickr caption (not used for primary search)">“' +
         caption.replace(/</g,'&lt;') + '”</div>' : '') +
       '</div>';
-    card.onclick = () => openLightbox(src, pctLabel + ' · ' + fileName + (caption ? ' · ' + caption : ''));
+    card.onclick = () => openLightbox(src, pctLabel + ' · cos ' + Number(cosine).toFixed(3) + ' · ' + fileName + (caption ? ' · ' + caption : ''));
     root.appendChild(card);
   }
 }
@@ -486,11 +535,21 @@ function readSearchControls() {
   return { topK, minCosine: minPct / 100 };
 }
 
-document.getElementById('modelSelect').onchange = () => showExpectations(document.getElementById('modelSelect').value);
+document.getElementById('modelSelect').onchange = () => {
+  const id = document.getElementById('modelSelect').value;
+  pendingModelId = id;
+  showExpectations(id);
+};
 
 document.getElementById('applyModelBtn').onclick = async () => {
   const modelId = document.getElementById('modelSelect').value;
+  pendingModelId = modelId;
   document.getElementById('modelError').textContent = '';
+  modelSelectApplying = true;
+  updateIngestButton();
+  document.getElementById('modelMessage').textContent =
+    'Applying ' + modelId + ' — download/load may take a while…';
+  ensurePolling();
   try {
     const r = await fetch('/api/models/select', {
       method: 'POST',
@@ -500,17 +559,25 @@ document.getElementById('applyModelBtn').onclick = async () => {
     const j = await r.json();
     if (!r.ok || j.ok === false) {
       document.getElementById('modelError').textContent = j.error || JSON.stringify(j);
+      // Keep pendingModelId so dropdown stays on the failed choice.
       return;
     }
     activeModelId = j.activeModelId || modelId;
+    pendingModelId = null;
+    const sel = document.getElementById('modelSelect');
+    if (activeModelId && Array.from(sel.options).some(o => o.value === activeModelId))
+      sel.value = activeModelId;
+    showExpectations(sel.value);
     if (j.modelMismatch) {
       document.getElementById('galleryWarn').style.display = 'block';
       document.getElementById('galleryWarn').textContent = j.mismatchMessage || 'Model mismatch — Reset index → Ingest.';
     }
-    ensurePolling();
     refreshStatus();
   } catch (e) {
     document.getElementById('modelError').textContent = String(e);
+  } finally {
+    modelSelectApplying = false;
+    updateIngestButton();
   }
 };
 
