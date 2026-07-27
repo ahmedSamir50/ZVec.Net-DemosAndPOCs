@@ -1,0 +1,19 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Transparent" Dense="true" Class="px-4 app-bar">
+        <MudText Typo="Typo.h6" Class="brand">ZVec · Movie Recs</MudText>
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Class="d-none d-sm-flex" Style="opacity:.65">
+            In-process · MiniLM + ZVec · edge
+        </MudText>
+    </MudAppBar>
+    <MudMainContent Class="px-4 pb-6 page-main">
+        @Body
+    </MudMainContent>
+</MudLayout>

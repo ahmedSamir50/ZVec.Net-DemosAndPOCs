@@ -1,0 +1,131 @@
+﻿@page "/"
+
+<div class="page-hero">
+    <MudText Typo="Typo.h4" Class="hero-title">Because you watched…</MudText>
+    <MudText Typo="Typo.body2" Class="hero-sub">
+        MovieLens titles embedded with local MiniLM, stored in ZVec.NET on this device — no vector cloud.
+    </MudText>
+</div>
+
+<MudPaper Class="pa-4 mb-4 panel" Elevation="0">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy"
+                   OnClick="RunIngestAsync" StartIcon="@Icons.Material.Filled.CloudDownload">
+            Ingest
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="@_busy"
+                   OnClick="RunOptimizeAsync" StartIcon="@Icons.Material.Filled.Speed">
+            Optimize index
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="@_busy"
+                   OnClick="RunResetAsync" StartIcon="@Icons.Material.Filled.DeleteForever">
+            Reset index
+        </MudButton>
+        <MudChip T="string" Size="Size.Small" Color="@StatusColor" Variant="Variant.Filled">@_statusLabel</MudChip>
+        @if (_indexedCount > 0)
+        {
+            <MudText Typo="Typo.caption">@_indexedCount movies indexed</MudText>
+        }
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Class="perf-strip">
+            CPU · @_perf.CpuPercent.ToString("0")% · Mem · @_perf.WorkingSetMb.ToString("0") MB
+        </MudText>
+    </MudStack>
+
+    @if (_snap.IsRunning || !string.IsNullOrEmpty(_snap.Error))
+    {
+        <MudStack Spacing="1" Class="mt-3">
+            <MudText Typo="Typo.caption">@_snap.Phase @(_snap.Total > 0 ? $"· {_snap.Done}/{_snap.Total}" : "")</MudText>
+            <MudProgressLinear Color="Color.Primary" Value="@(_snap.Fraction * 100)" Class="my-1" />
+            @if (!string.IsNullOrEmpty(_snap.Error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_snap.Error</MudAlert>
+            }
+        </MudStack>
+    }
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4 panel" Elevation="0">
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Watchlist (behaviour vector)</MudText>
+
+    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mb-3">
+        @foreach (var seed in _seeds)
+        {
+            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined"
+                     OnClick="@(() => AddSeedAsync(seed))">@seed</MudChip>
+        }
+        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined"
+                 OnClick="LoadUser1Async">User 1 likes</MudChip>
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudAutocomplete T="MovieInfo" Label="Search MovieLens" SearchFunc="SearchMovies"
+                             Value="_pick" ValueChanged="OnPickChanged" ToStringFunc="@(m => m?.Title ?? string.Empty)"
+                             Dense="true" ResetValueOnEmptyText="true" CoerceText="false" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSelect T="int?" Label="MovieLens user" Value="_userId" ValueChanged="OnUserChanged"
+                       Clearable="true" Dense="true">
+                @foreach (var u in _users)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)u.UserId)">User @u.UserId · @u.LikeCount likes</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSelect T="string" Label="Genre filter (optional)" @bind-Value="_genre" Clearable="true" Dense="true">
+                @foreach (var g in _genres)
+                {
+                    <MudSelectItem Value="@g">@g</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    @if (_watchlist.Count > 0)
+    {
+        <MudText Typo="Typo.caption" Class="mt-3 mb-2 watchlist-summary">@_watchlistSummary</MudText>
+        <MudChipSet T="MovieInfo" AllClosable="true" OnClose="RemoveWatch">
+            @foreach (var m in VisibleWatchlist)
+            {
+                <MudChip T="MovieInfo" Size="Size.Small" Text="@ShortTitle(m.Title)" Value="@m"
+                         Color="Color.Default" Variant="Variant.Outlined" />
+            }
+        </MudChipSet>
+        @if (_watchlist.Count > MaxVisibleChips)
+        {
+            <MudText Typo="Typo.caption" Class="mt-1">+@(_watchlist.Count - MaxVisibleChips) more in the behaviour vector</MudText>
+        }
+    }
+
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanRecommend)"
+                   OnClick="RunRecommendAsync" StartIcon="@Icons.Material.Filled.Recommend">
+            Recommend
+        </MudButton>
+        <MudNumericField @bind-Value="_topK" Label="Top-K" Min="3" Max="30" Style="max-width: 7rem;" />
+    </MudStack>
+    @if (_watchlist.Count > 0 && _hits.Count == 0 && !_busy)
+    {
+        <MudText Typo="Typo.caption" Class="mt-2" Style="opacity:.7">Press Recommend to query ZVec with this watchlist vector.</MudText>
+    }
+</MudPaper>
+
+@if (_hits.Count > 0)
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Recommendations</MudText>
+    <div class="recs-row">
+        @foreach (var hit in _hits)
+        {
+            var color = GenreColor(hit.Genres);
+            <MudPaper Class="rec-tile pa-3" Elevation="0" Style="@($"background:{color}")">
+                <MudText Typo="Typo.subtitle2" Class="rec-title">@hit.Title</MudText>
+                <MudText Typo="Typo.caption" Style="opacity:.85">@FormatGenres(hit.Genres)</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2">@hit.SimilarityPercent% match</MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Class="mt-1 pa-0"
+                           OnClick="@(() => MoreLikeThisAsync(hit))">More like this</MudButton>
+            </MudPaper>
+        }
+    </div>
+}

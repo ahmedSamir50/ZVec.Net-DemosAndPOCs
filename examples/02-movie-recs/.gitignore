@@ -1,0 +1,4 @@
+# Large / regenerated assets (fetch via scripts/)
+src/MovieRecs.Maui/Resources/Raw/models/*.onnx
+src/MovieRecs.Maui/bin/
+src/MovieRecs.Maui/obj/

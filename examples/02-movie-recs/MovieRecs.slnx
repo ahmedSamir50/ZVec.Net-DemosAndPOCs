@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MovieRecs.Maui/MovieRecs.Maui.csproj" />
+  </Folder>
+</Solution>
