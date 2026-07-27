@@ -109,6 +109,21 @@ public sealed class GalleryStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Merges the flat upsert buffer into HNSW. Call after bulk ingest or via the Optimize UI button.
+    /// Upserts stage in a temporary flat buffer; Optimize builds the configured ANN index.
+    /// </summary>
+    public void Optimize()
+    {
+        lock (_gate)
+        {
+            if (_embeddingDim == 768)
+                ((IZvecCollection<ImageAsset768>)_collection).Optimize();
+            else
+                ((IZvecCollection<ImageAsset512>)_collection).Optimize();
+        }
+    }
+
     public async Task<IReadOnlyList<GalleryQueryHit>> QueryAsync(float[] vector, int topK, CancellationToken ct = default)
     {
         if (vector.Length != EmbeddingDim)

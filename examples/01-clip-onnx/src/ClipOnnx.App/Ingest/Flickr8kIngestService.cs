@@ -24,7 +24,14 @@ public interface IFlickr8kIngestService
     /// Fails if ingest is running.
     /// </summary>
     IngestResetResult TryResetIndex();
+
+    /// <summary>
+    /// Merge flat upsert buffer into HNSW for the active gallery (no re-embed).
+    /// </summary>
+    IngestOptimizeResult TryOptimize();
 }
+
+public sealed record IngestOptimizeResult(bool Ok, string? Error);
 
 /// <summary>
 /// Downloads Flickr8k once (full zip when images/ is empty), then indexes vision-only CLIP embeddings.
@@ -119,6 +126,29 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
         }
     }
 
+    public IngestOptimizeResult TryOptimize()
+    {
+        lock (_startGate)
+        {
+            if (Volatile.Read(ref _running) != 0)
+                return new IngestOptimizeResult(false, "Ingest already running.");
+
+            try
+            {
+                // Upserts stage in a flat buffer; Optimize merges into HNSW for production-quality ANN.
+                _gallery.Optimize();
+                _status.SetIdle($"Optimized HNSW index for {_models.ActiveDefinition.DisplayName}.");
+                _logger.LogInformation("Gallery Optimize() completed for {ModelId}", _gallery.ModelId);
+                return new IngestOptimizeResult(true, null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Optimize failed");
+                return new IngestOptimizeResult(false, ex.Message);
+            }
+        }
+    }
+
     private async Task RunIngestAsync(int maxImages)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -198,6 +228,15 @@ public sealed class Flickr8kIngestService : IFlickr8kIngestService
             }
 
             _stamp.Save(new GalleryStamp(offset, active.Id, active.EmbeddingDim, ClipModelCatalog.EncodePipelineVersion));
+
+            // Upserts stage in a flat buffer; Optimize merges into HNSW for production-quality ANN.
+            if (embedded > 0)
+            {
+                _status.SetEmbedding(
+                    $"Optimizing index ({active.Id})…",
+                    offset, manifest.Count, embedded, skipped, target);
+                _gallery.Optimize();
+            }
 
             sw.Stop();
             var msg = target == 0

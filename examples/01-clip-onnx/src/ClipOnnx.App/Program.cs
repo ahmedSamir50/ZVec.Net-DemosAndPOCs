@@ -181,6 +181,18 @@ app.MapPost("/api/ingest/reset", (IFlickr8kIngestService ingest) =>
     return Results.BadRequest(new { reset = false, error = result.Error });
 });
 
+app.MapPost("/api/optimize", (IFlickr8kIngestService ingest) =>
+{
+    var result = ingest.TryOptimize();
+    if (result.Ok)
+        return Results.Json(new { optimized = true });
+
+    if (string.Equals(result.Error, "Ingest already running.", StringComparison.Ordinal))
+        return Results.Json(new { optimized = false, error = result.Error }, statusCode: StatusCodes.Status409Conflict);
+
+    return Results.BadRequest(new { optimized = false, error = result.Error });
+});
+
 static int ResolveMaxImages(IngestRequest? body, int defaultMax)
 {
     if (body?.MaxImages is > 0)

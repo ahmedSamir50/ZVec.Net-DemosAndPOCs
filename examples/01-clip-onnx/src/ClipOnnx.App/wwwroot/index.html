@@ -165,6 +165,7 @@
     <div class="row" style="margin-top:10px">
       <label>Images this run <input type="number" id="maxImages" value="100" min="1" max="6000" /></label>
       <button type="button" id="ingestBtn" disabled>Ingest</button>
+      <button class="secondary" type="button" id="optimizeBtn" disabled>Optimize index</button>
       <button class="secondary" type="button" id="resetIndexBtn" disabled>Reset index</button>
     </div>
     <p class="muted" id="ingestMessage" style="margin:10px 0 4px"></p>
@@ -248,8 +249,10 @@ function setSearchEnabled(on) {
 function updateIngestButton() {
   const btn = document.getElementById('ingestBtn');
   const reset = document.getElementById('resetIndexBtn');
+  const optimize = document.getElementById('optimizeBtn');
   btn.disabled = !ready || ingestActive;
   reset.disabled = !ready || ingestActive;
+  if (optimize) optimize.disabled = !ready || ingestActive;
   const freeze = ingestActive || modelSelectApplying;
   document.getElementById('applyModelBtn').disabled = freeze;
   document.getElementById('modelSelect').disabled = freeze;
@@ -622,6 +625,26 @@ document.getElementById('resetIndexBtn').onclick = async () => {
     if (r.ok && j.reset) {
       document.getElementById('ingestMessage').textContent =
         'Index reset. Click Ingest to re-embed with the active model.';
+      refreshStatus();
+    } else {
+      outErr.textContent = j.error || JSON.stringify(j);
+      outErr.className = 'err';
+    }
+  } catch (e) {
+    outErr.textContent = String(e);
+  }
+};
+
+document.getElementById('optimizeBtn').onclick = async () => {
+  if (!ready || ingestActive) return;
+  const outErr = document.getElementById('ingestError');
+  outErr.textContent = '';
+  try {
+    const r = await fetch('/api/optimize', { method: 'POST' });
+    const j = await r.json();
+    if (r.ok && j.optimized) {
+      document.getElementById('ingestMessage').textContent =
+        'Optimized — flat upsert buffer merged into HNSW.';
       refreshStatus();
     } else {
       outErr.textContent = j.error || JSON.stringify(j);
