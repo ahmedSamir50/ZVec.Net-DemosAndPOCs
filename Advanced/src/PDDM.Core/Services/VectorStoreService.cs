@@ -122,8 +122,13 @@ public sealed class VectorStoreService : IVectorStore
     /// <inheritdoc />
     /// <remarks>
     /// Inserts stage in a temporary flat buffer; Optimize merges into HNSW for production-quality ANN.
+    /// Reopens the collection afterward so Query uses a fresh querier (avoids Gandiva fill_result failures).
     /// </remarks>
-    public void Optimize() => Collection.Optimize();
+    public void Optimize()
+    {
+        Collection.Optimize();
+        _holder.Reopen();
+    }
 
     private string GetChunkIdsPath()
     {

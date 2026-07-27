@@ -71,7 +71,8 @@ public sealed class MovieStore : IMovieStore, IDisposable
     /// <inheritdoc />
     /// <remarks>
     /// Upserts stage in a temporary flat (brute-force) buffer for write throughput.
-    /// Optimize merges that buffer into HNSW for production-quality ANN. Non-blocking for readers.
+    /// Optimize merges that buffer into HNSW for production-quality ANN.
+    /// Reopens afterward so the querier sees merged segments (avoids Gandiva fill_result failures).
     /// </remarks>
     public void Optimize()
     {
@@ -81,6 +82,8 @@ public sealed class MovieStore : IMovieStore, IDisposable
             if (_collection is null)
                 OpenUnlocked();
             _collection!.Optimize();
+            // Fresh handle after segment merge — stale querier can throw InternalError (Query).
+            OpenUnlocked();
         }
     }
 

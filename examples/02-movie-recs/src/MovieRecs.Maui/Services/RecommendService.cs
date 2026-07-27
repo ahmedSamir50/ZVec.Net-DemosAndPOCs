@@ -1,6 +1,7 @@
 using MovieRecs.Maui.Encoding;
 using MovieRecs.Maui.Models;
 using MovieRecs.Maui.Options;
+using ZVec.NET;
 
 namespace MovieRecs.Maui.Services;
 
@@ -59,8 +60,6 @@ public sealed class RecommendService : IRecommendService
             throw new InvalidOperationException("Index is not ready. Run Ingest first.");
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
-        var collection = _store.Collection
-            ?? throw new InvalidOperationException("Collection is not open.");
 
         // Re-embed watchlist text at query time (same EmbedText as ingest) so we do not need
         // to Fetch vectors from ZVec for the mean-pool. Seen ids are excluded from results.
@@ -82,13 +81,26 @@ public sealed class RecommendService : IRecommendService
         // (genre filter is post-query for demo simplicity — not a typed ZVec Invert filter).
         var fetch = Math.Clamp(topK + seen.Count + (genre is null ? 20 : 80), topK, 300);
 
-        var hits = await collection.QueryAsync(
-            m => m.Embedding,
-            userVec,
-            fetch,
-            filter: null,
-            includeVector: false,
-            ct).ConfigureAwait(false);
+        IReadOnlyList<ZVecHit<Movie>> hits;
+        try
+        {
+            hits = await QueryHitsAsync(userVec, fetch, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsStaleQuerierError(ex))
+        {
+            // One reopen+retry — Optimize can leave a stale querier; corrupt disk needs Reset.
+            _store.Open();
+            try
+            {
+                hits = await QueryHitsAsync(userVec, fetch, ct).ConfigureAwait(false);
+            }
+            catch (Exception retryEx) when (IsStaleQuerierError(retryEx))
+            {
+                throw new InvalidOperationException(
+                    "ZVec query failed after reopen (likely a corrupt index). Use Reset index, then Ingest.",
+                    retryEx);
+            }
+        }
 
         var results = new List<RecommendHit>(topK);
         foreach (var hit in hits)
@@ -106,5 +118,37 @@ public sealed class RecommendService : IRecommendService
         }
 
         return results.OrderByDescending(r => r.Cosine).ToList();
+    }
+
+    private async Task<IReadOnlyList<ZVecHit<Movie>>> QueryHitsAsync(
+        float[] userVec,
+        int fetch,
+        CancellationToken ct)
+    {
+        var collection = _store.Collection
+            ?? throw new InvalidOperationException("Collection is not open.");
+        return await collection.QueryAsync(
+            m => m.Embedding,
+            userVec,
+            fetch,
+            filter: null,
+            includeVector: false,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Native Query hydrate failures after Optimize / bad segments
+    /// (Gandiva fill_result / fetch table / InternalError Query).
+    /// </summary>
+    private static bool IsStaleQuerierError(Exception ex)
+    {
+        var msg = ex.Message;
+        if (msg.Contains("fill_result", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("fetch table", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("InternalError (Query)", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("Gandiva", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return ex.InnerException is not null && IsStaleQuerierError(ex.InnerException);
     }
 }

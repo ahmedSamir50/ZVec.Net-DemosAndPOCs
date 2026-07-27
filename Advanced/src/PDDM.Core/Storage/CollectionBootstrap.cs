@@ -64,6 +64,18 @@ public sealed class DocsCollectionHolder
         }
     }
 
+    /// <summary>
+    /// Dispose + OpenOrCreate the same path (no wipe). Use after Optimize so Query sees merged segments.
+    /// </summary>
+    public void Reopen()
+    {
+        lock (_gate)
+        {
+            DisposeCollection(_collection);
+            _collection = CollectionBootstrap.OpenOrCreateDocs(_factory, _path, _enableMmap);
+        }
+    }
+
     private static void DisposeCollection(IZvecCollection<JiraDocChunk> collection)
     {
         if (collection is IDisposable disposable)

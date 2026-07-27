@@ -16,8 +16,15 @@ Upserts stage in a flat buffer; **`Optimize()`** merges into HNSW for production
 
 1. Runs Optimize automatically at the **end of a successful Ingest**.
 2. Exposes an **Optimize index** button for already-ingested collections.
+3. **Reopens** the collection after Optimize so Recommend uses a fresh querier over merged segments.
 
 Same pattern in CLIP (`examples/01-clip-onnx`) and PDDM (`Advanced/`).
+
+## Troubleshooting
+
+**`InternalError (Query)` / `fill_result` / `Gandiva: fetch table failed`**
+
+Usually a stale querier after Optimize, or a corrupt AppData index. The app retries once with a reopen. If it still fails: **Reset index → Ingest**. Optimize now reopens the collection automatically after the merge.
 
 ## Setup
 

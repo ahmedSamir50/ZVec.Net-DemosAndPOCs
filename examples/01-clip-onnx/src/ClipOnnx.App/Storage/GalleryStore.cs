@@ -112,6 +112,7 @@ public sealed class GalleryStore : IDisposable
     /// <summary>
     /// Merges the flat upsert buffer into HNSW. Call after bulk ingest or via the Optimize UI button.
     /// Upserts stage in a temporary flat buffer; Optimize builds the configured ANN index.
+    /// Reopens afterward so Query uses a fresh querier over merged segments.
     /// </summary>
     public void Optimize()
     {
@@ -121,6 +122,11 @@ public sealed class GalleryStore : IDisposable
                 ((IZvecCollection<ImageAsset768>)_collection).Optimize();
             else
                 ((IZvecCollection<ImageAsset512>)_collection).Optimize();
+
+            // Stale handle after Optimize can cause Gandiva fill_result / fetch table failures.
+            var model = ClipModelCatalog.Get(_modelId);
+            DisposeCollectionUnlocked();
+            _collection = OpenCollection(model);
         }
     }
 

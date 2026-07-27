@@ -91,10 +91,10 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
                     _progress.Report(i + 1);
             }
 
-            // Upserts land in a flat buffer; Optimize merges into HNSW (correct default for future clones).
+            // Upserts land in a flat buffer; Optimize merges into HNSW then reopens the collection.
             _progress.Begin("Optimizing index…", movies.Count);
             _progress.Report(movies.Count, "Optimizing index…");
-            collection.Optimize();
+            _store.Optimize();
 
             _stamp.Save(new IndexStamp(
                 Count: movies.Count,
