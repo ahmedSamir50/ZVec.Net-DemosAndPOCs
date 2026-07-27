@@ -119,6 +119,12 @@ public sealed class VectorStoreService : IVectorStore
         _holder.Recreate(settings.CollectionPath, settings.EnableMmap);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Inserts stage in a temporary flat buffer; Optimize merges into HNSW for production-quality ANN.
+    /// </remarks>
+    public void Optimize() => Collection.Optimize();
+
     private string GetChunkIdsPath()
     {
         var collectionPath = _runtimeSettings.Current.ZVec.CollectionPath;

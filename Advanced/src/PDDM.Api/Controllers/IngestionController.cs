@@ -34,6 +34,19 @@ public sealed class IngestionController : ControllerBase
     public ActionResult<IngestionProgressDto> GetProgress()
         => Ok(ToDto(_orchestrator.GetProgress()));
 
+    /// <summary>
+    /// Merges the flat insert buffer into HNSW (no re-fetch/embed).
+    /// Use after a prior ingest or when search feels slow on a large buffer.
+    /// </summary>
+    [HttpPost("optimize")]
+    public ActionResult Optimize(
+        [FromServices] IVectorStore vectorStore)
+    {
+        // Inserts stage in a flat buffer; Optimize merges into HNSW for production-quality ANN.
+        vectorStore.Optimize();
+        return Ok(new { optimized = true });
+    }
+
     private static IngestionProgressDto ToDto(Core.Models.IngestionProgress progress) => new()
     {
         IssuesFetched = progress.IssuesFetched,

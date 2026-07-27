@@ -84,6 +84,12 @@ public interface IVectorStore
 
     /// <summary>Wipes on-disk collection and opens a fresh empty one (prevents re-ingest orphans).</summary>
     void RecreateCollection();
+
+    /// <summary>
+    /// Merges the flat insert buffer into the configured HNSW index.
+    /// Call after bulk ingest or via the Optimize UI button (no re-embed).
+    /// </summary>
+    void Optimize();
 }
 
 /// <summary>Adapter so Core does not leak ZVec.NET hit type into all layers.</summary>

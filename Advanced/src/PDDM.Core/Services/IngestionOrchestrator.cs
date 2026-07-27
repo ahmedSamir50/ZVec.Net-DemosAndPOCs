@@ -123,6 +123,9 @@ public sealed class IngestionOrchestrator : IIngestionOrchestrator
             _hybridIndex.AddRange(chunks);
             await _vectorStore.SaveChunkIdsAsync(chunks.Select(c => c.Id), cancellationToken).ConfigureAwait(false);
 
+            // Inserts stage in a flat buffer; Optimize merges into HNSW for production-quality ANN.
+            _vectorStore.Optimize();
+
             SetProgress(p =>
             {
                 p.Status = IngestionStatus.Completed;

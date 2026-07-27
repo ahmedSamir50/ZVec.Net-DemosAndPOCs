@@ -21,6 +21,7 @@ public static class ApiRoutes
 {
     public const string ChatStream = "/api/chat/stream";
     public const string Ingestion = "/api/ingestion";
+    public const string IngestionOptimize = "/api/ingestion/optimize";
     public const string Stats = "/api/stats";
     public const string Settings = "/api/settings";
     public const string SettingsVerify = "/api/settings/verify";

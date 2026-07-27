@@ -27,6 +27,13 @@ public sealed class ApiClientService
     public async Task<IngestionProgressDto?> GetIngestionAsync(CancellationToken ct = default)
         => await _http.GetFromJsonAsync<IngestionProgressDto>(ApiRoutes.Ingestion.TrimStart('/'), ct).ConfigureAwait(false);
 
+    /// <summary>POST optimize — merge flat buffer into HNSW without re-ingest.</summary>
+    public async Task OptimizeIndexAsync(CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync(ApiRoutes.IngestionOptimize.TrimStart('/'), null, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+    }
+
     /// <summary>Gets store stats.</summary>
     public async Task<StatsDto?> GetStatsAsync(CancellationToken ct = default)
         => await _http.GetFromJsonAsync<StatsDto>(ApiRoutes.Stats.TrimStart('/'), ct).ConfigureAwait(false);

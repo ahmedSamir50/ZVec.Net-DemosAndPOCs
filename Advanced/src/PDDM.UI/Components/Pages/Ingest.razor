@@ -7,18 +7,28 @@
         <MudText Typo="Typo.h4">Ingestion</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary">
             Fetch Apache Spark Jira docs, chunk, embed via LM Studio, and store in ZVec.NET.
+            After insert, Optimize merges the flat buffer into HNSW (also runs automatically at end of ingest).
         </MudText>
     </div>
 
     <MudCard Elevation="0" Outlined="true">
         <MudCardContent>
-            <MudButton Color="Color.Primary"
-                       Variant="Variant.Filled"
-                       OnClick="RunAsync"
-                       Disabled="_busy"
-                       StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.CloudDownload)">
-                @(_busy ? "Running…" : "Start Ingestion")
-            </MudButton>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="RunAsync"
+                           Disabled="_busy"
+                           StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.CloudDownload)">
+                    @(_busy ? "Running…" : "Start Ingestion")
+                </MudButton>
+                <MudButton Color="Color.Secondary"
+                           Variant="Variant.Outlined"
+                           OnClick="OptimizeAsync"
+                           Disabled="_busy"
+                           StartIcon="@Icons.Material.Filled.Speed">
+                    Optimize index
+                </MudButton>
+            </MudStack>
             @if (_busy)
             {
                 <MudText Typo="Typo.caption" Class="mt-2">@_status</MudText>
@@ -89,6 +99,26 @@
             _status = "";
             _progress = await Api.GetIngestionAsync() ?? _progress;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OptimizeAsync()
+    {
+        _busy = true;
+        _status = "Optimizing HNSW index…";
+        try
+        {
+            await Api.OptimizeIndexAsync();
+            Snackbar.Add("Optimized — flat buffer merged into HNSW.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+            _status = "";
         }
     }
 
