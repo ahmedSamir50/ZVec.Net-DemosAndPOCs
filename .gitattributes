@@ -1,0 +1,5 @@
+# Session deck is documentation, not application source
+docs/ZVec.NET_Team_Session.html linguist-documentation
+
+# Blazor UI components are C#, not HTML markup
+*.razor linguist-language=C#
