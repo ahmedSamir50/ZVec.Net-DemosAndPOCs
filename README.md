@@ -28,7 +28,7 @@ Honest ceiling: single-node scale (millions of vectors per machine). Planet-scal
 | Client SDK + connection strings + ops | `AddZVec()` + typed collection |
 | Sensitive embeddings leave the box | Data stays in-process |
 
-Proof in this repo: [Advanced/](Advanced/) (Jira RAG) and [examples/01-clip-onnx](examples/01-clip-onnx/) (CLIP gallery). Talk track: [docs/ZVec.NET_Team_Session.html](docs/ZVec.NET_Team_Session.html).
+Proof in this repo: [Advanced/](Advanced/) (Jira RAG), [examples/01-clip-onnx](examples/01-clip-onnx/) (CLIP gallery), and [examples/02-movie-recs](examples/02-movie-recs/) (MovieLens edge recommendations). Talk track: [docs/ZVec.NET_Team_Session.html](docs/ZVec.NET_Team_Session.html).
 
 ## Projects
 
@@ -36,6 +36,7 @@ Proof in this repo: [Advanced/](Advanced/) (Jira RAG) and [examples/01-clip-onnx
 |------|-------------|
 | [Advanced/](Advanced/) | **PDDM** — Projects Docs Deep Mind (Jira RAG navigator with Aspire + Docker) |
 | [examples/01-clip-onnx](examples/01-clip-onnx/) | **CLIP ONNX gallery** — Flickr8k vision embeddings in ZVec; text or image query |
+| [examples/02-movie-recs](examples/02-movie-recs/) | **MovieLens recs** — MAUI Blazor Hybrid + MudBlazor; MiniLM + ZVec on Windows/Android |
 
 Session deck: [docs/ZVec.NET_Team_Session.html](docs/ZVec.NET_Team_Session.html)
 
