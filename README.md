@@ -2,7 +2,7 @@
 
 Repository for demos and proof-of-concepts built on [ZVec.NET](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET).
 
-**Requires ZVec.NET 1.0.0-beta.3.1** (NuGet).
+**Requires ZVec.NET 1.0.0-beta.3.2** (NuGet).
 
 Collections use SDK **`OpenOrCreate`** / DI default `OpenMode = OpenOrCreate` (restart-safe). See package README [Create vs Open](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET#create-vs-open-restart-safe-collections) — do not use obsolete `Create`.
 

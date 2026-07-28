@@ -1,6 +1,6 @@
 # MovieLens recommendations (MAUI Blazor Hybrid)
 
-**Requires ZVec.NET 1.0.0-beta.3.1** (NuGet) · **.NET 10** · Windows + Android
+**Requires ZVec.NET 1.0.0-beta.3.2** (NuGet) · **.NET 10** · Windows + Android
 
 Netflix-style **“Because you watched…”** on device: MovieLens titles are embedded with local **all-MiniLM-L6-v2** (ONNX), stored in an in-process **ZVec.NET** HNSW collection, and queried with a **user behaviour vector** (mean of liked movie embeddings). MudBlazor UI · no controllers · no vector cloud.
 

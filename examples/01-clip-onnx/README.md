@@ -1,6 +1,6 @@
 # CLIP ONNX gallery (ZVec.NET)
 
-**Requires ZVec.NET 1.0.0-beta.3.1** (NuGet).
+**Requires ZVec.NET 1.0.0-beta.3.2** (NuGet).
 
 Local **CLIP dual-encoder** (ONNX Runtime, CPU) + local **ZVec.NET** Cosine index of **vision** embeddings.
 Search is multimodal: **text→image** and **image→image** from pixels. Flickr captions may appear under result cards as **secondary enrichment only** — they are not indexed for primary ranking.

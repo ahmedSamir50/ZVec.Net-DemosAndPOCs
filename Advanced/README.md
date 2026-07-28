@@ -29,7 +29,7 @@ What it is *not*: embeddings and chat still come from **LM Studio**. ZVec only s
 ## Prerequisites
 
 - .NET 10 SDK
-- **ZVec.NET 1.0.0-beta.3.1** (NuGet; pinned in `PDDM.Core`)
+- **ZVec.NET 1.0.0-beta.3.2** (NuGet; pinned in `PDDM.Core`)
 - [LM Studio](https://lmstudio.ai/) with embedding + chat models loaded (`localhost:1234`)
 - Windows x64 / Linux x64 / osx-arm64 (ZVec.NET native RID)
 
