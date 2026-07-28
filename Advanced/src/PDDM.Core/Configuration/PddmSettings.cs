@@ -21,6 +21,12 @@ public sealed class LmStudioSettings
     public float ChatTemperature { get; set; } = 0.3f;
     public int ChatMaxTokens { get; set; } = -1;
     public int EmbeddingBatchSize { get; set; } = 50;
+
+    /// <summary>
+    /// Max chars for a single composed embedding string (prefix + body).
+    /// Conservative budget under a stuck 2048-token nomic GGUF context.
+    /// </summary>
+    public int MaxEmbeddingInputChars { get; set; } = PddmDefaults.MaxEmbeddingInputChars;
 }
 
 /// <summary>Apache Jira REST settings.</summary>
@@ -146,6 +152,7 @@ public sealed class PddmRuntimeSettings
         EmbeddingDimensions = s.EmbeddingDimensions,
         ChatTemperature = s.ChatTemperature,
         ChatMaxTokens = s.ChatMaxTokens,
-        EmbeddingBatchSize = s.EmbeddingBatchSize
+        EmbeddingBatchSize = s.EmbeddingBatchSize,
+        MaxEmbeddingInputChars = s.MaxEmbeddingInputChars
     };
 }

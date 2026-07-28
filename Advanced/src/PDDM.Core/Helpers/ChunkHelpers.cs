@@ -24,6 +24,31 @@ public static class ChunkIdFormatter
     public static string FormatCommentId(string issueKey, int index)
         => $"{ChunkIdPrefixes.Comment}{issueKey}_{index}";
 
+    /// <summary>
+    /// Part 0 keeps <paramref name="canonicalId"/>; parts 1..N append <c>_pN</c>.
+    /// </summary>
+    public static string FormatPartId(string canonicalId, int partIndex)
+        => partIndex <= 0 ? canonicalId : $"{canonicalId}_p{partIndex}";
+
+    /// <summary>True when id is not an embedding split part (<c>_pN</c> suffix).</summary>
+    public static bool IsCanonicalChunkId(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+            return true;
+
+        var idx = id.LastIndexOf("_p", StringComparison.Ordinal);
+        if (idx < 0 || idx + 2 >= id.Length)
+            return true;
+
+        for (var i = idx + 2; i < id.Length; i++)
+        {
+            if (!char.IsAsciiDigit(id[i]))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Candidate ids when resolving a bare Jira key.</summary>
     public static IReadOnlyList<string> PossibleIdsForKey(string key) =>
     [
@@ -65,6 +90,91 @@ public static class TextTruncator
         if (string.IsNullOrEmpty(text) || text.Length <= maxChars)
             return text ?? "";
         return text[..maxChars] + "...";
+    }
+}
+
+/// <summary>
+/// Splits long bodies so each piece fits an embedding char budget.
+/// Break preference: paragraph → newline → sentence → word → hard cut.
+/// </summary>
+public static class EmbeddingTextSplitter
+{
+    /// <summary>Splits <paramref name="text"/> into segments each ≤ <paramref name="maxPartChars"/>.</summary>
+    public static IReadOnlyList<string> Split(string text, int maxPartChars)
+    {
+        if (maxPartChars < 1)
+            throw new ArgumentOutOfRangeException(nameof(maxPartChars));
+
+        if (string.IsNullOrEmpty(text))
+            return [""];
+
+        if (text.Length <= maxPartChars)
+            return [text];
+
+        var parts = new List<string>();
+        var offset = 0;
+        while (offset < text.Length)
+        {
+            var remaining = text.Length - offset;
+            if (remaining <= maxPartChars)
+            {
+                parts.Add(text[offset..].Trim());
+                break;
+            }
+
+            var cut = FindBreak(text.AsSpan(offset, maxPartChars));
+            var slice = text.Substring(offset, cut).Trim();
+            if (slice.Length == 0)
+            {
+                // Avoid infinite loop on whitespace-only windows.
+                cut = maxPartChars;
+                slice = text.Substring(offset, cut);
+            }
+
+            parts.Add(slice);
+            offset += cut;
+            while (offset < text.Length && char.IsWhiteSpace(text[offset]))
+                offset++;
+        }
+
+        return parts.Count > 0 ? parts : [text[..Math.Min(maxPartChars, text.Length)]];
+    }
+
+    private static int FindBreak(ReadOnlySpan<char> window)
+    {
+        var minKeep = Math.Max(1, window.Length / 4);
+
+        var para = LastIndexOf(window, "\n\n");
+        if (para >= minKeep)
+            return para + 2;
+
+        var line = LastIndexOf(window, "\n");
+        if (line >= minKeep)
+            return line + 1;
+
+        var sentence = LastIndexOf(window, ". ");
+        if (sentence >= minKeep)
+            return sentence + 2;
+
+        var space = window.LastIndexOf(' ');
+        if (space >= minKeep)
+            return space + 1;
+
+        return window.Length;
+    }
+
+    private static int LastIndexOf(ReadOnlySpan<char> haystack, string needle)
+    {
+        if (needle.Length == 0 || haystack.Length < needle.Length)
+            return -1;
+
+        for (var i = haystack.Length - needle.Length; i >= 0; i--)
+        {
+            if (haystack.Slice(i, needle.Length).SequenceEqual(needle.AsSpan()))
+                return i;
+        }
+
+        return -1;
     }
 }
 

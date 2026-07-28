@@ -190,8 +190,42 @@ public class ChunkIdFormatterTests
         => ChunkIdFormatter.FormatCommentId("SPARK-1", 2).Should().Be("comment_SPARK-1_2");
 
     [Fact]
+    public void FormatPartId_Part0_Unchanged()
+        => ChunkIdFormatter.FormatPartId("comment_SPARK-1_0", 0).Should().Be("comment_SPARK-1_0");
+
+    [Fact]
+    public void FormatPartId_Part1_AppendsSuffix()
+        => ChunkIdFormatter.FormatPartId("comment_SPARK-1_0", 1).Should().Be("comment_SPARK-1_0_p1");
+
+    [Fact]
+    public void IsCanonicalChunkId_PartSuffix_False()
+        => ChunkIdFormatter.IsCanonicalChunkId("bug_SPARK-1_p1").Should().BeFalse();
+
+    [Fact]
+    public void IsCanonicalChunkId_CommentIndex_True()
+        => ChunkIdFormatter.IsCanonicalChunkId("comment_SPARK-1_0").Should().BeTrue();
+
+    [Fact]
     public void PossibleIdsForKey_ContainsPrefixes()
         => ChunkIdFormatter.PossibleIdsForKey("SPARK-1").Should().Contain("story_SPARK-1");
+}
+
+public class EmbeddingTextSplitterTests
+{
+    [Fact]
+    public void Split_Short_SinglePart()
+        => EmbeddingTextSplitter.Split("hello", 100).Should().ContainSingle().Which.Should().Be("hello");
+
+    [Fact]
+    public void Split_PrefersParagraphBreak()
+    {
+        var a = new string('a', 40);
+        var b = new string('b', 40);
+        var parts = EmbeddingTextSplitter.Split($"{a}\n\n{b}", 50);
+        parts.Should().HaveCount(2);
+        parts[0].Should().Be(a);
+        parts[1].Should().Be(b);
+    }
 }
 
 public class TierMapperTests
@@ -279,6 +313,152 @@ public class ChunkingServiceTests
             Description = "We decided X"
         });
         text.Should().Be("On SPARK-1: Alice said: We decided X");
+    }
+
+    [Fact]
+    public void CreateChunks_LongComment_SplitsUnderBudget()
+    {
+        var settings = new PddmSettings();
+        settings.LmStudio.MaxEmbeddingInputChars = 200;
+        settings.Ingestion.MinCommentsForIssue = 1;
+        settings.Ingestion.MaxCommentsPerIssue = 5;
+        var sut = new ChunkingService(new DecisionDetector(), new PddmRuntimeSettings(settings));
+
+        var longBody = string.Join("\n\n", Enumerable.Range(0, 20).Select(i => $"Paragraph {i}: " + new string('x', 80)));
+        var issues = new List<JiraIssue>
+        {
+            new()
+            {
+                Key = "SPARK-25994",
+                Fields = new JiraIssueFields
+                {
+                    Issuetype = new JiraIssueType { Name = JiraIssueTypeNames.Story },
+                    Summary = "Short",
+                    Description = "ok",
+                    Comment = new JiraComments
+                    {
+                        Comments =
+                        [
+                            new JiraComment
+                            {
+                                Body = longBody,
+                                Author = new JiraUser { DisplayName = "Sam" }
+                            }
+                        ]
+                    }
+                }
+            }
+        };
+
+        var chunks = sut.CreateChunks(issues);
+        var commentParts = chunks.Where(c => c.Tier == (int)DocTier.Comment).ToList();
+        commentParts.Should().HaveCountGreaterThan(1);
+        commentParts[0].Id.Should().Be("comment_SPARK-25994_0");
+        commentParts[1].Id.Should().Be("comment_SPARK-25994_0_p1");
+        foreach (var part in commentParts)
+            sut.ComposeEmbeddingText(part).Length.Should().BeLessThanOrEqualTo(200);
+    }
+
+    [Fact]
+    public void CreateChunks_ShortText_NoPartSuffix()
+    {
+        var settings = new PddmSettings();
+        settings.Ingestion.MinCommentsForIssue = 1;
+        var sut = new ChunkingService(new DecisionDetector(), new PddmRuntimeSettings(settings));
+        var issues = new List<JiraIssue>
+        {
+            new()
+            {
+                Key = "SPARK-1",
+                Fields = new JiraIssueFields
+                {
+                    Issuetype = new JiraIssueType { Name = JiraIssueTypeNames.Story },
+                    Summary = "Short",
+                    Description = "Tiny body",
+                    Comment = new JiraComments
+                    {
+                        Comments = [new JiraComment { Body = "hi", Author = new JiraUser { DisplayName = "A" } }]
+                    }
+                }
+            }
+        };
+
+        var chunks = sut.CreateChunks(issues);
+        chunks.Should().OnlyContain(c => ChunkIdFormatter.IsCanonicalChunkId(c.Id));
+    }
+
+    [Fact]
+    public void CreateChunks_LongIssue_GetByKeyReturnsCanonical()
+    {
+        var settings = new PddmSettings();
+        settings.LmStudio.MaxEmbeddingInputChars = 180;
+        var sut = new ChunkingService(new DecisionDetector(), new PddmRuntimeSettings(settings));
+        var longDesc = string.Join("\n\n", Enumerable.Range(0, 15).Select(i => $"Section {i}. " + new string('y', 60)));
+        var issues = new List<JiraIssue>
+        {
+            new()
+            {
+                Key = "SPARK-42",
+                Fields = new JiraIssueFields
+                {
+                    Issuetype = new JiraIssueType { Name = JiraIssueTypeNames.Bug },
+                    Summary = "Bug title",
+                    Description = longDesc,
+                    Comment = new JiraComments
+                    {
+                        Comments =
+                        [
+                            new JiraComment { Body = "c1" },
+                            new JiraComment { Body = "c2 decided we will ship" }
+                        ]
+                    }
+                }
+            }
+        };
+
+        var chunks = sut.CreateChunks(issues);
+        var issueParts = chunks.Where(c => c.Tier == (int)DocTier.Issue).ToList();
+        issueParts.Should().HaveCountGreaterThan(1);
+        issueParts[0].Id.Should().Be("bug_SPARK-42");
+        issueParts[1].Id.Should().Be("bug_SPARK-42_p1");
+
+        var index = new HybridIndexService(Substitute.For<IVectorStore>());
+        index.AddRange(chunks);
+        var byKey = index.GetByKey("SPARK-42");
+        byKey.Should().NotBeNull();
+        byKey!.Id.Should().Be("bug_SPARK-42");
+        ChunkIdFormatter.IsCanonicalChunkId(byKey.Id).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreateChunks_LongDecisionComment_PropagatesFlagToAllParts()
+    {
+        var settings = new PddmSettings();
+        settings.LmStudio.MaxEmbeddingInputChars = 150;
+        settings.Ingestion.MinCommentsForIssue = 1;
+        var sut = new ChunkingService(new DecisionDetector(), new PddmRuntimeSettings(settings));
+        var body = "We decided to enable ANSI.\n\n" + string.Join("\n\n", Enumerable.Range(0, 12).Select(i => new string('z', 70)));
+        var issues = new List<JiraIssue>
+        {
+            new()
+            {
+                Key = "SPARK-7",
+                Fields = new JiraIssueFields
+                {
+                    Issuetype = new JiraIssueType { Name = JiraIssueTypeNames.Improvement },
+                    Summary = "Imp",
+                    Description = "d",
+                    Comment = new JiraComments
+                    {
+                        Comments = [new JiraComment { Body = body, Author = new JiraUser { DisplayName = "Dev" } }]
+                    }
+                }
+            }
+        };
+
+        var commentParts = sut.CreateChunks(issues).Where(c => c.Tier == (int)DocTier.Comment).ToList();
+        commentParts.Should().HaveCountGreaterThan(1);
+        commentParts.Should().OnlyContain(c => c.ContainsDecision);
     }
 }
 

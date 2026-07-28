@@ -10,7 +10,10 @@ namespace MovieRecs.Maui.Services;
 /// </summary>
 public static class CollectionBootstrap
 {
-    public static IZvecCollection<Movie> OpenOrCreate(IZvecFactory factory, string path, bool enableMmap = true)
+    /// <summary>
+    /// Default <c>enableMmap: false</c> for MAUI Hybrid — large Optimize/reopen is more stable without mmap on Windows.
+    /// </summary>
+    public static IZvecCollection<Movie> OpenOrCreate(IZvecFactory factory, string path, bool enableMmap = false)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

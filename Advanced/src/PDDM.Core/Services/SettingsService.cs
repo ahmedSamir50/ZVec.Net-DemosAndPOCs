@@ -29,7 +29,8 @@ public sealed class SettingsService : ISettingsService
             EmbeddingDimensions = lm.EmbeddingDimensions,
             ChatTemperature = lm.ChatTemperature,
             ChatMaxTokens = lm.ChatMaxTokens,
-            EmbeddingBatchSize = lm.EmbeddingBatchSize
+            EmbeddingBatchSize = lm.EmbeddingBatchSize,
+            MaxEmbeddingInputChars = lm.MaxEmbeddingInputChars
         };
     }
 
@@ -45,7 +46,8 @@ public sealed class SettingsService : ISettingsService
             EmbeddingDimensions = settings.EmbeddingDimensions,
             ChatTemperature = settings.ChatTemperature,
             ChatMaxTokens = settings.ChatMaxTokens,
-            EmbeddingBatchSize = settings.EmbeddingBatchSize
+            EmbeddingBatchSize = settings.EmbeddingBatchSize,
+            MaxEmbeddingInputChars = settings.MaxEmbeddingInputChars
         });
     }
 

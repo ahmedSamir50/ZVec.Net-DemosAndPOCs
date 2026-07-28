@@ -79,7 +79,7 @@ public sealed class RecommendService : IRecommendService
         var genre = string.IsNullOrWhiteSpace(genreFilter) ? null : genreFilter.Trim();
         // Over-fetch so we can drop seen titles and optional genre matches in-process
         // (genre filter is post-query for demo simplicity — not a typed ZVec Invert filter).
-        var fetch = Math.Clamp(topK + seen.Count + (genre is null ? 20 : 80), topK, 300);
+        var fetch = Math.Clamp(topK + seen.Count + (genre is null ? 40 : 120), topK, 300);
 
         IReadOnlyList<ZVecHit<Movie>> hits;
         try
@@ -102,19 +102,51 @@ public sealed class RecommendService : IRecommendService
             }
         }
 
+        if (hits.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Index stamp is ready but ANN returned no hits (empty or corrupt collection). Use Reset index, then Ingest.");
+        }
+
         var results = new List<RecommendHit>(topK);
+        var skippedSeen = 0;
+        var skippedGenre = 0;
+        var skippedNull = 0;
         foreach (var hit in hits)
         {
             var rec = hit.Record;
-            if (rec is null || seen.Contains(rec.Id))
+            if (rec is null)
+            {
+                skippedNull++;
                 continue;
+            }
+            if (seen.Contains(rec.Id))
+            {
+                skippedSeen++;
+                continue;
+            }
             if (genre is not null
                 && rec.Genres.IndexOf(genre, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                skippedGenre++;
                 continue;
+            }
             var (cosine, pct) = VectorMath.FromZVecDistance(hit.Score);
             results.Add(new RecommendHit(rec.Id, rec.Title, rec.Genres, rec.Year, cosine, pct));
             if (results.Count >= topK)
                 break;
+        }
+
+        if (results.Count == 0)
+        {
+            if (genre is not null && skippedGenre > 0)
+            {
+                throw new InvalidOperationException(
+                    $"No recommendations after genre filter “{genre}” ({skippedGenre} of {hits.Count} neighbors filtered). Clear the genre filter and try again.");
+            }
+
+            throw new InvalidOperationException(
+                $"No recommendations after filtering ({hits.Count} ANN hits; skipped seen={skippedSeen}, null={skippedNull}). Try a smaller watchlist or clear genre.");
         }
 
         return results.OrderByDescending(r => r.Cosine).ToList();

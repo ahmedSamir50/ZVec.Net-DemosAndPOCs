@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using PDDM.Core.Abstractions;
+using PDDM.Core.Helpers;
 using PDDM.Core.Models;
 using PDDM.Shared;
 
@@ -30,7 +31,8 @@ public sealed class HybridIndexService : IHybridIndex
         ArgumentNullException.ThrowIfNull(chunk);
         _byId[chunk.Id] = chunk;
 
-        if (chunk.Tier <= (int)DocTier.SubTask)
+        // Embedding split parts share Key; only the canonical id maps for GetByKey.
+        if (chunk.Tier <= (int)DocTier.SubTask && ChunkIdFormatter.IsCanonicalChunkId(chunk.Id))
             _byJiraKey[chunk.Key] = chunk;
 
         if (!string.IsNullOrEmpty(chunk.EpicLink))

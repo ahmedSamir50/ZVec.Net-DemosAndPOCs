@@ -91,6 +91,7 @@ public sealed class LmStudioSettingsDto
     public float ChatTemperature { get; set; } = 0.3f;
     public int ChatMaxTokens { get; set; } = -1;
     public int EmbeddingBatchSize { get; set; } = 50;
+    public int MaxEmbeddingInputChars { get; set; } = 5500;
 }
 
 /// <summary>Chat request body (non-SSE fallback).</summary>

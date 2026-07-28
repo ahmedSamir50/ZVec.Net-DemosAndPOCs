@@ -55,15 +55,7 @@ public sealed class MovieStore : IMovieStore, IDisposable
         {
             _collection?.Dispose();
             _collection = null;
-            try
-            {
-                if (Directory.Exists(CollectionPath))
-                    Directory.Delete(CollectionPath, recursive: true);
-            }
-            catch
-            {
-                // best-effort wipe
-            }
+            TryDeleteCollectionDir();
             OpenUnlocked();
         }
     }
@@ -84,6 +76,34 @@ public sealed class MovieStore : IMovieStore, IDisposable
             _collection!.Optimize();
             // Fresh handle after segment merge — stale querier can throw InternalError (Query).
             OpenUnlocked();
+        }
+    }
+
+    private void TryDeleteCollectionDir()
+    {
+        if (!Directory.Exists(CollectionPath))
+            return;
+
+        try
+        {
+            Directory.Delete(CollectionPath, recursive: true);
+        }
+        catch (IOException)
+        {
+            // mmap unlock — retry once after a brief pause (same pattern as PDDM).
+            Thread.Sleep(200);
+            try
+            {
+                Directory.Delete(CollectionPath, recursive: true);
+            }
+            catch
+            {
+                // best-effort wipe; OpenOrCreate may still recover
+            }
+        }
+        catch
+        {
+            // best-effort wipe
         }
     }
 

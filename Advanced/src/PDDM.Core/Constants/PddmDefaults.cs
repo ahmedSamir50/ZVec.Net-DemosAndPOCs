@@ -9,6 +9,11 @@ public static class PddmDefaults
     /// <summary>Locked embedding dimension for the ZVec collection schema.</summary>
     public const int EmbeddingDimensions = 768;
 
+    /// <summary>
+    /// Max chars for one composed embedding string under a stuck 2048-token nomic GGUF window.
+    /// </summary>
+    public const int MaxEmbeddingInputChars = 5500;
+
     public const int HnswM = 32;
     public const int HnswEfConstruction = 256;
 

@@ -1,5 +1,7 @@
 using PDDM.Core.Abstractions;
 using PDDM.Core.Configuration;
+using PDDM.Core.Constants;
+using PDDM.Core.Helpers;
 using PDDM.Core.Models;
 using PDDM.Core.Models.JiraApi;
 using PDDM.Shared.Constants;
@@ -101,12 +103,29 @@ public sealed class IngestionOrchestrator : IIngestionOrchestrator
             var chunks = _chunkingService.CreateChunks(issues).ToList();
             SetProgress(p => p.ChunksCreated = chunks.Count);
 
-            var batchSize = _runtimeSettings.Current.LmStudio.EmbeddingBatchSize;
+            var lm = _runtimeSettings.Current.LmStudio;
+            var batchSize = lm.EmbeddingBatchSize;
+            var maxEmbedChars = lm.MaxEmbeddingInputChars > 0
+                ? lm.MaxEmbeddingInputChars
+                : PddmDefaults.MaxEmbeddingInputChars;
             for (var i = 0; i < chunks.Count; i += batchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var batch = chunks.Skip(i).Take(batchSize).ToList();
-                var texts = batch.Select(_chunkingService.ComposeEmbeddingText).ToList();
+                var texts = new List<string>(batch.Count);
+                foreach (var chunk in batch)
+                {
+                    var text = _chunkingService.ComposeEmbeddingText(chunk);
+                    if (text.Length > maxEmbedChars)
+                    {
+                        warnings.Add($"Truncated embedding text for {chunk.Id} ({text.Length} > {maxEmbedChars})");
+                        var keep = Math.Max(1, maxEmbedChars - 3);
+                        text = TextTruncator.Truncate(text, keep);
+                    }
+
+                    texts.Add(text);
+                }
+
                 var vectors = await _embeddingService.EmbedBatchAsync(texts, cancellationToken).ConfigureAwait(false);
                 for (var j = 0; j < batch.Count; j++)
                     batch[j].Embedding = vectors[j];

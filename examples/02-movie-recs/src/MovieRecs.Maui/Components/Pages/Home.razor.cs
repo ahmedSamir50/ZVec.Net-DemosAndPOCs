@@ -86,7 +86,8 @@ public partial class Home : IDisposable
         _ = PollProgressAsync(_pollCts.Token);
         try
         {
-            var ok = await Ingest.IngestAsync();
+            // ThreadPool — avoids freezing Blazor Hybrid when early awaits complete sync.
+            var ok = await Task.Run(() => Ingest.IngestAsync()).ConfigureAwait(true);
             RefreshStamp();
             Snackbar.Add(ok ? "Ingest complete (index optimized)." : "Ingest failed.", ok ? Severity.Success : Severity.Error);
         }
@@ -108,8 +109,7 @@ public partial class Home : IDisposable
         _busy = true;
         try
         {
-            // Opens collection if needed; merges flat upsert buffer into HNSW (no re-embed).
-            await Ingest.OptimizeAsync();
+            await Task.Run(() => Ingest.OptimizeAsync()).ConfigureAwait(true);
             Snackbar.Add("Optimized — flat upsert buffer merged into HNSW.", Severity.Success);
         }
         catch (Exception ex)
@@ -155,10 +155,14 @@ public partial class Home : IDisposable
         _busy = true;
         try
         {
-            await Ingest.ResetAsync();
+            await Task.Run(() => Ingest.ResetAsync()).ConfigureAwait(true);
             InvalidateHits();
             RefreshStamp();
             Snackbar.Add("Index reset.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
         }
         finally
         {
@@ -235,8 +239,9 @@ public partial class Home : IDisposable
                 _watchlist.Select(m => m.Id).ToList(),
                 _topK,
                 _genre)).ToList();
+            // Empty results now throw with a specific cause; this is a safety net only.
             if (_hits.Count == 0)
-                Snackbar.Add("No recommendations — try ingest, Optimize, or a different watchlist.", Severity.Warning);
+                Snackbar.Add("No recommendations returned.", Severity.Warning);
         }
         catch (Exception ex)
         {

@@ -10,6 +10,8 @@ Talk track: edge proof for [slide 14](../../docs/ZVec.NET_Team_Session.html) in 
 
 Uses SDK **`OpenOrCreate`** under `FileSystem.AppDataDirectory/zvec-movies`. Stamp file records model id / 384-d / pipeline version. **Reset index** wipes the folder + stamp.
 
+**mmap is off** for this MAUI demo (`EnableMmap = false`) — more stable Optimize/reopen on Windows Hybrid.
+
 ## Optimize
 
 Upserts stage in a flat buffer; **`Optimize()`** merges into HNSW for production-quality ANN (no re-embed). This demo:
@@ -22,9 +24,17 @@ Same pattern in CLIP (`examples/01-clip-onnx`) and PDDM (`Advanced/`).
 
 ## Troubleshooting
 
+**UI freezes on Ingest**
+
+Ingest/Reset/Optimize run on the ThreadPool (not the Blazor dispatcher). First ingest still takes several minutes — the progress bar and CPU/Mem strip should keep updating.
+
 **`InternalError (Query)` / `fill_result` / `Gandiva: fetch table failed`**
 
 Usually a stale querier after Optimize, or a corrupt AppData index. The app retries once with a reopen. If it still fails: **Reset index → Ingest**. Optimize now reopens the collection automatically after the merge.
+
+**Stamp ready but Recommend says empty / corrupt collection**
+
+ANN returned no hits while the stamp still claims an index. **Reset index → Ingest** (full re-embed). Clear any genre filter if neighbors were filtered out.
 
 ## Setup
 
@@ -58,7 +68,7 @@ The ONNX file is large (~90MB) — prefer the download script; do not rely on it
 ## Live demo script
 
 1. Launch on **Windows** (or a warm **Android** device with index already built).
-2. Tap **Ingest** once (first run embeds ~9.7k titles — several minutes on CPU; progress bar shows; Optimize runs at the end).
+2. Tap **Ingest** once (first run embeds ~9.7k titles — several minutes on CPU; progress bar shows; Optimize runs at the end). UI stays responsive.
 3. Subsequent launches: stamp match → instant **Demo ready**. Optional: **Optimize index** if you want to show the merge step alone.
 4. Seed chips (Toy Story / Matrix / Spirited Away) or pick a **MovieLens user** → watchlist summary updates and rec tiles clear → **Recommend**.
 5. **More like this** on a result tile replaces the watchlist with that title and re-queries.

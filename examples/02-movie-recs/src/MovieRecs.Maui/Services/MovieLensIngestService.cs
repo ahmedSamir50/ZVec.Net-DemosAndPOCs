@@ -15,6 +15,7 @@ public interface IMovieLensIngestService
 /// <summary>
 /// Downloads/parses MovieLens (from MauiAssets), embeds with MiniLM, upserts into ZVec, then Optimizes.
 /// Stamp short-circuits when the on-disk index already matches model/pipeline version.
+/// Heavy work is forced onto the ThreadPool so Blazor Hybrid UI stays responsive.
 /// </summary>
 public sealed class MovieLensIngestService : IMovieLensIngestService
 {
@@ -46,6 +47,9 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
 
         try
         {
+            // Force off Blazor UI sync context — early awaits may complete sync when already warm.
+            await Task.Yield();
+
             _progress.Begin("Loading catalog…", 0);
             await _catalog.EnsureLoadedAsync(ct).ConfigureAwait(false);
             await _encoder.EnsureLoadedAsync(ct).ConfigureAwait(false);
@@ -54,7 +58,7 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
             // Already indexed with this model/pipeline — open and skip re-encode.
             if (_stamp.IsReady(stamp))
             {
-                _store.Open();
+                await Task.Run(() => _store.Open(), ct).ConfigureAwait(false);
                 _progress.Begin("Ready", stamp.Count);
                 _progress.Complete();
                 return true;
@@ -62,9 +66,9 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
 
             // Mismatch or partial stamp → wipe so we never mix embedding spaces.
             if (_stamp.IsMismatch(stamp) || stamp.Count > 0)
-                _store.Reset();
+                await Task.Run(() => _store.Reset(), ct).ConfigureAwait(false);
             else
-                _store.Open();
+                await Task.Run(() => _store.Open(), ct).ConfigureAwait(false);
 
             var collection = _store.Collection
                 ?? throw new InvalidOperationException("ZVec collection failed to open.");
@@ -88,13 +92,17 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
                 }, ct).ConfigureAwait(false);
 
                 if (i % reportEvery == 0 || i == movies.Count - 1)
+                {
                     _progress.Report(i + 1);
+                    // Keep UI progress poll responsive during long CPU embeds.
+                    await Task.Yield();
+                }
             }
 
             // Upserts land in a flat buffer; Optimize merges into HNSW then reopens the collection.
             _progress.Begin("Optimizing index…", movies.Count);
             _progress.Report(movies.Count, "Optimizing index…");
-            _store.Optimize();
+            await Task.Run(() => _store.Optimize(), ct).ConfigureAwait(false);
 
             _stamp.Save(new IndexStamp(
                 Count: movies.Count,
@@ -123,18 +131,19 @@ public sealed class MovieLensIngestService : IMovieLensIngestService
 
     /// <inheritdoc />
     /// <remarks>Opens the collection if needed, then merges the flat upsert buffer into HNSW.</remarks>
-    public Task OptimizeAsync(CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        _store.Optimize();
-        return Task.CompletedTask;
-    }
+    public Task OptimizeAsync(CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            _store.Optimize();
+        }, ct);
 
-    public Task ResetAsync(CancellationToken ct = default)
-    {
-        _store.Reset();
-        _stamp.Save(new IndexStamp(0));
-        _progress.Reset();
-        return Task.CompletedTask;
-    }
+    public Task ResetAsync(CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            _store.Reset();
+            _stamp.Save(new IndexStamp(0));
+            _progress.Reset();
+        }, ct);
 }
