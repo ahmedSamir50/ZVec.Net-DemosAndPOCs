@@ -115,6 +115,9 @@
 @if (_hits.Count > 0)
 {
     <MudText Typo="Typo.subtitle1" Class="mb-2">Recommendations</MudText>
+    <MudText Typo="Typo.caption" Class="mb-2" Style="opacity:.65">
+        Relative cosine similarity (not a calibrated match %). Sequels and shared genres are boosted.
+    </MudText>
     <div class="recs-row">
         @foreach (var hit in _hits)
         {
@@ -122,7 +125,7 @@
             <MudPaper Class="rec-tile pa-3" Elevation="0" Style="@($"background:{color}")">
                 <MudText Typo="Typo.subtitle2" Class="rec-title">@hit.Title</MudText>
                 <MudText Typo="Typo.caption" Style="opacity:.85">@FormatGenres(hit.Genres)</MudText>
-                <MudText Typo="Typo.caption" Class="mt-2">@hit.SimilarityPercent% match</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2">@hit.SimilarityPercent% similarity</MudText>
                 <MudButton Size="Size.Small" Variant="Variant.Text" Class="mt-1 pa-0"
                            OnClick="@(() => MoreLikeThisAsync(hit))">More like this</MudButton>
             </MudPaper>

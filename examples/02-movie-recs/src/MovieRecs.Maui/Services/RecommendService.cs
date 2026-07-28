@@ -16,7 +16,7 @@ public interface IRecommendService
 }
 
 /// <summary>
-/// Netflix-style recs: mean of liked movie embeddings → ZVec <c>QueryAsync</c> → drop seen.
+/// Netflix-style recs: mean of liked embeddings → ZVec ANN → genre + franchise rerank → gates.
 /// </summary>
 public sealed class RecommendService : IRecommendService
 {
@@ -57,18 +57,18 @@ public sealed class RecommendService : IRecommendService
         if (movieIds.Count == 0)
             throw new ArgumentException("Select at least one movie for the behaviour vector.", nameof(movieIds));
         if (!_stamp.IsReady())
-            throw new InvalidOperationException("Index is not ready. Run Ingest first.");
+            throw new InvalidOperationException("Index is not ready. Run Ingest first (or Reset if stamp mismatch).");
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        // Re-embed watchlist text at query time (same EmbedText as ingest) so we do not need
-        // to Fetch vectors from ZVec for the mean-pool. Seen ids are excluded from results.
+        var watch = new List<MovieInfo>(movieIds.Count);
         var vectors = new List<float[]>(movieIds.Count);
         var seen = new HashSet<string>(movieIds, StringComparer.Ordinal);
         foreach (var id in movieIds)
         {
             if (!_catalog.ById.TryGetValue(id, out var info))
                 continue;
+            watch.Add(info);
             vectors.Add(_encoder.Embed(info.EmbedText));
         }
 
@@ -76,11 +76,11 @@ public sealed class RecommendService : IRecommendService
             throw new InvalidOperationException("None of the selected movie ids were found in the catalog.");
 
         var userVec = VectorMath.AverageThenL2Normalize(vectors);
-        var genre = string.IsNullOrWhiteSpace(genreFilter) ? null : genreFilter.Trim();
-        // Over-fetch so we can drop seen titles and optional genre matches in-process
-        // (genre filter is post-query for demo simplicity — not a typed ZVec Invert filter).
-        var fetch = Math.Clamp(topK + seen.Count + (genre is null ? 40 : 120), topK, 300);
+        var watchGenres = BuildGenreSet(watch);
+        var watchTitles = watch.Select(m => m.Title).ToList();
+        var genreFilterNorm = string.IsNullOrWhiteSpace(genreFilter) ? null : genreFilter.Trim();
 
+        var fetch = Math.Clamp(_options.RecommendFetch, topK + seen.Count + 20, 300);
         IReadOnlyList<ZVecHit<Movie>> hits;
         try
         {
@@ -88,7 +88,6 @@ public sealed class RecommendService : IRecommendService
         }
         catch (Exception ex) when (IsStaleQuerierError(ex))
         {
-            // One reopen+retry — Optimize can leave a stale querier; corrupt disk needs Reset.
             _store.Open();
             try
             {
@@ -102,54 +101,135 @@ public sealed class RecommendService : IRecommendService
             }
         }
 
-        if (hits.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Index stamp is ready but ANN returned no hits (empty or corrupt collection). Use Reset index, then Ingest.");
-        }
+        // Candidate map: id → (info, rawCosine from ANN or inject)
+        var candidates = new Dictionary<string, (MovieInfo Info, double Cosine)>(StringComparer.Ordinal);
 
-        var results = new List<RecommendHit>(topK);
-        var skippedSeen = 0;
-        var skippedGenre = 0;
-        var skippedNull = 0;
         foreach (var hit in hits)
         {
             var rec = hit.Record;
-            if (rec is null)
-            {
-                skippedNull++;
+            if (rec is null || seen.Contains(rec.Id))
                 continue;
-            }
-            if (seen.Contains(rec.Id))
-            {
-                skippedSeen++;
+            if (genreFilterNorm is not null
+                && rec.Genres.IndexOf(genreFilterNorm, StringComparison.OrdinalIgnoreCase) < 0)
                 continue;
-            }
-            if (genre is not null
-                && rec.Genres.IndexOf(genre, StringComparison.OrdinalIgnoreCase) < 0)
+
+            var (cosine, _) = VectorMath.FromZVecDistance(hit.Score);
+            if (!_catalog.ById.TryGetValue(rec.Id, out var info))
+                info = new MovieInfo(rec.Id, rec.Title, rec.Genres, rec.Year);
+            candidates[rec.Id] = (info, cosine);
+        }
+
+        // Catalog inject: sequels/franchise mates ANN may have missed.
+        InjectFranchiseMates(watch, seen, genreFilterNorm, userVec, candidates);
+
+        if (candidates.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No candidates after ANN + franchise inject. Reset index → Ingest if the stamp is stale.");
+        }
+
+        // Gates on raw cosine; sort on cosine + bonuses.
+        var ranked = candidates.Values
+            .Select(c =>
             {
-                skippedGenre++;
+                var genreBonus = GenreJaccard(watchGenres, c.Info.Genres) * _options.GenreJaccardBonusCap;
+                var fran = watchTitles.Any(w => FranchiseTitle.SharesFranchise(w, c.Info.Title))
+                    ? _options.FranchiseBonus
+                    : 0.0;
+                return (c.Info, c.Cosine, Score: c.Cosine + genreBonus + fran);
+            })
+            .OrderByDescending(x => x.Score)
+            .ToList();
+
+        var topCosine = ranked.Max(x => x.Cosine);
+        if (topCosine < _options.MinCosine)
+        {
+            throw new InvalidOperationException(
+                $"No confident neighbors: best cosine {topCosine:F3} < min {_options.MinCosine:F3}. " +
+                "Try another watchlist, or Reset → Ingest if the index is from an old encoder.");
+        }
+
+        var gap = Math.Max(0f, _options.MaxCosineGapFromTop);
+        var results = new List<RecommendHit>(topK);
+        foreach (var (info, cosine, _) in ranked)
+        {
+            if (cosine < _options.MinCosine)
                 continue;
-            }
-            var (cosine, pct) = VectorMath.FromZVecDistance(hit.Score);
-            results.Add(new RecommendHit(rec.Id, rec.Title, rec.Genres, rec.Year, cosine, pct));
+            if (cosine < topCosine - gap && !watchTitles.Any(w => FranchiseTitle.SharesFranchise(w, info.Title)))
+                continue; // franchise mates may sit slightly below gap but still useful for demos
+
+            var pct = (int)Math.Max(0, Math.Round(100.0 * cosine));
+            results.Add(new RecommendHit(info.Id, info.Title, info.Genres, info.Year, cosine, pct));
             if (results.Count >= topK)
                 break;
         }
 
         if (results.Count == 0)
         {
-            if (genre is not null && skippedGenre > 0)
-            {
-                throw new InvalidOperationException(
-                    $"No recommendations after genre filter “{genre}” ({skippedGenre} of {hits.Count} neighbors filtered). Clear the genre filter and try again.");
-            }
-
             throw new InvalidOperationException(
-                $"No recommendations after filtering ({hits.Count} ANN hits; skipped seen={skippedSeen}, null={skippedNull}). Try a smaller watchlist or clear genre.");
+                "Neighbors existed but none passed confidence gates. Clear genre filter or widen the watchlist.");
         }
 
-        return results.OrderByDescending(r => r.Cosine).ToList();
+        return results;
+    }
+
+    private void InjectFranchiseMates(
+        List<MovieInfo> watch,
+        HashSet<string> seen,
+        string? genreFilter,
+        float[] userVec,
+        Dictionary<string, (MovieInfo Info, double Cosine)> candidates)
+    {
+        var stems = watch.Select(m => FranchiseTitle.Stem(m.Title)).Where(s => s.Length >= 3).Distinct().ToHashSet(StringComparer.Ordinal);
+        if (stems.Count == 0)
+            return;
+
+        var injected = 0;
+        foreach (var m in _catalog.Movies)
+        {
+            if (injected >= _options.MaxFranchiseInjects)
+                break;
+            if (seen.Contains(m.Id) || candidates.ContainsKey(m.Id))
+                continue;
+            if (genreFilter is not null && m.Genres.IndexOf(genreFilter, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            if (!stems.Contains(FranchiseTitle.Stem(m.Title)))
+                continue;
+
+            // Cosine vs user behaviour vector (same space as ANN).
+            var emb = _encoder.Embed(m.EmbedText);
+            var cosine = VectorMath.Dot(userVec, emb);
+            candidates[m.Id] = (m, cosine);
+            injected++;
+        }
+    }
+
+    private static HashSet<string> BuildGenreSet(IEnumerable<MovieInfo> watch)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in watch)
+        {
+            foreach (var g in m.Genres.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                set.Add(g);
+        }
+        return set;
+    }
+
+    private static double GenreJaccard(HashSet<string> watchGenres, string candidateGenres)
+    {
+        if (watchGenres.Count == 0)
+            return 0;
+        var cand = candidateGenres.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (cand.Length == 0)
+            return 0;
+        var inter = cand.Count(g => watchGenres.Contains(g));
+        var union = watchGenres.Count;
+        foreach (var g in cand)
+        {
+            if (!watchGenres.Contains(g))
+                union++;
+        }
+        return union == 0 ? 0 : inter / (double)union;
     }
 
     private async Task<IReadOnlyList<ZVecHit<Movie>>> QueryHitsAsync(
@@ -168,10 +248,6 @@ public sealed class RecommendService : IRecommendService
             ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Native Query hydrate failures after Optimize / bad segments
-    /// (Gandiva fill_result / fetch table / InternalError Query).
-    /// </summary>
     private static bool IsStaleQuerierError(Exception ex)
     {
         var msg = ex.Message;

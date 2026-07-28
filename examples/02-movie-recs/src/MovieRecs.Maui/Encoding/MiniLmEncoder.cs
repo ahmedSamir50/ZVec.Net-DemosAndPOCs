@@ -13,16 +13,17 @@ public interface IMiniLmEncoder
 }
 
 /// <summary>
-/// all-MiniLM-L6-v2 via ONNX Runtime: Bert tokenize → mean-pool (if needed) → L2 → 384-d.
+/// all-MiniLM-L6-v2 via ONNX Runtime: Bert tokenize → sentence-transformers mean-pool → L2 → 384-d.
 /// </summary>
 /// <remarks>
 /// Model + vocab are MauiAssets, copied to <see cref="FileSystem.CacheDirectory"/> because
 /// Android may compress package files — ONNX Runtime needs a real filesystem path / bytes.
+/// Never use BERT <c>pooler_output</c>; ST embeddings are mean-pooled <c>last_hidden_state</c>
+/// (or an export's <c>sentence_embedding</c>).
 /// </remarks>
 public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
 {
     private readonly MovieRecsOptions _options;
-    // Single session load under concurrent UI EnsureLoadedAsync calls.
     private readonly SemaphoreSlim _gate = new(1, 1);
     private InferenceSession? _session;
     private BertWordPieceTokenizer? _tokenizer;
@@ -30,6 +31,7 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
     private string? _attentionMaskName;
     private string? _tokenTypeIdsName;
     private bool _loaded;
+    private bool _sanityChecked;
 
     public MiniLmEncoder(MovieRecsOptions options)
     {
@@ -42,13 +44,19 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
     public async Task EnsureLoadedAsync(CancellationToken ct = default)
     {
         if (IsReady)
+        {
+            EnsureSanityOnce();
             return;
+        }
 
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if (IsReady)
+            {
+                EnsureSanityOnce();
                 return;
+            }
 
             var cacheDir = Path.Combine(FileSystem.CacheDirectory, "models");
             Directory.CreateDirectory(cacheDir);
@@ -71,6 +79,18 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
             ResolveInputNames(_session);
             _loaded = true;
             LastError = null;
+            try
+            {
+                EnsureSanityOnce();
+            }
+            catch
+            {
+                _session?.Dispose();
+                _session = null;
+                _tokenizer = null;
+                _loaded = false;
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -92,7 +112,6 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
         text = string.IsNullOrWhiteSpace(text) ? " " : text.Trim();
         var maxLen = Math.Clamp(_options.MaxSequenceLength, 32, 256);
         var (inputIds, attention) = _tokenizer.Encode(text, maxLen);
-        // Single-sentence MiniLM: segment ids are all zeros. Some ONNX exports still require the input.
         var tokenTypes = new long[maxLen];
 
         var inputs = new List<NamedOnnxValue>
@@ -109,34 +128,77 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
         }
 
         using var results = _session.Run(inputs);
-        // Prefer pooled sentence_embedding when the export includes it; else mean-pool last_hidden_state [seq, 384].
-        var preferred = results.FirstOrDefault(r =>
-            r.Name.Contains("sentence", StringComparison.OrdinalIgnoreCase)
-            || r.Name.Contains("pool", StringComparison.OrdinalIgnoreCase)) ?? results.First();
-        var output = preferred.AsEnumerable<float>().ToArray();
-
-        float[] pooled;
-        if (output.Length == MovieRecsOptions.EmbeddingDim)
-        {
-            pooled = output;
-        }
-        else if (output.Length % MovieRecsOptions.EmbeddingDim == 0)
-        {
-            var seq = output.Length / MovieRecsOptions.EmbeddingDim;
-            var mask = attention.Length >= seq ? attention.AsSpan(0, seq).ToArray() : Enumerable.Repeat(1L, seq).ToArray();
-            pooled = MeanPool(output, mask, seq, MovieRecsOptions.EmbeddingDim);
-        }
-        else
-        {
-            throw new InvalidOperationException(
-                $"Unexpected ONNX output length {output.Length}; expected multiple of {MovieRecsOptions.EmbeddingDim}.");
-        }
-
-        // Unit length → ZVec Cosine distance ≈ 1 − cosθ stays meaningful.
+        var pooled = PoolSentenceEmbedding(results, attention);
         return VectorMath.L2Normalize(pooled);
     }
 
-    /// <summary>Average token hidden states where attention==1 (skip pads).</summary>
+    /// <summary>
+    /// Sentence-transformers path: <c>sentence_embedding</c> if present; else mean-pool
+    /// <c>last_hidden_state</c>. Never BERT <c>pooler_output</c> (wrong space → joke neighbors).
+    /// </summary>
+    private static float[] PoolSentenceEmbedding(IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results, long[] attention)
+    {
+        var list = results.ToList();
+        var sentence = list.FirstOrDefault(r =>
+            r.Name.Contains("sentence_embedding", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(r.Name, "sentence_embedding", StringComparison.OrdinalIgnoreCase));
+
+        if (sentence is not null)
+        {
+            var vec = sentence.AsEnumerable<float>().ToArray();
+            if (vec.Length == MovieRecsOptions.EmbeddingDim)
+                return vec;
+            if (vec.Length % MovieRecsOptions.EmbeddingDim == 0)
+            {
+                var seq = vec.Length / MovieRecsOptions.EmbeddingDim;
+                return MeanPool(vec, AttentionMaskForSeq(attention, seq), seq, MovieRecsOptions.EmbeddingDim);
+            }
+        }
+
+        // Prefer last_hidden_state (token sequence). Explicitly skip pooler_output.
+        var hidden = list.FirstOrDefault(r =>
+            r.Name.Contains("last_hidden", StringComparison.OrdinalIgnoreCase)
+            || r.Name.Contains("hidden_state", StringComparison.OrdinalIgnoreCase)
+            || r.Name.Contains("token_embeddings", StringComparison.OrdinalIgnoreCase));
+
+        hidden ??= list.FirstOrDefault(r =>
+            !r.Name.Contains("pooler", StringComparison.OrdinalIgnoreCase)
+            && r.AsEnumerable<float>().Count() > MovieRecsOptions.EmbeddingDim);
+
+        if (hidden is null)
+        {
+            // Last resort: any non-pooler output.
+            hidden = list.FirstOrDefault(r => !r.Name.Contains("pooler", StringComparison.OrdinalIgnoreCase))
+                     ?? throw new InvalidOperationException(
+                         "ONNX outputs: " + string.Join(", ", list.Select(r => r.Name))
+                         + " — need sentence_embedding or last_hidden_state (not pooler_output).");
+        }
+
+        if (hidden.Name.Contains("pooler", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Refusing BERT pooler_output ('{hidden.Name}'). Use mean-pooled last_hidden_state.");
+        }
+
+        var output = hidden.AsEnumerable<float>().ToArray();
+        if (output.Length == MovieRecsOptions.EmbeddingDim)
+            return output;
+
+        if (output.Length % MovieRecsOptions.EmbeddingDim != 0)
+        {
+            throw new InvalidOperationException(
+                $"Unexpected ONNX output '{hidden.Name}' length {output.Length}; expected multiple of {MovieRecsOptions.EmbeddingDim}.");
+        }
+
+        var seqLen = output.Length / MovieRecsOptions.EmbeddingDim;
+        return MeanPool(output, AttentionMaskForSeq(attention, seqLen), seqLen, MovieRecsOptions.EmbeddingDim);
+    }
+
+    private static long[] AttentionMaskForSeq(long[] attention, int seqLen) =>
+        attention.Length >= seqLen
+            ? attention.AsSpan(0, seqLen).ToArray()
+            : Enumerable.Repeat(1L, seqLen).ToArray();
+
     private static float[] MeanPool(float[] hidden, long[] attention, int seqLen, int dim)
     {
         var sum = new double[dim];
@@ -158,6 +220,33 @@ public sealed class MiniLmEncoder : IMiniLmEncoder, IDisposable
         for (var d = 0; d < dim; d++)
             mean[d] = (float)(sum[d] / count);
         return mean;
+    }
+
+    /// <summary>
+    /// Once per process: Inception-like text must be closer to sci-fi than to kids/comedy.
+    /// Catches pooler_output / broken tokenize regressions before we build a joke index.
+    /// </summary>
+    private void EnsureSanityOnce()
+    {
+        if (_sanityChecked || !IsReady)
+            return;
+
+        var inception = Embed("Movie title: Inception (2010). Genres: Action Sci-Fi Thriller.");
+        var scifi = Embed("Movie title: Interstellar (2014). Genres: Adventure Drama Sci-Fi.");
+        var kids = Embed("Movie title: Babies (2010). Genres: Documentary.");
+
+        var cosGood = VectorMath.Dot(inception, scifi);
+        var cosBad = VectorMath.Dot(inception, kids);
+        if (cosGood < cosBad + 0.05)
+        {
+            var msg =
+                $"MiniLM sanity failed: cos(Inception,Interstellar)={cosGood:F3} is not clearly above cos(Inception,Babies)={cosBad:F3}. " +
+                "Check ONNX pooling (must not use pooler_output).";
+            LastError = msg;
+            throw new InvalidOperationException(msg);
+        }
+
+        _sanityChecked = true;
     }
 
     private void ResolveInputNames(InferenceSession session)
