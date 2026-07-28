@@ -41,8 +41,11 @@ builder.Services.AddHttpClient(HttpClientNames.LmStudio, (sp, client) =>
 {
     var settings = sp.GetRequiredService<PddmRuntimeSettings>().Current.LmStudio;
     client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(120);
-});
+    // Embedding batches can exceed Aspire's default ~30s TotalRequestTimeout.
+    client.Timeout = TimeSpan.FromMinutes(1);
+})
+// Strip ServiceDefaults resilience so Attempt/TotalRequestTimeout (~30s) cannot abort embeddings early.
+.RemoveAllResilienceHandlers();
 
 builder.Services.AddHttpClient(HttpClientNames.Jira, (sp, client) =>
 {

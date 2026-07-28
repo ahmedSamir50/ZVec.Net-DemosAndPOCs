@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- RemoveAllResilienceHandlers is experimental; needed so LM Studio embeddings are not aborted at ~30s. -->
+    <NoWarn>$(NoWarn);EXTEXP0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
