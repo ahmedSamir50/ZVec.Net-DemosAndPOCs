@@ -1,6 +1,8 @@
 # MovieLens recommendations (MAUI Blazor Hybrid)
 
-**Requires ZVec.NET 1.0.0-beta.3.2** (NuGet) · **.NET 10** · Windows + Android
+**Requires ZVec.NET 1.0.0-beta.4** (NuGet; `+zvec.0.6.0`) · **.NET 10** · Windows + Android
+
+Native **0.6.0** stability fixes ship with this pin. Index stays dense-vector FP32 HNSW. If the app-data collection fails to open after upgrading, use **Reset index → Ingest**.
 
 Netflix-style **“Because you watched…”** on device: MovieLens titles are embedded with local **all-MiniLM-L6-v2** (ONNX), stored in an in-process **ZVec.NET** HNSW collection, and queried with a **user behaviour vector** (mean of liked movie embeddings). MudBlazor UI · no controllers · no vector cloud.
 

@@ -1,5 +1,5 @@
 # PDDM — Projects Docs Deep Mind
-## Detailed Implementation Plan (Verified Against ZVec.NET v1.0.0-beta.3.2)
+## Detailed Implementation Plan (Verified Against ZVec.NET v1.0.0-beta.4)
 
 > **Project**: Projects Docs Deep Mind (PDDM)  
 > **Stack**: .NET 10 (net10.0) — Separate API + Separate UI  
@@ -119,7 +119,7 @@ dotnet sln add src/PDDM.Core src/PDDM.Api src/PDDM.UI src/PDDM.Shared
 
 **NuGet packages for PDDM.Core** (API-side library with ZVec + LM Studio):
 ```bash
-dotnet add src/PDDM.Core package ZVec.NET --version 1.0.0-beta.3.2
+dotnet add src/PDDM.Core package ZVec.NET --version 1.0.0-beta.4
 dotnet add src/PDDM.Core package Microsoft.Extensions.Http
 ```
 

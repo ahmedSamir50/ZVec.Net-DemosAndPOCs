@@ -773,7 +773,7 @@ User Prompt:
 | Component | Technology | Version | Role |
 |---|---|---|---|
 | **Language** | C# / .NET | net10.0 | Application runtime |
-| **Vector DB** | ZVec.NET (NuGet) | 1.0.0-beta.3.2 | HNSW vector storage, similarity search, metadata filtering |
+| **Vector DB** | ZVec.NET (NuGet) | 1.0.0-beta.4 | HNSW vector storage, similarity search, metadata filtering |
 | **Embedding Model** | Configurable (default: nomic-embed-text-v1.5 via LM Studio) | GGUF Q4_0 | 768-dim text embeddings, configurable via appsettings.json or UI |
 | **Chat LLM** | Configurable (default: Qwen2.5-7B-Instruct via LM Studio) | GGUF | RAG inference, configurable via appsettings.json or UI |
 | **LM Studio API** | OpenAI-compatible REST | localhost:1234/v1 | Embedding + Chat endpoints |
@@ -1180,7 +1180,7 @@ The POC proves the concept. The production product would be:
 | Many Epics have 0 comments | Scenario C may have limited decision data | Focus on Bugs/Improvements with rich comment history |
 | Jira API rate limiting | Slow ingestion for large datasets | Paginate with delays; limit to ~3,000 chunks for POC |
 | nomic-embed-text context limit (8192) | Very long descriptions may truncate | Chunk large descriptions into 2 pieces |
-| ZVec.NET is beta (1.0.0-beta.3.2) | API may change | Pin version; test thoroughly |
+| ZVec.NET is beta (1.0.0-beta.4) | API may change | Pin version; test thoroughly |
 | LM Studio model availability | Different hardware may need different models | Support configurable models in appsettings |
 | New requirement matching | May find unrelated results if requirement is vague | Use cluster-by-epic to reduce noise; show only top 2-3 clusters |
 | Comment quality varies | Many comments are auto-generated (PR links) | Filter out "has created a pull request" pattern comments during ingestion |

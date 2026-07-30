@@ -2,9 +2,11 @@
 
 Repository for demos and proof-of-concepts built on [ZVec.NET](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET).
 
-**Requires ZVec.NET 1.0.0-beta.3.2** (NuGet).
+**Requires ZVec.NET 1.0.0-beta.4** (NuGet; `+zvec.0.6.0`).
 
 Collections use SDK **`OpenOrCreate`** / DI default `OpenMode = OpenOrCreate` (restart-safe). See package README [Create vs Open](https://github.com/ahmedSamir50/AdamSystems.ZVec.NET#create-vs-open-restart-safe-collections) — do not use obsolete `Create`.
+
+**Native 0.6.0:** this pin inherits FTS tokenizer/stemmer and collection stability fixes from upstream. These demos stay dense-vector FP32 HNSW — group-by is still blocked in the .NET C API; INT8/INT4 `EnableRotate` is available in the SDK but unused here. If an existing on-disk collection fails to open after the bump, use each demo’s **Reset → Ingest** path.
 
 ## Why ZVec.NET
 
