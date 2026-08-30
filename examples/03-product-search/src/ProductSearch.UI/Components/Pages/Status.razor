@@ -9,7 +9,7 @@
             <h1 class="text-2xl font-semibold">Status</h1>
             <p class="text-sm text-base-content/60 mt-1">Catalog counts, SigLIP bootstrap, and maintenance.</p>
         </div>
-        <button type="button" class="btn btn-outline btn-sm" disabled="_loading" @onclick="RefreshAsync">Refresh</button>
+        <button type="button" class="btn btn-outline btn-sm" disabled="@_loading" @onclick="RefreshAsync">Refresh</button>
     </div>
 
     @if (_loading && _status is null)
@@ -31,7 +31,7 @@
                             <span class="badge @BootstrapBadgeClass(_status.ModelBootstrap.State)">@_status.ModelBootstrap.State</span>
                             @if (_status.ModelBootstrap.State is "Failed")
                             {
-                                <button type="button" class="btn btn-error btn-sm" disabled="_retryBusy" @onclick="RetryModelAsync">
+                                <button type="button" class="btn btn-error btn-sm" disabled="@_retryBusy" @onclick="RetryModelAsync">
                                     @(_retryBusy ? "Retrying…" : "Retry download")
                                 </button>
                             }
@@ -145,7 +145,7 @@
                 {
                     <label class="form-control max-w-md">
                         <span class="label-text text-xs mb-1">Active SigLIP model</span>
-                        <select class="select select-bordered" value="@_models.ActiveModelId" @onchange="OnModelChanged" disabled="_busy">
+                        <select class="select select-bordered" value="@_models.ActiveModelId" @onchange="OnModelChanged" disabled="@_busy">
                             @foreach (var model in _models.Models)
                             {
                                 <option value="@model.Id">@model.DisplayName (@model.EmbeddingDim)</option>
@@ -157,9 +157,9 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline btn-sm" disabled="_busy" @onclick="OptimizeAsync">Optimize indexes</button>
-            <button type="button" class="btn btn-outline btn-warning btn-sm" disabled="_busy" @onclick="ResetIndexesAsync">Reset ZVec indexes</button>
-            <button type="button" class="btn btn-outline btn-error btn-sm" disabled="_busy" @onclick="ResetCatalogAsync">Reset SQL catalog</button>
+            <button type="button" class="btn btn-outline btn-sm" disabled="@_busy" @onclick="OptimizeAsync">Optimize indexes</button>
+            <button type="button" class="btn btn-outline btn-warning btn-sm" disabled="@_busy" @onclick="ResetIndexesAsync">Reset ZVec indexes</button>
+            <button type="button" class="btn btn-outline btn-error btn-sm" disabled="@_busy" @onclick="ResetCatalogAsync">Reset SQL catalog</button>
         </div>
     }
 </div>

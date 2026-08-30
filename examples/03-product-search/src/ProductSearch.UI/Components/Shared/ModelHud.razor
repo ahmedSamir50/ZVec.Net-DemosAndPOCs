@@ -15,7 +15,7 @@
         else if (_boot.State is "Failed")
         {
             <span class="badge badge-error badge-sm shrink-0">Model failed</span>
-            <button type="button" class="btn btn-error btn-xs shrink-0" disabled="_retrying" @onclick="RetryAsync">
+            <button type="button" class="btn btn-error btn-xs shrink-0" disabled="@_retrying" @onclick="RetryAsync">
                 @(_retrying ? "Retrying…" : "Retry")
             </button>
         }
