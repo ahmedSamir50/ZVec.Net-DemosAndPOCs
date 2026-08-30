@@ -19,11 +19,28 @@ builder.Services.AddControllers()
     });
 builder.Services.AddOpenApi();
 builder.Services.Configure<ProductSearchOptions>(
-    builder.Configuration.GetSection(ConfigurationSections.ProductSearch));
+    builder.Configuration.GetSection(ProductSearchOptions.SectionName));
 builder.Services.PostConfigure<ProductSearchOptions>(options =>
 {
     options.PostgresConnectionString = builder.Configuration.GetConnectionString("productsearch")
         ?? options.PostgresConnectionString;
+
+    ProductSearchOptions.ResolveRelativePaths(options, builder.Environment.ContentRootPath);
+
+    var zvec = builder.Configuration.GetSection($"{ProductSearchOptions.SectionName}:ZVec");
+    if (zvec.Exists())
+    {
+        var textRoot = zvec["TextCollectionRoot"];
+        if (!string.IsNullOrWhiteSpace(textRoot))
+            options.TextCollectionRoot = ProductSearchOptions.ResolvePath(textRoot, builder.Environment.ContentRootPath);
+
+        var imageRoot = zvec["ImageCollectionRoot"];
+        if (!string.IsNullOrWhiteSpace(imageRoot))
+            options.ImageCollectionRoot = ProductSearchOptions.ResolvePath(imageRoot, builder.Environment.ContentRootPath);
+
+        if (bool.TryParse(zvec["EnableMmap"], out var enableMmap))
+            options.EnableMmap = enableMmap;
+    }
 });
 
 builder.Services.AddProductSearchCore(builder.Configuration);
@@ -42,9 +59,9 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 var options = app.Services.GetRequiredService<IOptions<ProductSearchOptions>>().Value;
-Directory.CreateDirectory(Path.GetFullPath(options.DataRoot));
-Directory.CreateDirectory(Path.GetFullPath(options.ModelsDir));
-Directory.CreateDirectory(Path.GetFullPath(options.CatalogCachePath));
+Directory.CreateDirectory(options.DataRoot);
+Directory.CreateDirectory(options.ModelsDir);
+Directory.CreateDirectory(options.CatalogCachePath);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -60,11 +77,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(CorsPolicyNames.AllowUi);
 
-var catalogPath = Path.GetFullPath(options.CatalogCachePath);
-Directory.CreateDirectory(catalogPath);
+Directory.CreateDirectory(options.CatalogCachePath);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(catalogPath),
+    FileProvider = new PhysicalFileProvider(options.CatalogCachePath),
     RequestPath = "/catalog-cache"
 });
 

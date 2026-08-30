@@ -20,10 +20,7 @@ public sealed class MediaController : ControllerBase
     [HttpGet("{id:int}")]
     public IActionResult Get(int id)
     {
-        var imagePath = Path.Combine(
-            Path.GetFullPath(_options.CatalogCachePath),
-            "images",
-            $"{id}.jpg");
+        var imagePath = Path.Combine(_options.CatalogImagesDirectory(), $"{id}.jpg");
 
         if (!System.IO.File.Exists(imagePath))
             return NotFound();

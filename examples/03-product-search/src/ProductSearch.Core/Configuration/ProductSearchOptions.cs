@@ -2,6 +2,7 @@ namespace ProductSearch.Core.Configuration;
 
 /// <summary>
 /// App configuration for the SigLIP + ZVec + Postgres product-search demo.
+/// Relative paths are resolved against the API ContentRoot in Program.cs PostConfigure.
 /// </summary>
 public sealed class ProductSearchOptions
 {
@@ -19,7 +20,7 @@ public sealed class ProductSearchOptions
         "Host=localhost;Port=5432;Database=productsearch;Username=postgres;Password=postgres";
 
     public string CatalogCachePath { get; set; } = "./data/cache/fashion-small";
-    public string WowQueriesPath { get; set; } = "./data/wow-queries.json";
+    public string WowQueriesPath { get; set; } = "../../data/wow-queries.json";
     public string StylesCsvFile { get; set; } = "styles.csv";
     public string ImagesSubdir { get; set; } = "images";
 
@@ -51,18 +52,42 @@ public sealed class ProductSearchOptions
 
     public IReadOnlyList<int> AllowedPatchSizes { get; } = [100, 500, 1000];
 
+    /// <summary>Resolve relative demo paths against the API ContentRoot (never process CWD).</summary>
+    public static void ResolveRelativePaths(ProductSearchOptions options, string contentRoot)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentRoot);
+
+        options.DataRoot = ResolvePath(options.DataRoot, contentRoot);
+        options.ModelsDir = ResolvePath(options.ModelsDir, contentRoot);
+        options.TextCollectionRoot = ResolvePath(options.TextCollectionRoot, contentRoot);
+        options.ImageCollectionRoot = ResolvePath(options.ImageCollectionRoot, contentRoot);
+        options.CatalogCachePath = ResolvePath(options.CatalogCachePath, contentRoot);
+        options.WowQueriesPath = ResolvePath(options.WowQueriesPath, contentRoot);
+    }
+
+    public static string ResolvePath(string path, string contentRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        return Path.IsPathRooted(path)
+            ? Path.GetFullPath(path)
+            : Path.GetFullPath(path, contentRoot);
+    }
+
     public string TextCollectionPathFor(string modelId)
-        => Path.GetFullPath(Path.Combine(TextCollectionRoot, modelId));
+        => Path.Combine(TextCollectionRoot, modelId);
 
     public string ImageCollectionPathFor(string modelId)
-        => Path.GetFullPath(Path.Combine(ImageCollectionRoot, modelId));
+        => Path.Combine(ImageCollectionRoot, modelId);
 
     public string ModelsDirectoryFor(string modelId)
-        => Path.GetFullPath(Path.Combine(ModelsDir, modelId));
+        => Path.Combine(ModelsDir, modelId);
 
     public string CatalogStylesPath()
-        => Path.GetFullPath(Path.Combine(CatalogCachePath, StylesCsvFile));
+        => Path.Combine(CatalogCachePath, StylesCsvFile);
 
     public string CatalogImagesDirectory()
-        => Path.GetFullPath(Path.Combine(CatalogCachePath, ImagesSubdir));
+        => Path.Combine(CatalogCachePath, ImagesSubdir);
 }

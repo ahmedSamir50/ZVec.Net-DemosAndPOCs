@@ -11,12 +11,9 @@ public sealed class WowQueryProvider
     private readonly string _path;
     private IReadOnlyList<WowQueryChipDto>? _cache;
 
-    public WowQueryProvider(IWebHostEnvironment env, IOptions<ProductSearchOptions> options)
+    public WowQueryProvider(IOptions<ProductSearchOptions> options)
     {
-        var configured = options.Value.WowQueriesPath;
-        _path = Path.IsPathRooted(configured)
-            ? configured
-            : Path.GetFullPath(Path.Combine(env.ContentRootPath, configured));
+        _path = options.Value.WowQueriesPath;
     }
 
     public IReadOnlyList<WowQueryChipDto> Load()

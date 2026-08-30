@@ -1,6 +1,6 @@
 # CLIP ONNX gallery (ZVec.NET)
 
-**Requires ZVec.NET 1.0.0-beta.4** (NuGet; `+zvec.0.6.0`).
+**Requires ZVec.NET 1.0.0-beta.6** (NuGet; `+zvec.0.7.0`).
 
 Native **0.6.0** stability fixes ship with this pin. Gallery stays dense-vector FP32 HNSW (no FTS/group-by). If a gallery folder fails to open after upgrading, use **Reset index → Ingest**.
 

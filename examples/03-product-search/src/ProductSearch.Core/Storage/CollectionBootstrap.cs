@@ -9,7 +9,7 @@ public static class CollectionBootstrap
         IZvecFactory factory,
         string path,
         bool enableMmap = true)
-        where T : class
+        where T : class, new()
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

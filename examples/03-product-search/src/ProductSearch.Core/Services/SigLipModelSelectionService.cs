@@ -98,7 +98,7 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             var dir = ModelsDirectoryFor(def.Id);
             Directory.CreateDirectory(dir);
             _bootstrap.SetModelsDir(dir);
-            _bootstrap.InitFiles(def.RequiredModelFiles);
+            _bootstrap.InitFiles(def.RequiredModelFiles, dir);
             _bootstrap.SetState(ModelBootstrapState.Checking, $"Checking {def.DisplayName} in {dir}");
 
             await EnsureFilesAsync(def, dir, ct).ConfigureAwait(false);
@@ -107,16 +107,8 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             if (_encoder is not SigLipEncoder siglip)
                 throw new InvalidOperationException("ISigLipEncoder must be SigLipEncoder.");
 
-            try
-            {
-                siglip.InitializeFromDisk(dir, def);
-            }
-            catch (Exception loadEx)
-            {
-                _logger.LogWarning(loadEx, "ONNX load failed — removing model files in {Dir}", dir);
-                DeleteInvalidModelFiles(dir, def.RequiredModelFiles);
-                throw;
-            }
+            siglip.InitializeFromDisk(dir, def);
+
             _collections.SwitchToModel(def);
             _collections.EnsureIndexes();
             _activeId = def.Id;
@@ -137,8 +129,11 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Model select failed for {ModelId}", modelId);
-            _bootstrap.SetState(ModelBootstrapState.Failed, "Model select failed", ex.Message);
-            return Fail(ex.Message);
+            var (summary, detail) = BootstrapExceptionFormatter.Format(ex);
+            var dir = ModelsDirectoryFor(def.Id);
+            _bootstrap.SyncFileStatusFromDisk(dir, def);
+            _bootstrap.SetFailure("Model select failed", summary, detail);
+            return Fail(summary);
         }
     }
 
@@ -241,16 +236,6 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
 
     private static bool IsExactModelFileSize(long actualBytes, long expectedBytes)
         => actualBytes > 0 && actualBytes == expectedBytes;
-
-    private static void DeleteInvalidModelFiles(string dir, IReadOnlyList<string> files)
-    {
-        foreach (var localName in files)
-        {
-            var path = Path.Combine(dir, localName);
-            TryDelete(path);
-            TryDelete(path + ".partial");
-        }
-    }
 
     private static void TryDelete(string path)
     {

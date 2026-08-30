@@ -31,8 +31,8 @@
                             <span class="badge @BootstrapBadgeClass(_status.ModelBootstrap.State)">@_status.ModelBootstrap.State</span>
                             @if (_status.ModelBootstrap.State is "Failed")
                             {
-                                <button type="button" class="btn btn-error btn-sm" disabled="_busy" @onclick="RetryModelAsync">
-                                    @(_busy ? "Retrying…" : "Retry download")
+                                <button type="button" class="btn btn-error btn-sm" disabled="_retryBusy" @onclick="RetryModelAsync">
+                                    @(_retryBusy ? "Retrying…" : "Retry download")
                                 </button>
                             }
                         </div>
@@ -58,6 +58,7 @@
                                     <tr>
                                         <th>File</th>
                                         <th>Status</th>
+                                        <th>On disk</th>
                                         <th>Bytes</th>
                                         <th>%</th>
                                     </tr>
@@ -66,8 +67,15 @@
                                     @foreach (var file in _status.ModelBootstrap.Files)
                                     {
                                         <tr>
-                                            <td class="font-mono text-xs">@file.Name</td>
+                                            <td class="font-mono text-xs">
+                                                <div>@file.Name</div>
+                                                @if (!string.IsNullOrEmpty(file.FullPath))
+                                                {
+                                                    <code class="text-[10px] text-base-content/50 break-all select-all">@file.FullPath</code>
+                                                }
+                                            </td>
                                             <td><span class="badge badge-ghost badge-sm">@file.Status</span></td>
+                                            <td class="text-xs">@(file.OnDisk ? "Yes" : "No")</td>
                                             <td class="text-xs tabular-nums">@FormatBytes(file.BytesReceived, file.BytesTotal)</td>
                                             <td class="text-xs tabular-nums">@(file.Percent is null ? "—" : $"{file.Percent:0.#}%")</td>
                                         </tr>
@@ -80,13 +88,22 @@
                     @if (!string.IsNullOrEmpty(_status.ModelBootstrap.Error))
                     {
                         <div role="alert" class="alert alert-error text-sm">
-                            <span>@_status.ModelBootstrap.Error</span>
+                            <div class="w-full">
+                                <p class="font-semibold">@_status.ModelBootstrap.Error</p>
+                                @if (!string.IsNullOrEmpty(_status.ModelBootstrap.ErrorDetail))
+                                {
+                                    <pre class="whitespace-pre-wrap break-all text-xs mt-2 max-h-64 overflow-y-auto select-all">@_status.ModelBootstrap.ErrorDetail</pre>
+                                }
+                            </div>
                         </div>
                     }
 
                     @if (!string.IsNullOrEmpty(_status.ModelBootstrap.ModelsDir))
                     {
-                        <p class="text-xs text-base-content/50 font-mono break-all">@_status.ModelBootstrap.ModelsDir</p>
+                        <p class="text-xs text-base-content/50">
+                            Models directory:
+                            <code class="font-mono break-all select-all">@_status.ModelBootstrap.ModelsDir</code>
+                        </p>
                     }
                 </div>
             </div>
@@ -152,6 +169,7 @@
     private ModelsResponseDto? _models;
     private bool _loading;
     private bool _busy;
+    private bool _retryBusy;
 
     protected override async Task OnInitializedAsync()
     {
@@ -178,22 +196,24 @@
 
     private async Task RetryModelAsync()
     {
-        if (string.IsNullOrWhiteSpace(_status?.ActiveModelId))
-            return;
+        var modelId = string.IsNullOrWhiteSpace(_status?.ActiveModelId)
+            ? "siglip-base-patch16-224"
+            : _status.ActiveModelId;
 
-        _busy = true;
+        _retryBusy = true;
         try
         {
-            var result = await Api.SelectModelAsync(_status.ActiveModelId);
+            var result = await Api.SelectModelAsync(modelId);
             if (result?.Ok == true)
             {
                 Toasts.Show("Model download restarted.", ToastLevel.Success);
-                await RefreshAsync();
             }
             else
             {
                 Toasts.Show(result?.Error ?? "Retry failed.", ToastLevel.Error);
             }
+
+            await RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -201,7 +221,7 @@
         }
         finally
         {
-            _busy = false;
+            _retryBusy = false;
         }
     }
 

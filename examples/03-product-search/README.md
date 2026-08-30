@@ -1,6 +1,6 @@
 # Product search (SigLIP + ZVec + pgvector)
 
-**Requires ZVec.NET 1.0.0-beta.4** (NuGet; `+zvec.0.6.0`).
+**Requires ZVec.NET 1.0.0-beta.6** (NuGet; `+zvec.0.7.0`).
 
 Google Search + Lens over the **Param Aggarwal fashion-product-images-small** catalog (~44k Myntra SKUs). Same SigLIP embedding, three stores:
 

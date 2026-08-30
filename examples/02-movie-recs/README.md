@@ -1,6 +1,6 @@
 # MovieLens recommendations (MAUI Blazor Hybrid)
 
-**Requires ZVec.NET 1.0.0-beta.4** (NuGet; `+zvec.0.6.0`) · **.NET 10** · Windows + Android
+**Requires ZVec.NET 1.0.0-beta.6** (NuGet; `+zvec.0.7.0`) · **.NET 10** · Windows + Android
 
 Native **0.6.0** stability fixes ship with this pin. Index stays dense-vector FP32 HNSW. If the app-data collection fails to open after upgrading, use **Reset index → Ingest**.
 

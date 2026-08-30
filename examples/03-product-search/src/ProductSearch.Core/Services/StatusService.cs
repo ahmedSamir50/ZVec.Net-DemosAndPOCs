@@ -105,6 +105,7 @@ public sealed class StatusService : IStatusService
             ModelsDir = snap.ModelsDir,
             Message = snap.Message,
             Error = snap.Error,
+            ErrorDetail = snap.ErrorDetail,
             OverallPercent = snap.OverallPercent,
             Files = snap.Files.Select(f => new ModelFileProgressDto
             {
@@ -112,7 +113,9 @@ public sealed class StatusService : IStatusService
                 Status = f.Status.ToString(),
                 BytesReceived = f.BytesReceived,
                 BytesTotal = f.BytesTotal,
-                Percent = f.Percent
+                Percent = f.Percent,
+                OnDisk = f.OnDisk,
+                FullPath = f.FullPath
             }).ToList()
         };
 }

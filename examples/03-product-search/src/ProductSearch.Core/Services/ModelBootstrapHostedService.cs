@@ -10,19 +10,16 @@ namespace ProductSearch.Core.Services;
 public sealed class ModelBootstrapHostedService : IHostedService
 {
     private readonly IServiceProvider _services;
-    private readonly ModelBootstrapStatus _status;
     private readonly IOptions<ProductSearchOptions> _options;
     private readonly ILogger<ModelBootstrapHostedService> _logger;
     private Task? _work;
 
     public ModelBootstrapHostedService(
         IServiceProvider services,
-        ModelBootstrapStatus status,
         IOptions<ProductSearchOptions> options,
         ILogger<ModelBootstrapHostedService> logger)
     {
         _services = services;
-        _status = status;
         _options = options;
         _logger = logger;
     }
@@ -50,13 +47,19 @@ public sealed class ModelBootstrapHostedService : IHostedService
                 : _options.Value.ActiveModelId;
             var result = await selector.SelectAsync(id, ct).ConfigureAwait(false);
             if (!result.Ok)
-                throw new InvalidOperationException(result.Error ?? "Model bootstrap failed.");
+            {
+                _logger.LogError("Model bootstrap failed: {Error}", result.Error);
+                return;
+            }
+
             _logger.LogInformation("Bootstrapped SigLIP model {ModelId}", result.ActiveModelId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Model bootstrap failed");
-            _status.SetState(ModelBootstrapState.Failed, "Model bootstrap failed", ex.Message);
+            var (summary, detail) = BootstrapExceptionFormatter.Format(ex);
+            var bootstrap = _services.GetRequiredService<ModelBootstrapStatus>();
+            bootstrap.SetFailure("Model bootstrap failed", summary, detail);
         }
     }
 }

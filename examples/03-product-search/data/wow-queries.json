@@ -1,0 +1,52 @@
+[
+  {
+    "name": "Exact name",
+    "category": "name",
+    "queryText": "Peter England Men Party Blue Jeans"
+  },
+  {
+    "name": "Paraphrase",
+    "category": "description",
+    "queryText": "men's blue denim jeans for parties"
+  },
+  {
+    "name": "Colour filter",
+    "category": "metadata",
+    "queryText": "casual shirt",
+    "baseColour": "Blue",
+    "usage": "Casual"
+  },
+  {
+    "name": "Season + gender",
+    "category": "metadata",
+    "queryText": "winter wear",
+    "gender": "Women",
+    "season": "Winter"
+  },
+  {
+    "name": "Beach vacation",
+    "category": "implicit",
+    "queryText": "outfit for a beach vacation",
+    "implicitVisualHint": "Resort / summer silhouettes not in product title"
+  },
+  {
+    "name": "Rainy commute",
+    "category": "implicit",
+    "queryText": "something for a rainy commute",
+    "implicitVisualHint": "Water-resistant outerwear; usage/season carry the hit"
+  },
+  {
+    "name": "Formal evening",
+    "category": "implicit",
+    "queryText": "elegant look for a formal dinner",
+    "usage": "Formal",
+    "implicitVisualHint": "Visual texture and cut matter more than title keywords"
+  },
+  {
+    "name": "Sporty active",
+    "category": "metadata",
+    "queryText": "running gear",
+    "masterCategory": "Apparel",
+    "usage": "Sports"
+  }
+]

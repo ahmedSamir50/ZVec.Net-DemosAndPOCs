@@ -21,7 +21,7 @@
     <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" />
-    <PackageReference Include="ZVec.NET" Version="1.0.0-beta.4" />
+    <PackageReference Include="ZVec.NET" Version="1.0.0-beta.6" />
   </ItemGroup>
 
   <ItemGroup>

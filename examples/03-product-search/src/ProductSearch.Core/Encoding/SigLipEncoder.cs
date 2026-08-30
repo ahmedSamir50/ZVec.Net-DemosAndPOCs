@@ -48,23 +48,7 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
     {
         lock (_gate)
         {
-            foreach (var name in model.RequiredModelFiles)
-            {
-                var path = Path.Combine(modelsDir, name);
-                if (!File.Exists(path) || new FileInfo(path).Length == 0)
-                {
-                    NotReadyReason = $"SigLIP model file missing: {path}";
-                    throw new FileNotFoundException(NotReadyReason, path);
-                }
-
-                if (SigLipModelCatalog.TryGetExpectedBytes(model, name, out var expected)
-                    && new FileInfo(path).Length != expected)
-                {
-                    NotReadyReason =
-                        $"SigLIP model file size mismatch for {name}: expected {expected} bytes, found {new FileInfo(path).Length} bytes.";
-                    throw new InvalidDataException(NotReadyReason);
-                }
-            }
+            ValidateRequiredFiles(modelsDir, model);
 
             var visionPath = Path.Combine(modelsDir, _options.VisionModelFile);
             var textPath = Path.Combine(modelsDir, _options.TextModelFile);
@@ -78,20 +62,71 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
 
             _vision?.Dispose();
             _text?.Dispose();
+            _vision = null;
+            _text = null;
+            _tokenizer = null;
+            IsReady = false;
 
-            _vision = new InferenceSession(visionPath, so);
-            _text = new InferenceSession(textPath, so);
-            _tokenizer = new SigLipTokenizer(modelsDir, model);
+            try
+            {
+                _vision = new InferenceSession(visionPath, so);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed loading vision ONNX at {visionPath}.", ex);
+            }
+
+            try
+            {
+                _text = new InferenceSession(textPath, so);
+            }
+            catch (Exception ex)
+            {
+                _vision.Dispose();
+                _vision = null;
+                throw new InvalidOperationException($"Failed loading text ONNX at {textPath}.", ex);
+            }
+
+            try
+            {
+                _tokenizer = new SigLipTokenizer(modelsDir, model);
+            }
+            catch (Exception ex)
+            {
+                _vision.Dispose();
+                _text.Dispose();
+                _vision = null;
+                _text = null;
+                throw new InvalidOperationException(
+                    $"Failed loading tokenizer {model.SentencePieceFile} in {modelsDir}.", ex);
+            }
+
             _embeddingDim = model.EmbeddingDim;
             _imageSize = model.ImageSize;
             _useBilinearResize = model.UseBilinearResize;
             _activeModelId = model.Id;
-
             IsReady = true;
             NotReadyReason = null;
             _logger.LogInformation(
-                "SigLIP encoder ready: {ModelId} dim={Dim} size={Size} bilinear={Bilinear}",
-                model.Id, model.EmbeddingDim, model.ImageSize, model.UseBilinearResize);
+                "SigLIP encoder ready: {ModelId} dim={Dim} size={Size} bilinear={Bilinear} dir={Dir}",
+                model.Id, model.EmbeddingDim, model.ImageSize, model.UseBilinearResize, modelsDir);
+        }
+    }
+
+    private static void ValidateRequiredFiles(string modelsDir, SigLipModelDefinition model)
+    {
+        foreach (var name in model.RequiredModelFiles)
+        {
+            var path = Path.Combine(modelsDir, name);
+            if (!File.Exists(path) || new FileInfo(path).Length == 0)
+                throw new FileNotFoundException($"SigLIP model file missing: {path}", path);
+
+            if (SigLipModelCatalog.TryGetExpectedBytes(model, name, out var expected)
+                && new FileInfo(path).Length != expected)
+            {
+                throw new InvalidDataException(
+                    $"SigLIP model file size mismatch for {name}: expected {expected} bytes, found {new FileInfo(path).Length} bytes at {path}.");
+            }
         }
     }
 

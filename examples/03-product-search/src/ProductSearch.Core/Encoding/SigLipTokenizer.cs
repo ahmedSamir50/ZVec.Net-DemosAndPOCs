@@ -25,8 +25,9 @@ public sealed class SigLipTokenizer
         if (!File.Exists(spPath))
             throw new FileNotFoundException($"SigLIP {model.SentencePieceFile} not found.", spPath);
 
+        using var spStream = File.OpenRead(spPath);
         _tokenizer = SentencePieceTokenizer.Create(
-            File.OpenRead(spPath),
+            spStream,
             addBeginningOfSentence: false,
             addEndOfSentence: false);
     }

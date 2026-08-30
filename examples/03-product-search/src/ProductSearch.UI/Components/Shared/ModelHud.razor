@@ -36,9 +36,12 @@
 }
 
 @code {
+    private const string DefaultModelId = "siglip-base-patch16-224";
+
     private ModelBootstrapSnapshotDto? _boot;
     private string? _activeModelId;
     private bool _retrying;
+    private bool _pollAfterFailure;
     private CancellationTokenSource? _pollCts;
     private PeriodicTimer? _timer;
 
@@ -57,12 +60,17 @@
         {
             while (await _timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                if (_boot?.State is "Ready" or "Failed")
+                if (_boot?.State is "Ready")
+                    continue;
+
+                if (_boot?.State is "Failed" && !_pollAfterFailure && !_retrying)
                     continue;
 
                 await InvokeAsync(async () =>
                 {
                     await RefreshAsync();
+                    if (_boot?.State is "Ready" or "Failed")
+                        _pollAfterFailure = false;
                     StateHasChanged();
                 });
             }
@@ -97,13 +105,12 @@
 
     private async Task RetryAsync()
     {
-        if (string.IsNullOrWhiteSpace(_activeModelId))
-            return;
-
+        var modelId = string.IsNullOrWhiteSpace(_activeModelId) ? DefaultModelId : _activeModelId;
         _retrying = true;
+        _pollAfterFailure = true;
         try
         {
-            var result = await Api.SelectModelAsync(_activeModelId);
+            var result = await Api.SelectModelAsync(modelId);
             if (result?.Ok == true)
             {
                 Toasts.Show("Model download restarted.", ToastLevel.Success);
@@ -112,6 +119,7 @@
             else
             {
                 Toasts.Show(result?.Error ?? "Retry failed.", ToastLevel.Error);
+                await RefreshAsync();
             }
         }
         catch (Exception ex)

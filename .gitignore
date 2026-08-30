@@ -9,13 +9,19 @@ obj/
 *.DotSettings.user
 
 ## PDDM data
-**/data/
 **/spark-docs/
+Advanced/**/data/
 
-## CLIP example models / local data
-**/models/
-examples/01-clip-onnx/**/models/
+## Demo runtime data (not C# source folders named Data/)
+**/data/cache/
+**/data/zvec-text/
+**/data/zvec-image/
+**/data/state/
 examples/01-clip-onnx/**/data/
+
+## Downloaded ONNX weights (not C# source folders named Models/)
+examples/01-clip-onnx/**/models/
+examples/03-product-search/models/
 
 ## CodeGraph (local machine index — not for commit)
 .codegraph/

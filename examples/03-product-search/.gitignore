@@ -1,8 +1,12 @@
-data/cache/
-data/zvec-text/
-data/zvec-image/
-models/
-zvec/
+# Runtime data under examples/03-product-search/data/ (wow-queries.json is committed)
+/data/cache/
+/data/zvec-text/
+/data/zvec-image/
+/data/state/
+
+# Downloaded SigLIP ONNX weights (not src/ProductSearch.Core/Models/)
+/models/
+/zvec/
 **/bin/
 **/obj/
 

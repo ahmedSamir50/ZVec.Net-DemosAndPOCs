@@ -33,7 +33,7 @@ public sealed class IndexStampStore : IIndexStampStore
         _options = options.Value;
     }
 
-    public string StatePath => Path.GetFullPath(Path.Combine(_options.DataRoot, "state", "product-search-stamp.json"));
+    public string StatePath => Path.Combine(_options.DataRoot, "state", "product-search-stamp.json");
 
     public IndexStamp Load()
     {
