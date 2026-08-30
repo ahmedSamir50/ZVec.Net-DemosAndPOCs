@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-base-100 text-base-content antialiased;
+  }
+}
+
+@layer components {
+  .search-canvas {
+    @apply min-h-[calc(100vh-4rem)] flex flex-col;
+  }
+
+  .search-canvas--home {
+    @apply justify-center items-center px-4 pb-16;
+  }
+
+  .search-canvas--serp {
+    @apply px-4 pb-8 pt-2;
+  }
+
+  .omnibox {
+    @apply flex items-center gap-2 w-full max-w-[680px] h-14 px-4 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
+  }
+
+  .omnibox:focus-within {
+    @apply border-primary/40 shadow-primary/10 shadow-xl;
+  }
+
+  .omnibox-input {
+    @apply flex-1 bg-transparent outline-none text-base placeholder:text-base-content/40;
+  }
+
+  .omnibox-icon {
+    @apply btn btn-ghost btn-circle btn-sm text-base-content/60 hover:text-primary shrink-0;
+  }
+
+  .lens-dropzone {
+    @apply border-2 border-dashed border-primary/40 rounded-3xl p-10 text-center bg-base-200/50 hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer;
+  }
+
+  .product-grid {
+    @apply grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5;
+  }
+
+  .product-grid--masonry {
+    @apply columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-4;
+  }
+
+  .product-tile {
+    @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-base-200 border border-base-300 cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-lg;
+  }
+
+  .product-tile img {
+    @apply w-full object-cover;
+  }
+
+  .product-card-row {
+    @apply flex gap-4 p-3 rounded-2xl bg-base-200 border border-base-300 hover:border-primary/30 transition-colors;
+  }
+
+  .dock-nav {
+    @apply fixed left-0 top-16 bottom-0 w-16 hidden md:flex flex-col items-center py-6 gap-2 border-r border-base-300 bg-base-100/80 backdrop-blur z-20;
+  }
+
+  .main-with-dock {
+    @apply md:pl-16;
+  }
+
+  .wordmark {
+    @apply text-3xl md:text-4xl font-semibold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+
+  .demo-strip {
+    @apply w-full max-w-5xl mx-auto mt-3;
+  }
+}
+
+#blazor-error-ui {
+  @apply fixed bottom-0 left-0 right-0 z-[100] hidden p-3 bg-error text-error-content text-sm;
+}
+
+#blazor-error-ui .reload {
+  @apply underline ml-2;
+}
+
+#blazor-error-ui .dismiss {
+  @apply cursor-pointer float-right font-bold;
+}

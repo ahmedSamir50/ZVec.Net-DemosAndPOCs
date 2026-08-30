@@ -2331,7 +2331,7 @@ main.sidenav-collapsed { margin-left: 0; }
         <span class="material-icons" style="font-size:16px">notes</span>
         <span id="notes-toggle-label">Show notes</span>
       </button>
-      <span class="counter"><strong id="current-slide">01</strong> / 20</span>
+      <span class="counter"><strong id="current-slide">01</strong> / 22</span>
     </div>
   </nav>
 
@@ -2358,9 +2358,11 @@ main.sidenav-collapsed { margin-left: 0; }
       <li><a href="#slide-15" data-slide="15"><span class="nav-num">15</span><span class="nav-title">How CLIP is Trained</span></a></li>
       <li><a href="#slide-16" data-slide="16"><span class="nav-num">16</span><span class="nav-title">CLIP Multimodal Search</span></a></li>
       <li><a href="#slide-17" data-slide="17"><span class="nav-num">17</span><span class="nav-title">ONNX Embeddings in .NET</span></a></li>
-      <li><a href="#slide-18" data-slide="18"><span class="nav-num">18</span><span class="nav-title">PDDM — Advanced RAG</span></a></li>
-      <li><a href="#slide-19" data-slide="19"><span class="nav-num">19</span><span class="nav-title">PDDM Architecture</span></a></li>
-      <li><a href="#slide-20" data-slide="20"><span class="nav-num">20</span><span class="nav-title">Roadmap, Links & Q&A</span></a></li>
+      <li><a href="#slide-18" data-slide="18"><span class="nav-num">18</span><span class="nav-title">Product Search — SigLIP</span></a></li>
+      <li><a href="#slide-19" data-slide="19"><span class="nav-num">19</span><span class="nav-title">Product Search Architecture</span></a></li>
+      <li><a href="#slide-20" data-slide="20"><span class="nav-num">20</span><span class="nav-title">PDDM — Advanced RAG</span></a></li>
+      <li><a href="#slide-21" data-slide="21"><span class="nav-num">21</span><span class="nav-title">PDDM Architecture</span></a></li>
+      <li><a href="#slide-22" data-slide="22"><span class="nav-num">22</span><span class="nav-title">Roadmap, Links & Q&A</span></a></li>
     </ol>
   </aside>
 
@@ -2442,7 +2444,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Good afternoon, everyone. Over the next thirty-five minutes plus live demos and Q&amp;A, I want to walk you through what vector search actually is, the infrastructure problem cloud vector DBs create, the production .NET SDK I shipped for Alibaba's open-source ZVec engine, the eight index types and three similarity metrics, how CLIP shares one vector space across text and image, and concrete code patterns you can lift into features. Live demos this session: PDDM — advanced Jira RAG in `Advanced/` — and CLIP + local ONNX in `examples/01-clip-onnx`. This is beta 1.0.0-beta.4 targeting net8, net9, and net10. Interrupt with questions anytime.</div>
+        <div class="notes-content">Good afternoon, everyone. Over the next thirty-five minutes plus live demos and Q&amp;A, I want to walk you through what vector search actually is, the infrastructure problem cloud vector DBs create, the production .NET SDK I shipped for Alibaba's open-source ZVec engine, the eight index types and three similarity metrics, how CLIP shares one vector space across text and image, and concrete code patterns you can lift into features. Live demos this session: product-search (`examples/03-product-search`) — SigLIP + pgvector bake-off — PDDM advanced Jira RAG in `Advanced/`, CLIP + local ONNX in `examples/01-clip-onnx`, and movie-recs edge in `examples/02-movie-recs`. This is beta 1.0.0-beta.4 targeting net8, net9, and net10. Interrupt with questions anytime.</div>
       </details>
     </section>
 
@@ -2525,7 +2527,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>02 / 20</span>
+      <span>02 / 22</span>
     </div>
 
   </div>
@@ -2615,7 +2617,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>03 / 20</span>
+      <span>03 / 22</span>
     </div>
 
   </div>
@@ -2690,7 +2692,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>04 / 20</span>
+      <span>04 / 22</span>
     </div>
 
   </div>
@@ -2773,7 +2775,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>05 / 20</span>
+      <span>05 / 22</span>
     </div>
 
   </div>
@@ -2915,7 +2917,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>06 / 20</span>
+      <span>06 / 22</span>
     </div>
 
   </div>
@@ -3063,14 +3065,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>07 / 20</span>
+      <span>07 / 22</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Let's walk the eight index types. HNSW is the default workhorse — sub-millisecond search, 95 to 99 percent recall, works on every runtime we ship. Flat is exact brute force — keep it for tests and small datasets where 100 percent recall matters. IVF clusters vectors into Voronoi cells and lets you tune nprobe to trade recall for speed at scale. HNSW-RaBitQ is a quantized variant — smaller memory footprint, but it only runs on x86_64 with AVX2. DiskANN is for datasets bigger than RAM, Linux with libaio only. Vamana is another graph-based ANN that ships with the engine. Invert indexes scalar fields so your typed filters are fast. FTS is full-text search with BM25-style ranking. The two platform limits are real and the SDK handles them gracefully — it throws PlatformNotSupportedException before the native call, so you get a clean .NET exception with a helpful message instead of a native crash.</div>
+        <div class="notes-content">Let's walk the eight index types. HNSW is the default workhorse — sub-millisecond search, 95 to 99 percent recall, works on every runtime we ship. Flat is exact brute force — keep it for tests and small datasets where 100 percent recall matters. IVF clusters vectors into Voronoi cells and lets you tune nprobe to trade recall for speed at scale. HNSW-RaBitQ is a quantized variant — smaller memory footprint, but it only runs on x86_64 with AVX2. DiskANN is for datasets bigger than RAM, Linux with libaio only. Vamana is another graph-based ANN that ships with the engine. Invert indexes scalar fields so your typed filters are fast. FTS is full-text search with BM25-style ranking. Product-search (`examples/03-product-search`) is the live demo for Invert + FTS on one typed collection — colour/season/gender filters plus hybrid dense+FTS. The two platform limits are real and the SDK handles them gracefully — it throws PlatformNotSupportedException before the native call, so you get a clean .NET exception with a helpful message instead of a native crash.</div>
       </details>
     </section>
 
@@ -3205,14 +3207,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>08 / 20</span>
+      <span>08 / 22</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Three metrics, one enum — and Metric is the second slot on <span class="mono">[ZVecVector]</span> (we fill the whole attribute on the Getting Started slide). Cosine is your safe default for normalized text embeddings — it ignores magnitude and just measures the angle between vectors. L2 is geometric straight-line distance — the right choice for image or audio embeddings where magnitude carries signal. Dot product, exposed as <span class="mono">ZVecMetricType.Ip</span> (inner product), is angle and magnitude combined — useful when the vector norm encodes information like popularity or confidence. Now the rerankers. Multi-vector fusion (RRF / weighted) runs on the untyped <span class="mono">IZvecCollection.Query</span> overload — use <span class="mono">.Untyped</span> from a typed collection. Pass two or more <span class="mono">ZVecQuery</span> values plus a reranker; fusion stays in-process, no external re-ranking service. We'll see this on the RAG slide when we blend dense and FTS results.</div>
+        <div class="notes-content">Three metrics, one enum — and Metric is the second slot on <span class="mono">[ZVecVector]</span> (we fill the whole attribute on the Getting Started slide). Cosine is your safe default for normalized text embeddings — it ignores magnitude and just measures the angle between vectors. L2 is geometric straight-line distance — the right choice for image or audio embeddings where magnitude carries signal. Dot product, exposed as <span class="mono">ZVecMetricType.Ip</span> (inner product), is angle and magnitude combined — useful when the vector norm encodes information like popularity or confidence. Now the rerankers. Multi-vector fusion (RRF / weighted) runs on the untyped <span class="mono">IZvecCollection.Query</span> overload — use <span class="mono">.Untyped</span> from a typed collection. Pass two or more <span class="mono">ZVecQuery</span> values plus a reranker; fusion stays in-process, no external re-ranking service. Product-search uses <span class="mono">ZVecRrfReranker</span> and <span class="mono">ZVecWeightedReranker</span> for dense + FTS + dual-collection fusion — see slide 19.</div>
       </details>
     </section>
 
@@ -3311,7 +3313,7 @@ main.sidenav-collapsed { margin-left: 0; }
 
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>09 / 20</span>
+      <span>09 / 22</span>
     </div>
 
   </div>
@@ -3447,7 +3449,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>10 / 20</span>
+      <span>10 / 22</span>
     </div>
 
   </div>
@@ -3521,16 +3523,24 @@ main.sidenav-collapsed { margin-left: 0; }
       <div>
         <div class="dc-label">Live Demo · This Session</div>
         <div class="dc-title">Advanced RAG (PDDM)</div>
-        <p class="dc-body">Live today: PDDM in <span class="mono">Advanced/</span> — an advanced Jira navigator that shows what an in-process vector DB unlocks beyond simple retrieve-and-answer. CLIP + local ONNX gallery lives at <span class="mono">examples/01-clip-onnx</span> (download ONNX weights per its README). Movie recs edge demo: <span class="mono">examples/02-movie-recs</span>.</p>
+        <p class="dc-body">Live today: PDDM in <span class="mono">Advanced/</span> — an advanced Jira navigator that shows what an in-process vector DB unlocks beyond simple retrieve-and-answer. CLIP + local ONNX gallery lives at <span class="mono">examples/01-clip-onnx</span> (download ONNX weights per its README). Movie recs edge demo: <span class="mono">examples/02-movie-recs</span>. Product search (SigLIP + pgvector bake-off): <span class="mono">examples/03-product-search</span>.</p>
       </div>
       <div class="dc-bullets">
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">psychology</span>
-          <span><span class="mono">Advanced/</span> PDDM (slides 18–19) — live</span>
+          <span><span class="mono">Advanced/</span> PDDM (slides 20–21) — live</span>
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">image</span>
           <span><span class="mono">examples/01-clip-onnx</span> — live</span>
+        </div>
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">movie</span>
+          <span><span class="mono">examples/02-movie-recs</span> — live</span>
+        </div>
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">shopping_bag</span>
+          <span><span class="mono">examples/03-product-search</span> — live</span>
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">bolt</span>
@@ -3542,14 +3552,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>11 / 20</span>
+      <span>11 / 22</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Open the CRUD card first — ProductService takes IZvecCollection of Product via primary constructor. Upsert, Delete, Fetch, DeleteByFilter — async and cancellation-aware. Then open Query: QueryAsync takes a lambda selecting the vector field (compile-time checked), query vector, topK, optional typed filter. Escape hatch: products.Untyped + ZVecFilterBuilder (also required for multi-query RRF). Call out Optimize: bulk Upsert lands in a flat buffer; Optimize merges into HNSW — demos run it at end of ingest and expose an Optimize index button (no re-embed, safe for readers). Live demos: PDDM, CLIP ONNX gallery, movie-recs edge.</div>
+        <div class="notes-content">Open the CRUD card first — ProductService takes IZvecCollection of Product via primary constructor. Upsert, Delete, Fetch, DeleteByFilter — async and cancellation-aware. Then open Query: QueryAsync takes a lambda selecting the vector field (compile-time checked), query vector, topK, optional typed filter. Escape hatch: products.Untyped + ZVecFilterBuilder (also required for multi-query RRF). Call out Optimize: bulk Upsert lands in a flat buffer; Optimize merges into HNSW — demos run it at end of ingest and expose an Optimize index button (no re-embed, safe for readers). Live demos: PDDM (slides 20–21), CLIP ONNX gallery, movie-recs edge, product-search (SigLIP + pgvector).</div>
       </details>
     </section>
 
@@ -3624,7 +3634,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>12 / 20</span>
+      <span>12 / 22</span>
     </div>
 
   </div>
@@ -3656,7 +3666,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
       <div>
         <span class="uc-label">Use Case</span>
-        <span class="uc-body" style="margin-left:8px;">Internal SOP assistant: answer questions grounded in our own runbooks. Advanced live demo: PDDM (slides 19–20).</span>
+        <span class="uc-body" style="margin-left:8px;">Internal SOP assistant: answer questions grounded in our own runbooks. Advanced live demo: PDDM (slides 20–21).</span>
       </div>
     </div>
 
@@ -3724,7 +3734,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>13 / 20</span>
+      <span>13 / 22</span>
     </div>
 
   </div>
@@ -3836,7 +3846,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>14 / 20</span>
+      <span>14 / 22</span>
     </div>
 
   </div>
@@ -3933,7 +3943,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>15 / 20</span>
+      <span>15 / 22</span>
     </div>
 
   </div>
@@ -4035,7 +4045,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <div>
         <div class="dc-label">Planned Demo</div>
         <div class="dc-title">CLIP + local ONNX gallery</div>
-        <p class="dc-body">Text query or image upload → same 512-d space → ZVec top-K. Live at <span class="mono">examples/01-clip-onnx</span> (Flickr8k vision ingest). Also live: PDDM in <span class="mono">Advanced/</span>.</p>
+        <p class="dc-body">Text query or image upload → same 512-d space → ZVec top-K. Live at <span class="mono">examples/01-clip-onnx</span> (Flickr8k vision ingest). Also live: PDDM in <span class="mono">Advanced/</span>. <strong>CLIP = vision-only index</strong> — see slide 18 for dual-collection SigLIP catalog.</p>
       </div>
       <div class="dc-bullets">
         <div class="dc-bullet">
@@ -4052,7 +4062,7 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>16 / 20</span>
+      <span>16 / 22</span>
     </div>
 
   </div>
@@ -4084,7 +4094,7 @@ main.sidenav-collapsed { margin-left: 0; }
       <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
       <div>
         <span class="uc-label">Use Case</span>
-        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. CLIP ONNX gallery (<span class="mono">examples/01-clip-onnx</span>) is live; MovieLens edge recs (<span class="mono">examples/02-movie-recs</span>) run MiniLM ONNX on MAUI; SDK samples also show offline RAG via MAUI + LM Studio embeddings.</span>
+        <span class="uc-body" style="margin-left:8px;">Keep the entire pipeline in .NET — no Python sidecar, no model server. CLIP ONNX gallery (<span class="mono">examples/01-clip-onnx</span>) is live; SigLIP product-search (<span class="mono">examples/03-product-search</span>) runs text + vision ONNX; MovieLens edge recs (<span class="mono">examples/02-movie-recs</span>) run MiniLM ONNX on MAUI; SDK samples also show offline RAG via MAUI + LM Studio embeddings.</span>
       </div>
     </div>
 
@@ -4126,26 +4136,209 @@ main.sidenav-collapsed { margin-left: 0; }
     <div class="surface-elev why-callout">
       <span class="material-icons md-24" style="color: var(--accent);">rocket_launch</span>
       <span class="lbl">Why This Matters</span>
-      <p class="body">End-to-end .NET pipeline · single container · no Python/Node sidecar · lower latency (no IPC). The same ONNX pattern powers CLIP image/text encoders (<span class="mono">examples/01-clip-onnx</span>, live). MAUI offline/edge RAG already ships in SDK <span class="mono">samples/ZVec.NET.Samples.Maui</span> (LM Studio embeddings today).</p>
+      <p class="body">End-to-end .NET pipeline · single container · no Python/Node sidecar · lower latency (no IPC). The same ONNX pattern powers CLIP image/text encoders (<span class="mono">examples/01-clip-onnx</span>, live), SigLIP text/vision encoders (<span class="mono">examples/03-product-search</span>, live), and MiniLM on MAUI (<span class="mono">examples/02-movie-recs</span>). MAUI offline/edge RAG already ships in SDK <span class="mono">samples/ZVec.NET.Samples.Maui</span> (LM Studio embeddings today).</p>
     </div>
 
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>17 / 20</span>
+      <span>17 / 22</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Walk The Pattern + Three Steps, then open “View ONNX → ZVec code” (schematic: real MiniLM needs attention_mask + mean-pool + L2). One container, no Python sidecar. CLIP ONNX gallery is live; MAUI RAG sample already in the SDK repo (LM Studio embeddings).</div>
+        <div class="notes-content">Walk The Pattern + Three Steps, then open “View ONNX → ZVec code” (schematic: real MiniLM needs attention_mask + mean-pool + L2). One container, no Python sidecar. CLIP ONNX gallery is live; SigLIP product-search (`examples/03-product-search`) runs text + vision ONNX beside pgvector; MAUI RAG sample already in the SDK repo (LM Studio embeddings).</div>
       </details>
     </section>
 
     <section id="slide-18" class="slide-section" data-slide="18">
       <div class="section-header">
         <span class="section-num">18</span>
+        <div class="section-meta">
+          <span class="section-label">09 / Pattern · Product Search</span>
+          <h2 class="section-title">Product Search — SigLIP</h2>
+        </div>
+      </div>
+      <div class="slide-wrapper">
+        <div class="slide">
+
+    <span class="chip">
+      <span class="material-icons md-14">shopping_bag</span>
+      09 / Pattern · Product Search
+    </span>
+    <h1 class="h1" style="margin-top:10px;">SigLIP — Search + Lens in One Vector Space</h1>
+
+    <div class="surface use-case">
+      <span class="material-icons md-18" style="color: var(--accent);">lightbulb</span>
+      <div>
+        <span class="uc-label">Use Case</span>
+        <span class="uc-body" style="margin-left:8px;">E-commerce / fashion catalog — text query, metadata filters, or image upload (Google Lens style).</span>
+      </div>
+    </div>
+
+    <p class="explain-line" style="margin-top:6px;">SigLIP trains image and text encoders into the same <span class="mono">768-dim</span> space (default <span class="mono">siglip-base-patch16-224</span>). Cosine similarity between a text query and a product image measures visual + semantic match.</p>
+
+    <!-- Dual paths -->
+    <div class="flow-path">
+      <div class="flow-label">Path A</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">text_fields</span></div>
+          <div class="flow-title">Text query</div>
+          <p class="flow-body">"beach vacation dress"</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">memory</span></div>
+          <div class="flow-title">SigLIP text encoder</div>
+          <p class="flow-body"><span class="mono">text_model.onnx</span> · 768-d</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title">Text ZVec collection</div>
+          <p class="flow-body">HNSW + invert + FTS on <span class="mono">ConcatenatedText</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-path">
+      <div class="flow-label">Path B</div>
+      <div class="flow">
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">photo_camera</span></div>
+          <div class="flow-title">Lens upload</div>
+          <p class="flow-body">camera / image file</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">image</span></div>
+          <div class="flow-title">SigLIP vision encoder</div>
+          <p class="flow-body"><span class="mono">vision_model.onnx</span> · same space</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box highlight">
+          <div class="flow-icon-wrap"><span class="material-icons md-24">storage</span></div>
+          <div class="flow-title">Image ZVec collection</div>
+          <p class="flow-body">lean HNSW only · shared space for text queries</p>
+        </div>
+        <div class="arrow"><span class="material-icons md-32">arrow_forward</span></div>
+        <div class="surface flow-box">
+          <div class="flow-icon-wrap" style="background: rgba(74,222,128,0.16); color: var(--good);"><span class="material-icons md-24">checkroom</span></div>
+          <div class="flow-title">Matching products</div>
+          <p class="flow-body"><span class="mono">ZVecHit&lt;T&gt;</span> + catalog row</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key insight strip -->
+    <div class="surface insight-strip">
+      <span class="material-icons md-18" style="color: var(--accent);">key</span>
+      <span class="lbl">Key Insight</span>
+      <span class="body">Unlike CLIP gallery (vision-only index), this demo splits <strong>two collections, one Guid</strong> — production pattern for independent rebuild, <span class="mono">Optimize()</span>, and schema evolution.</span>
+    </div>
+
+    <div class="surface-elev demo-callout" style="margin-top:8px;">
+      <div>
+        <div class="dc-label">Live Demo</div>
+        <div class="dc-title">SigLIP + dual ZVec collections</div>
+        <p class="dc-body">Fashion catalog (~44k Myntra SKUs). Run <span class="mono">dotnet run --project src/ProductSearch.AppHost</span>. Wow chips in <span class="mono">data/wow-queries.json</span> — name / metadata / implicit visual queries.</p>
+      </div>
+      <div class="dc-bullets">
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">folder</span>
+          <span class="mono">examples/03-product-search</span> · live
+        </div>
+        <div class="dc-bullet">
+          <span class="material-icons md-18 ico">contrast</span>
+          <span>CLIP = single vision index; product-search = <strong>text + image</strong> collections + invert/FTS/hybrid</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page footer -->
+    <div class="page-foot">
+      <span>ZVec.NET · Internal Tech Session</span>
+      <span>18 / 22</span>
+    </div>
+
+  </div>
+      </div>
+      <details class="speaker-notes">
+        <summary><span class="material-icons">notes</span> Speaker notes</summary>
+        <div class="notes-content">Live demo script aligned with examples/03-product-search/README.md: Status → confirm SigLIP loaded → Ingest patch 100 → wait for Demo ready (SQL count = ZVec text = ZVec image) → Search with engine toggle ZVec | PostgreSQL | Both. Try wow chips: exact name, paraphrase, colour filter, beach vacation (implicit visual — words absent from title). Lens camera icon for image query. Enable Hybrid FTS + RRF/Weighted under ZVec mode. Mention Param Aggarwal / HF dataset attribution briefly. Contrast with slide 16: CLIP indexes vision only; product-search splits text + image collections with invert + FTS on the text side.</div>
+      </details>
+    </section>
+
+    <section id="slide-19" class="slide-section" data-slide="19">
+      <div class="section-header">
+        <span class="section-num">19</span>
+        <div class="section-meta">
+          <span class="section-label">09 / Production Demo · Product Search</span>
+          <h2 class="section-title">Product Search Architecture</h2>
+        </div>
+      </div>
+      <div class="slide-wrapper">
+        <div class="slide">
+    <span class="chip">
+      <span class="material-icons md-14">account_tree</span>
+      09 / Production Demo · Product Search
+    </span>
+    <h1 class="h1" style="margin-top:10px;">ZVec beside PostgreSQL — Same Embedding, Two Engines</h1>
+    <p class="subhead" style="margin-top:6px;">Postgres is the catalog system of record; ZVec is optional in-process ANN beside SQL — not instead of, <strong>beside</strong>.</p>
+
+    <div class="pddm-stack">
+      <div class="cell surface"><span class="material-icons">database</span>Postgres +<br/><strong>pgvector</strong></div>
+      <div class="cell surface"><span class="material-icons">storage</span>ZVec text +<br/>ZVec image</div>
+      <div class="cell surface"><span class="material-icons">memory</span>SigLIP ONNX<br/>local · no LM Studio</div>
+      <div class="cell surface"><span class="material-icons">web</span>MudBlazor<br/>UI</div>
+      <div class="cell surface"><span class="material-icons">hub</span>.NET Aspire<br/>AppHost</div>
+    </div>
+
+    <div class="compare-grid" style="margin-top:18px;">
+      <div class="surface feature-card">
+        <div class="feature-label">What it proves</div>
+        <div class="feature-title">Full ZVec feature tour</div>
+        <p class="feature-body">Only repo demo using <strong>HNSW + invert + FTS + RRF/Weighted</strong> on one typed collection. Patch ingest <strong>saga</strong>: ZVec first → SQL tx → compensate on failure. UUID v5 <span class="mono">myntra:{catalog_id}</span> ties all three stores.</p>
+      </div>
+      <div class="surface feature-card">
+        <div class="feature-label">On-screen bake-off</div>
+        <div class="feature-title">Engine toggle</div>
+        <p class="feature-body"><strong>ZVec | PostgreSQL | Both</strong> — encode once, compare latency + overlap @N. Dense-only for fair contest; hybrid FTS is ZVec-only extra.</p>
+      </div>
+    </div>
+
+    <div class="surface-elev demo-callout" style="grid-template-columns: 1fr; margin-top:14px;">
+      <div>
+        <div class="dc-label">Positioning</div>
+        <div class="dc-title">Beside SQL, not instead of</div>
+        <p class="dc-body">PDDM/CLIP story remains: <strong>no vector sidecar required</strong>. Product-search adds nuance: Postgres is fat catalog + pgvector; ZVec is optional in-process ANN beside SQL. Slides 7–8 (Invert + FTS + RRF) now have a live home here.</p>
+      </div>
+    </div>
+
+    <div class="rr-code" style="margin-top:12px; font-size:11px;"><span class="c">// dense + FTS fusion (ZVec-only hybrid)</span>
+<span class="k">var</span> hits = textCol.<span class="t">Untyped</span>.<span class="t">Query</span>([
+    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"embedding"</span>, Vector = queryVec },
+    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"concatenated_text"</span>, Text = queryText }
+], topk: <span class="n">20</span>, reranker: <span class="k">new</span> <span class="t">ZVecRrfReranker</span> { TopN = <span class="n">20</span> });</div>
+
+    <div class="page-foot">
+      <span>ZVec.NET · Internal Tech Session</span>
+      <span>19 / 22</span>
+    </div>
+  </div>
+      </div>
+      <details class="speaker-notes">
+        <summary><span class="material-icons">notes</span> Speaker notes</summary>
+        <div class="notes-content">Call out slide 7 Invert + FTS and slide 8 RRF now have a live home in product-search. Walk the stack row: Postgres + pgvector holds the full catalog row and HNSW copies; ZVec text + image collections are in-process ANN; SigLIP ONNX runs locally with no LM Studio; Aspire AppHost orchestrates Postgres, API, and MudBlazor UI. Saga ingest: ZVec upsert first, then SQL transaction, compensate ZVec if SQL fails. Engine toggle encodes once and compares ZVec vs pgvector vs both — dense-only for fair latency contest; hybrid FTS is ZVec-only. Honest gaps: no long descriptions in the small dataset; group-by/INT8 not faked on Status. Punchline: ZVec beside pgvector, not instead of.</div>
+      </details>
+    </section>
+
+    <section id="slide-20" class="slide-section" data-slide="20">
+      <div class="section-header">
+        <span class="section-num">20</span>
         <div class="section-meta">
           <span class="section-label">09 / Advanced Demo</span>
           <h2 class="section-title">PDDM — Advanced RAG</h2>
@@ -4187,25 +4380,25 @@ main.sidenav-collapsed { margin-left: 0; }
       <div>
         <div class="dc-label">Positioning</div>
         <div class="dc-title">Beyond retrieve-and-answer</div>
-        <p class="dc-body">Simple RAG teaches the pattern. PDDM is the further example — intent routing, hierarchy, and citations over a real public Jira corpus, all with local vectors. <strong>No vector Docker sidecar:</strong> ZVec.NET owns <span class="mono">./data/spark-docs</span> — not Qdrant, pgvector, or a cloud vector DB.</p>
+        <p class="dc-body">Simple RAG teaches the pattern. PDDM is the further example — intent routing, hierarchy, and citations over a real public Jira corpus, all with local vectors. <strong>No vector Docker sidecar:</strong> ZVec.NET owns <span class="mono">./data/spark-docs</span> — not Qdrant, pgvector, or a cloud vector DB. For ZVec <strong>beside</strong> pgvector, see slide 19.</p>
       </div>
     </div>
 
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>18 / 20</span>
+      <span>20 / 22</span>
     </div>
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">This is the advanced finale. PDDM sits in the demos repo under Advanced/. Stack is ZVec.NET plus LM Studio embeddings and chat, ASP.NET controllers, Blazor UI, Aspire orchestration. Call out: no vector Docker sidecar — ZVec.NET owns ./data/spark-docs; without it you'd stand up Qdrant, pgvector, LanceDB, or a cloud vector account. The point is not “another chat bot” — it navigates Spark Jira hierarchy so developers get epic context, siblings, and decision comments with browse links. Run AppHost, ingest, then use the golden questions. Contrast with slide 13: that was the simple RAG pipeline; this is product-shaped navigation on top of the same in-process store.</div>
+        <div class="notes-content">This is the advanced finale. PDDM sits in the demos repo under Advanced/. Stack is ZVec.NET plus LM Studio embeddings and chat, ASP.NET controllers, Blazor UI, Aspire orchestration. Call out: no vector Docker sidecar — ZVec.NET owns ./data/spark-docs; without it you'd stand up Qdrant, pgvector, LanceDB, or a cloud vector account. The point is not “another chat bot” — it navigates Spark Jira hierarchy so developers get epic context, siblings, and decision comments with browse links. Run AppHost, ingest, then use the golden questions. Contrast with slide 13: that was the simple RAG pipeline; this is product-shaped navigation on top of the same in-process store. For ZVec beside pgvector (catalog SoR + in-process ANN), see slide 19.</div>
       </details>
     </section>
 
-    <section id="slide-19" class="slide-section" data-slide="19">
+    <section id="slide-21" class="slide-section" data-slide="21">
       <div class="section-header">
-        <span class="section-num">19</span>
+        <span class="section-num">21</span>
         <div class="section-meta">
           <span class="section-label">09 / Advanced Demo</span>
           <h2 class="section-title">PDDM Architecture</h2>
@@ -4264,7 +4457,7 @@ main.sidenav-collapsed { margin-left: 0; }
 
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
-      <span>19 / 20</span>
+      <span>21 / 22</span>
     </div>
   </div>
       </div>
@@ -4274,9 +4467,9 @@ main.sidenav-collapsed { margin-left: 0; }
       </details>
     </section>
 
-    <section id="slide-20" class="slide-section" data-slide="20">
+    <section id="slide-22" class="slide-section" data-slide="22">
       <div class="section-header">
-        <span class="section-num">20</span>
+        <span class="section-num">22</span>
         <div class="section-meta">
           <span class="section-label">10 / Wrap-Up</span>
           <h2 class="section-title">Roadmap, Links & Q&A</h2>
@@ -4320,7 +4513,7 @@ main.sidenav-collapsed { margin-left: 0; }
           <span class="rm-dot good"></span>
           <div>
             <span class="rm-title">Demos repo live demos<span class="rm-status done">DONE</span></span>
-            <p class="rm-body">Live: <span class="mono">Advanced/</span> PDDM, <span class="mono">examples/01-clip-onnx</span> (CLIP), and <span class="mono">examples/02-movie-recs</span> (MovieLens · MAUI Hybrid) — demos repo.</p>
+            <p class="rm-body">Live: <span class="mono">Advanced/</span> PDDM, <span class="mono">examples/01-clip-onnx</span> (CLIP), <span class="mono">examples/02-movie-recs</span> (MovieLens · MAUI Hybrid), and <span class="mono">examples/03-product-search</span> (SigLIP + pgvector) — demos repo.</p>
           </div>
         </div>
 
@@ -4414,14 +4607,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <!-- Page footer -->
     <div class="page-foot">
       <span>ZVec.NET · Tech Session · ELM KSA</span>
-      <span>20 / 20</span>
+      <span>22 / 22</span>
     </div>
 
   </div>
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Quick recap — vector search vs keywords, the infrastructure tax, ZVec.NET in-process on Alibaba's ZVec, eight indexes and three metrics, CLIP multimodal alignment, and five code patterns. Live demos: PDDM in Advanced/ and CLIP ONNX gallery in examples/01-clip-onnx. SDK beta 1.0.0-beta.4 on net8/9/10. I'd love PRs and a real sprint use case to pair on. Questions?</div>
+        <div class="notes-content">Quick recap — vector search vs keywords, the infrastructure tax, ZVec.NET in-process on Alibaba's ZVec, eight indexes and three metrics, CLIP multimodal alignment, and five code patterns. Live demos: product-search (`examples/03-product-search`) with SigLIP + pgvector bake-off, PDDM in Advanced/, CLIP ONNX gallery in examples/01-clip-onnx, and movie-recs edge. SDK beta 1.0.0-beta.4 on net8/9/10. I'd love PRs and a real sprint use case to pair on. Questions?</div>
       </details>
     </section>
   </main>
@@ -4881,7 +5074,7 @@ function updateScrollSpy() {
 
 // ── Navigation ──
 function goToSlide(num) {
-  num = Math.max(1, Math.min(20, num));
+  num = Math.max(1, Math.min(sections.length, num));
   var target = document.getElementById('slide-' + String(num).padStart(2, '0'));
   if (target) {
     window.scrollTo({ top: target.offsetTop - 58, behavior: 'smooth' });

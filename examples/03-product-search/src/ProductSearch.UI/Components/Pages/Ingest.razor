@@ -1,82 +1,80 @@
 @page "/ingest"
 @rendermode InteractiveServer
 @inject ApiClientService Api
-@inject ISnackbar Snackbar
+@inject ToastService Toasts
 
-<MudStack Spacing="4">
+<div class="max-w-3xl mx-auto px-4 py-8 space-y-6">
     <div>
-        <MudText Typo="Typo.h4">Ingest</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            Resume-safe patches over the Param fashion catalog. Each patch encodes SigLIP vectors,
-            upserts both ZVec collections, then commits PostgreSQL in one transaction.
-        </MudText>
+        <h1 class="text-2xl font-semibold">Ingest</h1>
+        <p class="text-sm text-base-content/60 mt-1">
+            Resume-safe patches over the fashion catalog. Each patch encodes SigLIP vectors,
+            upserts ZVec collections, then commits PostgreSQL in one transaction.
+        </p>
     </div>
 
-    <MudCard Elevation="0" Outlined="true">
-        <MudCardContent>
-            <MudStack Spacing="3">
-                <MudText Typo="Typo.subtitle2">Patch size</MudText>
-                <MudToggleGroup @bind-Value="_patchSize" T="int" Color="Color.Primary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
-                    <MudToggleItem Value="100" Text="100" />
-                    <MudToggleItem Value="500" Text="500" />
-                    <MudToggleItem Value="1000" Text="1000" />
-                </MudToggleGroup>
+    <div class="card bg-base-200 border border-base-300">
+        <div class="card-body gap-4">
+            <div>
+                <span class="label-text text-xs">Patch size</span>
+                <div class="join mt-2">
+                    @foreach (var size in new[] { 100, 500, 1000 })
+                    {
+                        <button type="button"
+                                class="btn btn-sm join-item @(_patchSize == size ? "btn-primary" : "btn-outline")"
+                                @onclick="() => _patchSize = size">
+                            @size
+                        </button>
+                    }
+                </div>
+            </div>
 
-                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-                    <MudButton Color="Color.Primary"
-                               Variant="Variant.Filled"
-                               OnClick="RunAsync"
-                               Disabled="_busy"
-                               StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.CloudDownload)">
-                        @(_busy ? "Running…" : "Start patch")
-                    </MudButton>
-                    <MudButton Color="Color.Secondary"
-                               Variant="Variant.Outlined"
-                               OnClick="OptimizeAsync"
-                               Disabled="_busy"
-                               StartIcon="@Icons.Material.Filled.Speed">
-                        Optimize indexes
-                    </MudButton>
-                    <MudSwitch @bind-Value="_optimizeAfterPatch" Label="Optimize after patch" Color="Color.Primary" />
-                </MudStack>
+            <div class="flex flex-wrap gap-2 items-center">
+                <button type="button" class="btn btn-primary btn-sm" disabled="_busy" @onclick="RunAsync">
+                    @(_busy ? "Running…" : "Start patch")
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" disabled="_busy" @onclick="OptimizeAsync">
+                    Optimize indexes
+                </button>
+                <label class="label cursor-pointer gap-2 justify-start">
+                    <input type="checkbox" class="toggle toggle-sm toggle-primary" @bind="_optimizeAfterPatch" />
+                    <span class="label-text text-xs">Optimize after patch</span>
+                </label>
+            </div>
 
-                @if (_busy)
-                {
-                    <MudText Typo="Typo.caption">@_status</MudText>
-                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-                }
-            </MudStack>
-        </MudCardContent>
-    </MudCard>
+            @if (_busy)
+            {
+                <p class="text-xs text-base-content/60">@_status</p>
+                <progress class="progress progress-primary w-full"></progress>
+            }
+        </div>
+    </div>
 
     @if (_progress is not null)
     {
-        <MudCard Elevation="0" Outlined="true">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Progress</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudSimpleTable Dense="true" Hover="false" Bordered="false" Style="background: transparent;">
-                    <tbody>
-                        <tr><td>Status</td><td>@_progress.Status</td></tr>
-                        <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
-                        <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
-                        <tr><td>Encoded</td><td>@_progress.Encoded</td></tr>
-                        <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
-                        <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
-                        <tr><td>Ingest offset</td><td>@_progress.IngestOffset</td></tr>
-                    </tbody>
-                </MudSimpleTable>
+        <div class="card bg-base-200 border border-base-300">
+            <div class="card-body">
+                <h2 class="card-title text-base mb-2">Progress</h2>
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr><td>Status</td><td>@_progress.Status</td></tr>
+                            <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
+                            <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
+                            <tr><td>Encoded</td><td>@_progress.Encoded</td></tr>
+                            <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
+                            <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
+                            <tr><td>Ingest offset</td><td>@_progress.IngestOffset</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
                 {
-                    <MudAlert Severity="Severity.Error" Class="mt-3">@_progress.ErrorMessage</MudAlert>
+                    <div role="alert" class="alert alert-error mt-3 text-sm"><span>@_progress.ErrorMessage</span></div>
                 }
-            </MudCardContent>
-        </MudCard>
+            </div>
+        </div>
     }
-</MudStack>
+</div>
 
 @code {
     private IngestProgressDto? _progress;
@@ -88,7 +86,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _progress = await Api.GetIngestAsync();
+        try
+        {
+            _progress = await Api.GetIngestAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Show(ex.Message, ToastLevel.Warning);
+        }
     }
 
     private async Task RunAsync()
@@ -107,11 +112,11 @@
                 PatchSize = _patchSize,
                 OptimizeAfterPatch = _optimizeAfterPatch
             });
-            Snackbar.Add($"Patch {_progress?.Status}", Severity.Success);
+            Toasts.Show($"Patch {_progress?.Status}", ToastLevel.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
             _status = ex.Message;
         }
         finally
@@ -122,7 +127,8 @@
             _pollCts = null;
             _busy = false;
             _status = "";
-            _progress = await Api.GetIngestAsync() ?? _progress;
+            try { _progress = await Api.GetIngestAsync() ?? _progress; }
+            catch { /* ignore */ }
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -134,11 +140,11 @@
         try
         {
             await Api.OptimizeIndexAsync();
-            Snackbar.Add("Optimized — flat buffers merged into HNSW.", Severity.Success);
+            Toasts.Show("Optimized — flat buffers merged into HNSW.", ToastLevel.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {

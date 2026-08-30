@@ -107,7 +107,16 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             if (_encoder is not SigLipEncoder siglip)
                 throw new InvalidOperationException("ISigLipEncoder must be SigLipEncoder.");
 
-            siglip.InitializeFromDisk(dir, def);
+            try
+            {
+                siglip.InitializeFromDisk(dir, def);
+            }
+            catch (Exception loadEx)
+            {
+                _logger.LogWarning(loadEx, "ONNX load failed — removing model files in {Dir}", dir);
+                DeleteInvalidModelFiles(dir, _options.Value.RequiredModelFiles);
+                throw;
+            }
             _collections.SwitchToModel(def);
             _collections.EnsureIndexes();
             _activeId = def.Id;
@@ -154,10 +163,18 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         {
             ct.ThrowIfCancellationRequested();
             var path = Path.Combine(dir, localName);
-            if (File.Exists(path) && new FileInfo(path).Length > 0)
+            if (File.Exists(path))
             {
-                _bootstrap.UpdateFile(localName, ModelFileStatus.Present, new FileInfo(path).Length, new FileInfo(path).Length);
-                continue;
+                var length = new FileInfo(path).Length;
+                if (IsValidModelFile(localName, length))
+                {
+                    _bootstrap.UpdateFile(localName, ModelFileStatus.Present, length, length);
+                    continue;
+                }
+
+                _logger.LogWarning("Removing invalid model file {Path} ({Length} bytes)", path, length);
+                TryDelete(path);
+                TryDelete(path + ".partial");
             }
 
             if (!opt.AutoDownloadModels)
@@ -170,7 +187,48 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             _bootstrap.UpdateFile(localName, ModelFileStatus.Downloading);
             var url = SigLipModelCatalog.DownloadUrl(def, localName);
             await DownloadFileAsync(url, path, localName, ct).ConfigureAwait(false);
-            _bootstrap.UpdateFile(localName, ModelFileStatus.Done, new FileInfo(path).Length, new FileInfo(path).Length);
+            var finalLength = new FileInfo(path).Length;
+            if (!IsValidModelFile(localName, finalLength))
+            {
+                TryDelete(path);
+                throw new InvalidDataException($"Downloaded file is too small or corrupt: {localName} ({finalLength} bytes)");
+            }
+
+            _bootstrap.UpdateFile(localName, ModelFileStatus.Done, finalLength, finalLength);
+        }
+    }
+
+    private static bool IsValidModelFile(string localName, long length)
+    {
+        if (length <= 0)
+            return false;
+
+        if (localName.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
+            return length > 1_048_576;
+
+        return length > 1024;
+    }
+
+    private static void DeleteInvalidModelFiles(string dir, IReadOnlyList<string> files)
+    {
+        foreach (var localName in files)
+        {
+            var path = Path.Combine(dir, localName);
+            TryDelete(path);
+            TryDelete(path + ".partial");
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            // best effort
         }
     }
 

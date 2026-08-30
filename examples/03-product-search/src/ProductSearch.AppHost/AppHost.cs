@@ -7,11 +7,14 @@ var db = postgres.AddDatabase("productsearch");
 
 var api = builder.AddProject<Projects.ProductSearch_Api>("productsearch-api")
     .WithReference(db)
-    .WithExternalHttpEndpoints();
+    .WaitFor(db)
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health");
 
 builder.AddProject<Projects.ProductSearch_UI>("productsearch-ui")
     .WithExternalHttpEndpoints()
     .WithEnvironment("ProductSearchUi__ApiBaseUrl", api.GetEndpoint("http"))
-    .WithReference(api);
+    .WithReference(api)
+    .WaitFor(api);
 
 builder.Build().Run();

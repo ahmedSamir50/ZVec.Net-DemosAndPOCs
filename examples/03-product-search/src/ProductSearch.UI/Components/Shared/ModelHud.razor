@@ -1,0 +1,133 @@
+@inject ApiClientService Api
+@inject ToastService Toasts
+@implements IDisposable
+
+@if (_boot is not null)
+{
+    <div class="flex items-center gap-2 min-w-0">
+        @if (_boot.State is "Ready")
+        {
+            <span class="badge badge-success badge-sm gap-1 shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-success-content"></span>
+                SigLIP ready
+            </span>
+        }
+        else if (_boot.State is "Failed")
+        {
+            <span class="badge badge-error badge-sm shrink-0">Model failed</span>
+            <button type="button" class="btn btn-error btn-xs shrink-0" disabled="_retrying" @onclick="RetryAsync">
+                @(_retrying ? "Retrying…" : "Retry")
+            </button>
+        }
+        else
+        {
+            <span class="badge badge-info badge-sm shrink-0">@HudLabel()</span>
+            @if (_boot.OverallPercent is not null)
+            {
+                <progress class="progress progress-primary w-24 sm:w-32 h-2" value="@_boot.OverallPercent" max="100"></progress>
+                <span class="text-xs text-base-content/60 tabular-nums shrink-0">@($"{_boot.OverallPercent:0.#}%")</span>
+            }
+            else
+            {
+                <span class="loading loading-spinner loading-xs text-primary"></span>
+            }
+        }
+    </div>
+}
+
+@code {
+    private ModelBootstrapSnapshotDto? _boot;
+    private string? _activeModelId;
+    private bool _retrying;
+    private CancellationTokenSource? _pollCts;
+    private PeriodicTimer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _pollCts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        _ = PollAsync(_pollCts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        if (_timer is null) return;
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+            {
+                if (_boot?.State is "Ready" or "Failed")
+                    continue;
+
+                await InvokeAsync(async () =>
+                {
+                    await RefreshAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // shutting down
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var status = await Api.GetStatusAsync();
+            _boot = status?.ModelBootstrap;
+            _activeModelId = status?.ActiveModelId;
+        }
+        catch
+        {
+            // API may be starting
+        }
+    }
+
+    private string HudLabel() => _boot?.State switch
+    {
+        "Downloading" => "Downloading SigLIP",
+        "Loading" => "Loading ONNX",
+        "Checking" => "Checking models",
+        _ => _boot?.Message ?? "Bootstrapping"
+    };
+
+    private async Task RetryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_activeModelId))
+            return;
+
+        _retrying = true;
+        try
+        {
+            var result = await Api.SelectModelAsync(_activeModelId);
+            if (result?.Ok == true)
+            {
+                Toasts.Show("Model download restarted.", ToastLevel.Success);
+                await RefreshAsync();
+            }
+            else
+            {
+                Toasts.Show(result?.Error ?? "Retry failed.", ToastLevel.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Show(ex.Message, ToastLevel.Error);
+        }
+        finally
+        {
+            _retrying = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _timer?.Dispose();
+    }
+}

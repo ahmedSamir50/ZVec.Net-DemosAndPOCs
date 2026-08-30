@@ -1,0 +1,26 @@
+@inject ToastService Toasts
+@implements IDisposable
+
+<div class="toast toast-top toast-end z-[60]">
+    @foreach (var toast in Toasts.Messages)
+    {
+        <div class="alert @AlertClass(toast.Level) shadow-lg max-w-md">
+            <span>@toast.Message</span>
+            <button type="button" class="btn btn-ghost btn-xs" @onclick="() => Toasts.Dismiss(toast.Id)">✕</button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.OnChange += StateHasChanged;
+
+    public void Dispose() => Toasts.OnChange -= StateHasChanged;
+
+    private static string AlertClass(ToastLevel level) => level switch
+    {
+        ToastLevel.Success => "alert-success",
+        ToastLevel.Warning => "alert-warning",
+        ToastLevel.Error => "alert-error",
+        _ => "alert-info"
+    };
+}

@@ -1,167 +1,204 @@
 @page "/search"
 @rendermode InteractiveServer
 @inject ApiClientService Api
-@inject ISnackbar Snackbar
+@inject ToastService Toasts
 @inject IJSRuntime Js
+@implements IAsyncDisposable
 
-<MudStack Spacing="4" Class="search-page">
-    <div class="search-hero">
-        <MudText Typo="Typo.h4" Class="search-title">Search the catalog</MudText>
-        <MudText Typo="Typo.body2" Class="search-subtitle">Text, metadata filters, or Lens — compare ZVec vs PostgreSQL</MudText>
-    </div>
-
-    <MudPaper Class="omnibox-paper pa-4" Elevation="0" Outlined="true">
-        <MudStack Spacing="3">
-            <MudTextField @bind-Value="_query"
-                          Placeholder="Search products…"
-                          Variant="Variant.Outlined"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@Icons.Material.Filled.CameraAlt"
-                          OnAdornmentClick="OpenLensPicker"
-                          Immediate="true"
-                          Class="omnibox-input"
-                          @onkeydown="OnKeyDown" />
-
-            <InputFile id="lens-input" OnChange="OnLensSelected" accept="image/*" class="d-none" />
-
-            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
-                <MudText Typo="Typo.caption">Engine</MudText>
-                <MudToggleGroup @bind-Value="_engine" T="VectorEngineMode" Color="Color.Primary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
-                    <MudToggleItem Value="VectorEngineMode.ZVec" Text="ZVec" />
-                    <MudToggleItem Value="VectorEngineMode.Postgres" Text="PostgreSQL" />
-                    <MudToggleItem Value="VectorEngineMode.Both" Text="Both" />
-                </MudToggleGroup>
-
-                <MudText Typo="Typo.caption" Class="ml-4">Results</MudText>
-                <MudToggleGroup @bind-Value="_topK" T="int" Color="Color.Secondary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
-                    <MudToggleItem Value="3" Text="3" />
-                    <MudToggleItem Value="5" Text="5" />
-                    <MudToggleItem Value="10" Text="10" />
-                </MudToggleGroup>
-
-                @if (_engine == VectorEngineMode.ZVec)
-                {
-                    <MudText Typo="Typo.caption" Class="ml-4">Fusion</MudText>
-                    <MudToggleGroup @bind-Value="_fusion" T="FusionMode" Color="Color.Tertiary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
-                        <MudToggleItem Value="FusionMode.Rrf" Text="RRF" />
-                        <MudToggleItem Value="FusionMode.Weighted" Text="Weighted" />
-                    </MudToggleGroup>
-                }
-            </MudStack>
-
-            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-                <MudSelect T="string" Label="Gender" @bind-Value="_gender" Clearable Dense Style="min-width:120px">
-                    @foreach (var g in _filterOptions.Genders)
-                    {
-                        <MudSelectItem Value="@g">@g</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="string" Label="Colour" @bind-Value="_baseColour" Clearable Dense Style="min-width:120px">
-                    @foreach (var c in _filterOptions.Colours)
-                    {
-                        <MudSelectItem Value="@c">@c</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="string" Label="Season" @bind-Value="_season" Clearable Dense Style="min-width:120px">
-                    @foreach (var s in _filterOptions.Seasons)
-                    {
-                        <MudSelectItem Value="@s">@s</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="string" Label="Usage" @bind-Value="_usage" Clearable Dense Style="min-width:120px">
-                    @foreach (var u in _filterOptions.Usages)
-                    {
-                        <MudSelectItem Value="@u">@u</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSwitch @bind-Value="_useInvert" Color="Color.Primary" Label="Invert filters" Class="ml-2" />
-                <MudSwitch @bind-Value="_useHybridFts" Color="Color.Primary" Label="Hybrid FTS" />
-            </MudStack>
-
-            <MudStack Row="true" Spacing="2">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Search">
-                    Search
-                </MudButton>
-                @if (!string.IsNullOrEmpty(_imageBase64))
-                {
-                    <MudChip T="string" Color="Color.Secondary" OnClose="ClearLens">Lens image attached</MudChip>
-                }
-            </MudStack>
-        </MudStack>
-    </MudPaper>
-
-    @if (_wowChips.Count > 0)
+<div class="search-canvas @(_hasResults ? "search-canvas--serp" : "search-canvas--home")">
+    @if (!_hasResults)
     {
-        <MudStack Spacing="1">
-            <MudText Typo="Typo.caption">Wow chips</MudText>
-            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+        <div class="wordmark mb-8 select-none">ProductSearch</div>
+    }
+
+    <div class="w-full flex flex-col items-center @(_hasResults ? "sticky top-16 z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
+        <div class="omnibox @(_encoderReady ? "" : "opacity-60")">
+            <button type="button" class="omnibox-icon" disabled="@(!_encoderReady || _busy)" @onclick="SearchAsync" title="Search">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
+            </button>
+
+            @if (!string.IsNullOrEmpty(_imagePreviewUrl))
+            {
+                <img src="@_imagePreviewUrl" alt="Lens query" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-base-300" />
+                <button type="button" class="btn btn-ghost btn-xs btn-circle shrink-0" @onclick="ClearLens" title="Remove image">✕</button>
+            }
+
+            <input class="omnibox-input"
+                   placeholder="@(_encoderReady ? "Search fashion products…" : "Waiting for SigLIP…")"
+                   @bind="_query"
+                   @bind:event="oninput"
+                   @onkeydown="OnKeyDown"
+                   disabled="@(!_encoderReady || _busy)" />
+
+            <button type="button" class="omnibox-icon text-primary" disabled="@(!_encoderReady || _busy)" @onclick="OpenLens" title="Google Lens">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+
+        @if (!_encoderReady && _boot is not null)
+        {
+            <p class="text-xs text-base-content/50 mt-2 max-w-[680px] text-center">@_boot.Message</p>
+        }
+
+        @if (_wowChips.Count > 0 && !_hasResults)
+        {
+            <div class="flex flex-wrap justify-center gap-2 mt-5 max-w-[680px]">
                 @foreach (var chip in _wowChips)
                 {
-                    <MudChip T="string" Variant="Variant.Outlined" OnClick="@(() => ApplyChip(chip))" Class="wow-chip">
+                    <button type="button" class="btn btn-ghost btn-sm rounded-full border border-base-300/80" @onclick="() => ApplyChip(chip)">
                         @chip.Name
-                    </MudChip>
+                    </button>
                 }
-            </MudStack>
-        </MudStack>
-    }
+            </div>
+        }
 
-    @if (_response?.Latency is not null)
-    {
-        <MudPaper Class="latency-hud pa-3" Elevation="0" Outlined="true">
-            <MudText Typo="Typo.caption" Class="mb-2">Latency HUD (ms)</MudText>
-            <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
-                <MudText Typo="Typo.caption">encode @FormatMs(_response.Latency.EncodeMs)</MudText>
-                <MudText Typo="Typo.caption">text ANN @FormatMs(_response.Latency.TextAnnMs)</MudText>
-                <MudText Typo="Typo.caption">image ANN @FormatMs(_response.Latency.ImageAnnMs)</MudText>
-                <MudText Typo="Typo.caption">FTS @FormatMs(_response.Latency.FtsMs)</MudText>
-                <MudText Typo="Typo.caption">fuse @FormatMs(_response.Latency.FuseMs)</MudText>
-                <MudText Typo="Typo.caption">pgvector @FormatMs(_response.Latency.PgVectorMs)</MudText>
-                <MudText Typo="Typo.caption">SQL @FormatMs(_response.Latency.SqlHydrateMs)</MudText>
-                <MudText Typo="Typo.caption"><strong>total @FormatMs(_response.Latency.TotalMs)</strong></MudText>
-            </MudStack>
-            @if (_response.Compare is not null)
-            {
-                <MudText Typo="Typo.caption" Class="mt-2">
-                    Overlap @_response.Compare.OverlapAtN · Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
-                    rank swaps @_response.Compare.RankDisagreements ·
-                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
-                </MudText>
-            }
-        </MudPaper>
-    }
+        @if (_hasResults)
+        {
+            <div class="demo-strip">
+                <div class="collapse collapse-arrow bg-base-200/60 border border-base-300 rounded-2xl">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium py-3 min-h-0">Demo settings</div>
+                    <div class="collapse-content text-sm pb-4">
+                        <DemoControls @bind-Engine="_engine"
+                                      @bind-TopK="_topK"
+                                      @bind-Fusion="_fusion"
+                                      @bind-Gender="_gender"
+                                      @bind-BaseColour="_baseColour"
+                                      @bind-Season="_season"
+                                      @bind-Usage="_usage"
+                                      @bind-UseInvert="_useInvert"
+                                      @bind-UseHybridFts="_useHybridFts"
+                                      ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 
-    @if (!string.IsNullOrEmpty(_response?.Warning))
+    @if (!_hasResults)
     {
-        <MudAlert Severity="Severity.Warning">@_response.Warning</MudAlert>
+        <div class="demo-strip mt-8 w-full max-w-xl">
+            <div class="collapse collapse-arrow bg-base-200/40 border border-base-300/60 rounded-2xl">
+                <input type="checkbox" />
+                <div class="collapse-title text-sm font-medium py-3 min-h-0">Demo settings</div>
+                <div class="collapse-content text-sm pb-4">
+                    <DemoControls @bind-Engine="_engine"
+                                  @bind-TopK="_topK"
+                                  @bind-Fusion="_fusion"
+                                  @bind-Gender="_gender"
+                                  @bind-BaseColour="_baseColour"
+                                  @bind-Season="_season"
+                                  @bind-Usage="_usage"
+                                  @bind-UseInvert="_useInvert"
+                                  @bind-UseHybridFts="_useHybridFts"
+                                  ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
+                </div>
+            </div>
+        </div>
     }
 
     @if (_busy)
     {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        <progress class="progress progress-primary w-full max-w-5xl mx-auto mt-6"></progress>
     }
 
-    @if (_engine == VectorEngineMode.Both)
+    @if (_response?.Latency is not null)
     {
-        <MudGrid Spacing="3">
-            <MudItem xs="12" md="6">
-                <MudText Typo="Typo.h6" Class="mb-2">ZVec</MudText>
-                @RenderHits(_response?.ZVecHits)
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudText Typo="Typo.h6" Class="mb-2">PostgreSQL</MudText>
-                @RenderHits(_response?.PostgreSqlHits)
-            </MudItem>
-        </MudGrid>
+        <div class="w-full max-w-5xl mx-auto mt-4 rounded-2xl border border-base-300 bg-base-200/50 p-3 text-xs text-base-content/70">
+            <div class="flex flex-wrap gap-x-4 gap-y-1">
+                <span>encode @FormatMs(_response.Latency.EncodeMs)</span>
+                <span>text @FormatMs(_response.Latency.TextAnnMs)</span>
+                <span>image @FormatMs(_response.Latency.ImageAnnMs)</span>
+                <span>FTS @FormatMs(_response.Latency.FtsMs)</span>
+                <span>fuse @FormatMs(_response.Latency.FuseMs)</span>
+                <span>pgvector @FormatMs(_response.Latency.PgVectorMs)</span>
+                <span>SQL @FormatMs(_response.Latency.SqlHydrateMs)</span>
+                <span class="font-semibold text-base-content">total @FormatMs(_response.Latency.TotalMs)</span>
+            </div>
+            @if (_response.Compare is not null)
+            {
+                <p class="mt-2">
+                    Overlap @_response.Compare.OverlapAtN · Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
+                    rank swaps @_response.Compare.RankDisagreements ·
+                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
+                </p>
+            }
+        </div>
     }
-    else
+
+    @if (!string.IsNullOrEmpty(_response?.Warning))
     {
-        @RenderHits(_engine == VectorEngineMode.Postgres ? _response?.PostgreSqlHits : _response?.ZVecHits)
+        <div role="alert" class="alert alert-warning w-full max-w-5xl mx-auto mt-4">
+            <span>@_response.Warning</span>
+        </div>
     }
-</MudStack>
+
+    @if (_hasResults)
+    {
+        <div class="w-full max-w-6xl mx-auto mt-6">
+            <div role="tablist" class="tabs tabs-bordered mb-4">
+                <button type="button" role="tab" class="tab @(_tab == ResultsTab.All ? "tab-active" : "")" @onclick="() => _tab = ResultsTab.All">All</button>
+                <button type="button" role="tab" class="tab @(_tab == ResultsTab.Images ? "tab-active" : "")" @onclick="() => _tab = ResultsTab.Images">Images</button>
+            </div>
+
+            @if (_engine == VectorEngineMode.Both)
+            {
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div>
+                        <h2 class="text-sm font-semibold mb-3 text-base-content/70">ZVec</h2>
+                        @RenderResults(_response?.ZVecHits)
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-semibold mb-3 text-base-content/70">PostgreSQL</h2>
+                        @RenderResults(_response?.PostgreSqlHits)
+                    </div>
+                </div>
+            }
+            else
+            {
+                @RenderResults(_engine == VectorEngineMode.Postgres ? _response?.PostgreSqlHits : _response?.ZVecHits)
+            }
+        </div>
+    }
+</div>
+
+<InputFile id="lens-file-input" OnChange="OnLensFileSelected" accept="image/*" class="hidden" />
+
+<div class="modal @(_lensOpen ? "modal-open" : "")">
+    <div class="modal-box max-w-lg bg-base-200 border border-base-300">
+        <h3 class="font-semibold text-lg mb-1">Search with Lens</h3>
+        <p class="text-sm text-base-content/60 mb-4">Drop, paste, or upload a photo to find similar products.</p>
+
+        <div @ref="_dropZone" class="lens-dropzone" @onclick="OpenFilePicker">
+            @if (!string.IsNullOrEmpty(_lensPreviewUrl))
+            {
+                <img src="@_lensPreviewUrl" alt="Preview" class="max-h-48 mx-auto rounded-xl mb-4 object-contain" />
+                <p class="text-sm text-base-content/70">Click Search with this image</p>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-primary/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <p class="font-medium">Drop image here</p>
+                <p class="text-xs text-base-content/50 mt-2">or click to browse · Ctrl+V to paste</p>
+            }
+        </div>
+
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" @onclick="CloseLens">Cancel</button>
+            <button type="button" class="btn btn-primary" disabled="@(string.IsNullOrEmpty(_pendingImageBase64))" @onclick="ConfirmLens">Search with image</button>
+        </div>
+    </div>
+    <button type="button" class="modal-backdrop" @onclick="CloseLens">close</button>
+</div>
 
 @code {
+    private enum ResultsTab { All, Images }
+
     private string _query = "";
     private string? _imageBase64;
+    private string? _imagePreviewUrl;
+    private string? _pendingImageBase64;
+    private string? _lensPreviewUrl;
     private VectorEngineMode _engine = VectorEngineMode.ZVec;
     private FusionMode _fusion = FusionMode.Rrf;
     private int _topK = 5;
@@ -172,32 +209,83 @@
     private string? _season;
     private string? _usage;
     private bool _busy;
+    private bool _lensOpen;
+    private bool _encoderReady;
+    private ResultsTab _tab = ResultsTab.All;
     private SearchResponseDto? _response;
+    private ModelBootstrapSnapshotDto? _boot;
     private List<WowQueryChipDto> _wowChips = [];
-    private readonly FilterOptions _filterOptions = new();
+    private ElementReference _dropZone;
+    private DotNetObjectReference<Search>? _dotNetRef;
+    private bool _dropRegistered;
+
+    private bool _hasResults => _response is not null &&
+        ((_response.ZVecHits?.Count ?? 0) > 0 || (_response.PostgreSqlHits?.Count ?? 0) > 0);
 
     protected override async Task OnInitializedAsync()
     {
-        _wowChips = (await Api.GetWowQueriesAsync())?.ToList() ?? [];
+        _dotNetRef = DotNetObjectReference.Create(this);
+        try
+        {
+            _wowChips = (await Api.GetWowQueriesAsync())?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            Toasts.Show(ex.Message, ToastLevel.Warning);
+        }
+
+        await RefreshEncoderStateAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_lensOpen && !_dropRegistered)
+        {
+            await Js.InvokeVoidAsync("productSearchLens.registerDropZone", _dropZone, _dotNetRef);
+            _dropRegistered = true;
+        }
+    }
+
+    private async Task RefreshEncoderStateAsync()
+    {
+        try
+        {
+            var status = await Api.GetStatusAsync();
+            _boot = status?.ModelBootstrap;
+            _encoderReady = status?.ModelBootstrapComplete == true;
+        }
+        catch
+        {
+            _encoderReady = false;
+        }
     }
 
     private async Task SearchAsync()
     {
+        if (!_encoderReady)
+        {
+            Toasts.Show("SigLIP model is still loading.", ToastLevel.Warning);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_query) && string.IsNullOrEmpty(_imageBase64))
         {
-            Snackbar.Add("Enter a query or attach a Lens image.", Severity.Warning);
+            Toasts.Show("Enter a query or attach a Lens image.", ToastLevel.Warning);
             return;
         }
 
         _busy = true;
         try
         {
-            var request = BuildRequest();
-            _response = await Api.SearchAsync(request);
+            _response = await Api.SearchAsync(BuildRequest());
+        }
+        catch (ApiException ex)
+        {
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
@@ -237,82 +325,139 @@
             await SearchAsync();
     }
 
-    private async Task OpenLensPicker()
-        => await Js.InvokeVoidAsync("eval", "document.getElementById('lens-input')?.click()");
+    private void OpenLens()
+    {
+        _pendingImageBase64 = _imageBase64;
+        _lensPreviewUrl = _imagePreviewUrl;
+        _lensOpen = true;
+        _dropRegistered = false;
+    }
 
-    private async Task OnLensSelected(InputFileChangeEventArgs e)
+    private void CloseLens()
+    {
+        _lensOpen = false;
+        _pendingImageBase64 = null;
+        _lensPreviewUrl = null;
+        _dropRegistered = false;
+    }
+
+    private async Task OpenFilePicker()
+        => await Js.InvokeVoidAsync("eval", "document.getElementById('lens-file-input')?.click()");
+
+    private async Task OnLensFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file is null) return;
         await using var stream = file.OpenReadStream(8 * 1024 * 1024);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
-        _imageBase64 = Convert.ToBase64String(ms.ToArray());
-        _query = "";
-        Snackbar.Add("Lens image attached.", Severity.Info);
+        await SetPendingImageAsync(Convert.ToBase64String(ms.ToArray()), file.ContentType);
     }
 
-    private void ClearLens() => _imageBase64 = null;
+    [JSInvokable]
+    public Task OnLensFileReceived(string base64, string contentType)
+        => SetPendingImageAsync(base64, contentType);
+
+    private Task SetPendingImageAsync(string base64, string contentType)
+    {
+        _pendingImageBase64 = base64;
+        _lensPreviewUrl = $"data:{contentType};base64,{base64}";
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ConfirmLens()
+    {
+        if (string.IsNullOrEmpty(_pendingImageBase64))
+            return;
+
+        _imageBase64 = _pendingImageBase64;
+        _imagePreviewUrl = _lensPreviewUrl;
+        _query = "";
+        CloseLens();
+        await SearchAsync();
+    }
+
+    private void ClearLens()
+    {
+        _imageBase64 = null;
+        _imagePreviewUrl = null;
+    }
 
     private static string FormatMs(double ms) => ms.ToString("0.#");
 
-    private RenderFragment RenderHits(IReadOnlyList<SearchHitDto>? hits) => builder =>
+    private RenderFragment RenderResults(IReadOnlyList<SearchHitDto>? hits) => builder =>
     {
         if (hits is null || hits.Count == 0)
         {
-            builder.OpenComponent<MudText>(0);
-            builder.AddAttribute(1, "Typo", Typo.body2);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(3, "No results yet.")));
-            builder.CloseComponent();
+            builder.OpenElement(0, "p");
+            builder.AddAttribute(1, "class", "text-sm text-base-content/50");
+            builder.AddContent(2, "No results.");
+            builder.CloseElement();
             return;
         }
 
+        if (_tab == ResultsTab.Images)
+        {
+            builder.OpenElement(10, "div");
+            builder.AddAttribute(11, "class", "product-grid--masonry");
+            foreach (var hit in hits)
+            {
+                builder.OpenElement(20, "article");
+                builder.AddAttribute(21, "class", "product-tile group");
+                builder.OpenElement(22, "img");
+                builder.AddAttribute(23, "src", hit.Product.ImageUrl);
+                builder.AddAttribute(24, "alt", hit.Product.ProductDisplayName);
+                builder.AddAttribute(25, "loading", "lazy");
+                builder.CloseElement();
+                builder.OpenElement(26, "div");
+                builder.AddAttribute(27, "class", "p-3 opacity-0 group-hover:opacity-100 transition-opacity");
+                builder.AddContent(28, hit.Product.ProductDisplayName);
+                builder.OpenElement(29, "div");
+                builder.AddAttribute(30, "class", "text-xs text-base-content/60");
+                builder.AddContent(31, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}%");
+                builder.CloseElement();
+                builder.CloseElement();
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(100, "div");
+        builder.AddAttribute(101, "class", "flex flex-col gap-3");
         foreach (var hit in hits)
         {
-            builder.OpenComponent<MudCard>(10);
-            builder.AddAttribute(11, "Class", "product-card mb-3");
-            builder.AddAttribute(12, "Elevation", 0);
-            builder.AddAttribute(13, "Outlined", true);
-            builder.AddAttribute(14, "ChildContent", (RenderFragment)(card =>
-            {
-                card.OpenComponent<MudCardContent>(20);
-                card.AddAttribute(21, "ChildContent", (RenderFragment)(content =>
-                {
-                    content.OpenElement(22, "div");
-                    content.AddAttribute(23, "class", "product-card-inner");
-                    content.OpenComponent<MudImage>(24);
-                    content.AddAttribute(25, "Src", hit.Product.ImageUrl);
-                    content.AddAttribute(26, "Alt", hit.Product.ProductDisplayName);
-                    content.AddAttribute(27, "Class", "product-thumb");
-                    content.CloseComponent();
-                    content.OpenElement(28, "div");
-                    content.AddAttribute(29, "class", "product-meta");
-                    content.OpenComponent<MudText>(30);
-                    content.AddAttribute(31, "Typo", Typo.subtitle1);
-                    content.AddAttribute(32, "ChildContent", (RenderFragment)(t => t.AddContent(33, hit.Product.ProductDisplayName)));
-                    content.CloseComponent();
-                    content.OpenComponent<MudText>(34);
-                    content.AddAttribute(35, "Typo", Typo.caption);
-                    content.AddAttribute(36, "ChildContent", (RenderFragment)(t => t.AddContent(37, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}")));
-                    content.CloseComponent();
-                    content.OpenComponent<MudText>(38);
-                    content.AddAttribute(39, "Typo", Typo.caption);
-                    content.AddAttribute(40, "ChildContent", (RenderFragment)(t => t.AddContent(41, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}% · {hit.Engine}")));
-                    content.CloseComponent();
-                    content.CloseElement();
-                    content.CloseElement();
-                }));
-                card.CloseComponent();
-            }));
-            builder.CloseComponent();
+            builder.OpenElement(110, "article");
+            builder.AddAttribute(111, "class", "product-card-row");
+            builder.OpenElement(112, "img");
+            builder.AddAttribute(113, "src", hit.Product.ImageUrl);
+            builder.AddAttribute(114, "alt", hit.Product.ProductDisplayName);
+            builder.AddAttribute(115, "class", "w-24 h-32 object-cover rounded-xl shrink-0");
+            builder.AddAttribute(116, "loading", "lazy");
+            builder.CloseElement();
+            builder.OpenElement(117, "div");
+            builder.AddAttribute(118, "class", "min-w-0 flex-1");
+            builder.OpenElement(119, "h3");
+            builder.AddAttribute(120, "class", "font-medium truncate");
+            builder.AddContent(121, hit.Product.ProductDisplayName);
+            builder.CloseElement();
+            builder.OpenElement(122, "p");
+            builder.AddAttribute(123, "class", "text-xs text-base-content/60 mt-1");
+            builder.AddContent(124, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}");
+            builder.CloseElement();
+            builder.OpenElement(125, "p");
+            builder.AddAttribute(126, "class", "text-xs text-primary mt-2");
+            builder.AddContent(127, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}% · {hit.Engine}");
+            builder.CloseElement();
+            builder.CloseElement();
+            builder.CloseElement();
         }
+        builder.CloseElement();
     };
 
-    private sealed class FilterOptions
+    public async ValueTask DisposeAsync()
     {
-        public string[] Genders { get; } = ["Men", "Women", "Unisex", "Boys", "Girls"];
-        public string[] Colours { get; } = ["Blue", "Black", "White", "Red", "Green", "Brown", "Grey", "Pink", "Navy Blue"];
-        public string[] Seasons { get; } = ["Summer", "Winter", "Fall", "Spring"];
-        public string[] Usages { get; } = ["Casual", "Formal", "Sports", "Ethnic", "Smart Casual", "Travel"];
+        _dotNetRef?.Dispose();
+        await ValueTask.CompletedTask;
     }
 }

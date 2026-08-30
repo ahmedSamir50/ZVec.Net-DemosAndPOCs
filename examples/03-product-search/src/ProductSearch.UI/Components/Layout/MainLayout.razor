@@ -1,68 +1,59 @@
 ﻿@inherits LayoutComponentBase
 
-<MudThemeProvider Theme="_theme" IsDarkMode="true" />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+<div class="min-h-screen bg-base-100">
+    <header class="navbar bg-base-100/90 border-b border-base-300 backdrop-blur sticky top-0 z-30 px-4 h-16">
+        <div class="flex-1 min-w-0">
+            <a href="/search" class="text-lg font-semibold tracking-tight truncate">ProductSearch</a>
+        </div>
+        <div class="flex-none flex items-center gap-3">
+            <ModelHud />
+            @if (_demoReady)
+            {
+                <span class="badge badge-success badge-outline badge-sm hidden sm:inline-flex">Demo ready</span>
+            }
+        </div>
+    </header>
 
-<MudLayout Class="fashion-layout">
-    <MudAppBar Elevation="0" Class="fashion-appbar" Dense="true">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" />
-        <MudText Typo="Typo.h6" Class="fashion-brand">ProductSearch</MudText>
-        <MudText Typo="Typo.caption" Class="ml-2 fashion-tagline">SigLIP · ZVec · pgvector</MudText>
-    </MudAppBar>
+    <nav class="dock-nav">
+        <NavLink href="/search" class="btn btn-ghost btn-square" Match="NavLinkMatch.Prefix" title="Search">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
+        </NavLink>
+        <NavLink href="/ingest" class="btn btn-ghost btn-square" title="Ingest">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+        </NavLink>
+        <NavLink href="/status" class="btn btn-ghost btn-square" title="Status">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+        </NavLink>
+    </nav>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Class="fashion-drawer" Variant="DrawerVariant.Responsive">
-        <MudNavMenu>
-            <MudNavLink Href="/search" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Search">Search</MudNavLink>
-            <MudNavLink Href="/ingest" Icon="@Icons.Material.Filled.CloudDownload">Ingest</MudNavLink>
-            <MudNavLink Href="/status" Icon="@Icons.Material.Filled.Analytics">Status</MudNavLink>
-        </MudNavMenu>
-    </MudDrawer>
+    <main class="main-with-dock">
+        @Body
+    </main>
 
-    <MudMainContent Class="fashion-main">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+    <ToastHost />
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
-    <span class="dismiss">X</span>
+    <span class="dismiss">✕</span>
 </div>
 
 @code {
-    private bool _drawerOpen = true;
+    [Inject] private ApiClientService Api { get; set; } = default!;
 
-    private readonly MudTheme _theme = new()
+    private bool _demoReady;
+
+    protected override async Task OnInitializedAsync()
     {
-        PaletteDark = new PaletteDark
+        try
         {
-            Primary = "#E8B4B8",
-            Secondary = "#C9A96E",
-            AppbarBackground = "#0A0A0A",
-            Background = "#0A0A0A",
-            Surface = "#141414",
-            DrawerBackground = "#111111",
-            TextPrimary = "#F5F0EB",
-            TextSecondary = "#A89F94",
-            ActionDefault = "#C9A96E"
-        },
-        Typography = new Typography
-        {
-            Default = new DefaultTypography
-            {
-                FontFamily = ["Cormorant Garamond", "Georgia", "serif"]
-            },
-            H4 = new H4Typography { FontFamily = ["Cormorant Garamond", "Georgia", "serif"] },
-            H6 = new H6Typography { FontFamily = ["Cormorant Garamond", "Georgia", "serif"] },
-            Button = new ButtonTypography { FontFamily = ["Inter", "Segoe UI", "sans-serif"] },
-            Body1 = new Body1Typography { FontFamily = ["Inter", "Segoe UI", "sans-serif"] },
-            Body2 = new Body2Typography { FontFamily = ["Inter", "Segoe UI", "sans-serif"] }
+            var status = await Api.GetStatusAsync();
+            _demoReady = status?.DemoReady == true;
         }
-    };
-
-    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+        catch
+        {
+            _demoReady = false;
+        }
+    }
 }

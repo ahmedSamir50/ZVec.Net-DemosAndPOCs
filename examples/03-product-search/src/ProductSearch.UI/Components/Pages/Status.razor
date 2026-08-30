@@ -1,85 +1,151 @@
 @page "/status"
 @rendermode InteractiveServer
 @inject ApiClientService Api
-@inject ISnackbar Snackbar
+@inject ToastService Toasts
 
-<MudStack Spacing="4">
-    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+<div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <MudText Typo="Typo.h4">Status</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                Catalog counts, model stamp, and maintenance actions.
-            </MudText>
+            <h1 class="text-2xl font-semibold">Status</h1>
+            <p class="text-sm text-base-content/60 mt-1">Catalog counts, SigLIP bootstrap, and maintenance.</p>
         </div>
-        <MudButton Variant="Variant.Outlined" OnClick="RefreshAsync" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loading">
-            Refresh
-        </MudButton>
-    </MudStack>
+        <button type="button" class="btn btn-outline btn-sm" disabled="_loading" @onclick="RefreshAsync">Refresh</button>
+    </div>
 
     @if (_loading && _status is null)
     {
-        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <span class="loading loading-spinner loading-lg text-primary"></span>
     }
     else if (_status is not null)
     {
-        <MudCard Elevation="0" Outlined="true">
-            <MudCardContent>
-                <MudSimpleTable Dense="true" Hover="false" Bordered="false" Style="background: transparent;">
-                    <tbody>
-                        <tr><td>Demo ready</td><td>@(_status.DemoReady ? "Yes" : "No")</td></tr>
-                        <tr><td>Model</td><td>@_status.ActiveModelId (@_status.EmbeddingDim dim)</td></tr>
-                        <tr><td>Stamp match</td><td>@(_status.StampMatch ? "Yes" : "No")</td></tr>
-                        <tr><td>Postgres count</td><td>@_status.PostgresCount</td></tr>
-                        <tr><td>ZVec text count</td><td>@_status.ZVecTextCount</td></tr>
-                        <tr><td>ZVec image count</td><td>@_status.ZVecImageCount</td></tr>
-                        <tr><td>Ingest offset</td><td>@_status.IngestOffset / @_status.CatalogTotal</td></tr>
-                        <tr><td>Bootstrap</td><td>@(_status.ModelBootstrapComplete ? "Complete" : "Pending")</td></tr>
-                    </tbody>
-                </MudSimpleTable>
-            </MudCardContent>
-        </MudCard>
+        @if (_status.ModelBootstrap is not null)
+        {
+            <div class="card bg-base-200 border border-base-300">
+                <div class="card-body gap-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 class="card-title text-base">SigLIP bootstrap</h2>
+                            <p class="text-sm text-base-content/60">@_status.ModelBootstrap.Message</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="badge @BootstrapBadgeClass(_status.ModelBootstrap.State)">@_status.ModelBootstrap.State</span>
+                            @if (_status.ModelBootstrap.State is "Failed")
+                            {
+                                <button type="button" class="btn btn-error btn-sm" disabled="_busy" @onclick="RetryModelAsync">
+                                    @(_busy ? "Retrying…" : "Retry download")
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (_status.ModelBootstrap.OverallPercent is not null &&
+                         _status.ModelBootstrap.State is not ("Ready" or "Failed"))
+                    {
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span>Overall progress</span>
+                                <span>@($"{_status.ModelBootstrap.OverallPercent:0.#}%")</span>
+                            </div>
+                            <progress class="progress progress-primary w-full" value="@_status.ModelBootstrap.OverallPercent" max="100"></progress>
+                        </div>
+                    }
+
+                    @if (_status.ModelBootstrap.Files.Count > 0)
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>File</th>
+                                        <th>Status</th>
+                                        <th>Bytes</th>
+                                        <th>%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var file in _status.ModelBootstrap.Files)
+                                    {
+                                        <tr>
+                                            <td class="font-mono text-xs">@file.Name</td>
+                                            <td><span class="badge badge-ghost badge-sm">@file.Status</span></td>
+                                            <td class="text-xs tabular-nums">@FormatBytes(file.BytesReceived, file.BytesTotal)</td>
+                                            <td class="text-xs tabular-nums">@(file.Percent is null ? "—" : $"{file.Percent:0.#}%")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_status.ModelBootstrap.Error))
+                    {
+                        <div role="alert" class="alert alert-error text-sm">
+                            <span>@_status.ModelBootstrap.Error</span>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_status.ModelBootstrap.ModelsDir))
+                    {
+                        <p class="text-xs text-base-content/50 font-mono break-all">@_status.ModelBootstrap.ModelsDir</p>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card bg-base-200 border border-base-300">
+            <div class="card-body">
+                <h2 class="card-title text-base mb-2">Demo readiness</h2>
+                <div class="overflow-x-auto">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr><td>Demo ready</td><td>@(_status.DemoReady ? "Yes" : "No")</td></tr>
+                            <tr><td>Model</td><td>@_status.ActiveModelId (@_status.EmbeddingDim dim)</td></tr>
+                            <tr><td>Stamp match</td><td>@(_status.StampMatch ? "Yes" : "No")</td></tr>
+                            <tr><td>Postgres count</td><td>@_status.PostgresCount</td></tr>
+                            <tr><td>ZVec text count</td><td>@_status.ZVecTextCount</td></tr>
+                            <tr><td>ZVec image count</td><td>@_status.ZVecImageCount</td></tr>
+                            <tr><td>Ingest offset</td><td>@_status.IngestOffset / @_status.CatalogTotal</td></tr>
+                            <tr><td>Encoder ready</td><td>@(_status.ModelBootstrapComplete ? "Yes" : "No")</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
         @if (!string.IsNullOrEmpty(_status.StampWarning))
         {
-            <MudAlert Severity="Severity.Warning">@_status.StampWarning</MudAlert>
+            <div role="alert" class="alert alert-warning"><span>@_status.StampWarning</span></div>
         }
         @if (!string.IsNullOrEmpty(_status.IndexWarning))
         {
-            <MudAlert Severity="Severity.Info">@_status.IndexWarning</MudAlert>
+            <div role="alert" class="alert alert-info"><span>@_status.IndexWarning</span></div>
         }
 
-        <MudCard Elevation="0" Outlined="true">
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Model</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
+        <div class="card bg-base-200 border border-base-300">
+            <div class="card-body gap-4">
+                <h2 class="card-title text-base">Model</h2>
                 @if (_models is not null)
                 {
-                    <MudSelect T="string" Label="Active SigLIP model" Value="_models.ActiveModelId" ValueChanged="OnModelChanged" Disabled="_busy">
-                        @foreach (var model in _models.Models)
-                        {
-                            <MudSelectItem Value="@model.Id">@model.DisplayName (@model.EmbeddingDim)</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <label class="form-control max-w-md">
+                        <span class="label-text text-xs mb-1">Active SigLIP model</span>
+                        <select class="select select-bordered" value="@_models.ActiveModelId" @onchange="OnModelChanged" disabled="_busy">
+                            @foreach (var model in _models.Models)
+                            {
+                                <option value="@model.Id">@model.DisplayName (@model.EmbeddingDim)</option>
+                            }
+                        </select>
+                    </label>
                 }
-            </MudCardContent>
-        </MudCard>
+            </div>
+        </div>
 
-        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="OptimizeAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Speed">
-                Optimize indexes
-            </MudButton>
-            <MudButton Color="Color.Warning" Variant="Variant.Outlined" OnClick="ResetIndexesAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.DeleteSweep">
-                Reset ZVec indexes
-            </MudButton>
-            <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="ResetCatalogAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Storage">
-                Reset SQL catalog
-            </MudButton>
-        </MudStack>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline btn-sm" disabled="_busy" @onclick="OptimizeAsync">Optimize indexes</button>
+            <button type="button" class="btn btn-outline btn-warning btn-sm" disabled="_busy" @onclick="ResetIndexesAsync">Reset ZVec indexes</button>
+            <button type="button" class="btn btn-outline btn-error btn-sm" disabled="_busy" @onclick="ResetCatalogAsync">Reset SQL catalog</button>
+        </div>
     }
-</MudStack>
+</div>
 
 @code {
     private StatusDto? _status;
@@ -102,7 +168,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
@@ -110,25 +176,58 @@
         }
     }
 
-    private async Task OnModelChanged(string modelId)
+    private async Task RetryModelAsync()
     {
+        if (string.IsNullOrWhiteSpace(_status?.ActiveModelId))
+            return;
+
+        _busy = true;
+        try
+        {
+            var result = await Api.SelectModelAsync(_status.ActiveModelId);
+            if (result?.Ok == true)
+            {
+                Toasts.Show("Model download restarted.", ToastLevel.Success);
+                await RefreshAsync();
+            }
+            else
+            {
+                Toasts.Show(result?.Error ?? "Retry failed.", ToastLevel.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Show(ex.Message, ToastLevel.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnModelChanged(ChangeEventArgs e)
+    {
+        var modelId = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(modelId))
+            return;
+
         _busy = true;
         try
         {
             var result = await Api.SelectModelAsync(modelId);
             if (result?.Ok == true)
             {
-                Snackbar.Add($"Switched to {modelId}", Severity.Success);
+                Toasts.Show($"Switched to {modelId}", ToastLevel.Success);
                 await RefreshAsync();
             }
             else
             {
-                Snackbar.Add(result?.Error ?? "Model switch failed", Severity.Error);
+                Toasts.Show(result?.Error ?? "Model switch failed", ToastLevel.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
@@ -142,12 +241,12 @@
         try
         {
             await Api.OptimizeIndexAsync();
-            Snackbar.Add("Indexes optimized.", Severity.Success);
+            Toasts.Show("Indexes optimized.", ToastLevel.Success);
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
@@ -161,12 +260,12 @@
         try
         {
             await Api.ResetIndexesAsync();
-            Snackbar.Add("ZVec indexes reset.", Severity.Warning);
+            Toasts.Show("ZVec indexes reset.", ToastLevel.Warning);
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
@@ -180,16 +279,43 @@
         try
         {
             await Api.ResetCatalogAsync();
-            Snackbar.Add("SQL catalog reset.", Severity.Warning);
+            Toasts.Show("SQL catalog reset.", ToastLevel.Warning);
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add(ex.Message, Severity.Error);
+            Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    private static string BootstrapBadgeClass(string state) => state switch
+    {
+        "Ready" => "badge-success",
+        "Failed" => "badge-error",
+        "Downloading" => "badge-info",
+        _ => "badge-ghost"
+    };
+
+    private static string FormatBytes(long received, long? total)
+    {
+        if (total is > 0)
+            return $"{FormatSize(received)} / {FormatSize(total.Value)}";
+
+        return FormatSize(received);
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1_073_741_824)
+            return $"{bytes / 1_073_741_824.0:0.##} GB";
+        if (bytes >= 1_048_576)
+            return $"{bytes / 1_048_576.0:0.##} MB";
+        if (bytes >= 1024)
+            return $"{bytes / 1024.0:0.##} KB";
+        return $"{bytes} B";
     }
 }

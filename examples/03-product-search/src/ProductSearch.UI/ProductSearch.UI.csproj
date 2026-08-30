@@ -9,12 +9,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MudBlazor" Version="9.9.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\ProductSearch.Shared\ProductSearch.Shared.csproj" />
     <ProjectReference Include="..\ProductSearch.ServiceDefaults\ProductSearch.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <Target Name="NpmInstall" BeforeTargets="BuildTailwindCss" Condition="!Exists('$(ProjectDir)node_modules')">
+    <Exec Command="npm install" WorkingDirectory="$(ProjectDir)" />
+  </Target>
+
+  <Target Name="BuildTailwindCss" BeforeTargets="Build">
+    <Exec Command="npm run build:css" WorkingDirectory="$(ProjectDir)" />
+  </Target>
 
 </Project>

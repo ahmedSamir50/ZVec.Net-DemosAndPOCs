@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using ProductSearch.Shared.Constants;
 using ProductSearch.Shared.Dtos;
 
@@ -16,64 +17,114 @@ public sealed class ApiClientService
 
     public async Task<SearchResponseDto?> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(ApiRoutes.Search.TrimStart('/'), request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SearchResponseDto>(ct).ConfigureAwait(false);
+        var response = await _http.PostAsJsonAsync(ApiRoutes.Search.TrimStart('/'), request, ApiJson.Options, ct)
+            .ConfigureAwait(false);
+        return await ReadSuccessAsync<SearchResponseDto>(response, ct).ConfigureAwait(false);
     }
 
     public async Task<SearchResponseDto?> SimilarAsync(Guid productId, SearchRequestDto request, CancellationToken ct = default)
     {
         var route = $"{ApiRoutes.Search}/similar/{productId}".TrimStart('/');
-        var response = await _http.PostAsJsonAsync(route, request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SearchResponseDto>(ct).ConfigureAwait(false);
+        var response = await _http.PostAsJsonAsync(route, request, ApiJson.Options, ct).ConfigureAwait(false);
+        return await ReadSuccessAsync<SearchResponseDto>(response, ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<WowQueryChipDto>?> GetWowQueriesAsync(CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<IReadOnlyList<WowQueryChipDto>>(ApiRoutes.WowQueries.TrimStart('/'), ct).ConfigureAwait(false);
+        => await _http.GetFromJsonAsync<IReadOnlyList<WowQueryChipDto>>(
+            ApiRoutes.WowQueries.TrimStart('/'), ApiJson.Options, ct).ConfigureAwait(false);
 
     public async Task<IngestProgressDto?> StartIngestAsync(IngestRequestDto request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(ApiRoutes.Ingest.TrimStart('/'), request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<IngestProgressDto>(ct).ConfigureAwait(false);
+        var response = await _http.PostAsJsonAsync(ApiRoutes.Ingest.TrimStart('/'), request, ApiJson.Options, ct)
+            .ConfigureAwait(false);
+        return await ReadSuccessAsync<IngestProgressDto>(response, ct).ConfigureAwait(false);
     }
 
     public async Task<IngestProgressDto?> GetIngestAsync(CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<IngestProgressDto>(ApiRoutes.Ingest.TrimStart('/'), ct).ConfigureAwait(false);
+        => await _http.GetFromJsonAsync<IngestProgressDto>(ApiRoutes.Ingest.TrimStart('/'), ApiJson.Options, ct)
+            .ConfigureAwait(false);
 
     public async Task OptimizeIndexAsync(CancellationToken ct = default)
     {
         var response = await _http.PostAsync(ApiRoutes.IngestOptimize.TrimStart('/'), null, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
     public async Task ResetIndexesAsync(CancellationToken ct = default)
     {
         var response = await _http.PostAsync(ApiRoutes.IngestResetIndexes.TrimStart('/'), null, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
     public async Task ResetCatalogAsync(CancellationToken ct = default)
     {
         var response = await _http.PostAsync(ApiRoutes.IngestResetCatalog.TrimStart('/'), null, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
     public async Task<StatusDto?> GetStatusAsync(CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<StatusDto>(ApiRoutes.Status.TrimStart('/'), ct).ConfigureAwait(false);
+        => await _http.GetFromJsonAsync<StatusDto>(ApiRoutes.Status.TrimStart('/'), ApiJson.Options, ct)
+            .ConfigureAwait(false);
 
     public async Task<ModelsResponseDto?> GetModelsAsync(CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<ModelsResponseDto>(ApiRoutes.Models.TrimStart('/'), ct).ConfigureAwait(false);
+        => await _http.GetFromJsonAsync<ModelsResponseDto>(ApiRoutes.Models.TrimStart('/'), ApiJson.Options, ct)
+            .ConfigureAwait(false);
 
     public async Task<ModelSelectResultDto?> SelectModelAsync(string modelId, CancellationToken ct = default)
     {
         var response = await _http.PostAsJsonAsync(
             ApiRoutes.ModelsSelect.TrimStart('/'),
             new ModelSelectRequestDto { ModelId = modelId },
+            ApiJson.Options,
             ct).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<ModelSelectResultDto>(ct).ConfigureAwait(false);
-        return await response.Content.ReadFromJsonAsync<ModelSelectResultDto>(ct).ConfigureAwait(false);
+
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<ModelSelectResultDto>(ApiJson.Options, ct).ConfigureAwait(false);
+
+        var error = await ReadProblemMessageAsync(response, ct).ConfigureAwait(false);
+        return new ModelSelectResultDto { Ok = false, Error = error };
+    }
+
+    private static async Task<T?> ReadSuccessAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<T>(ApiJson.Options, ct).ConfigureAwait(false);
+
+        var message = await ReadProblemMessageAsync(response, ct).ConfigureAwait(false);
+        throw new ApiException(response.StatusCode, message);
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var message = await ReadProblemMessageAsync(response, ct).ConfigureAwait(false);
+        throw new ApiException(response.StatusCode, message);
+    }
+
+    private static async Task<string> ReadProblemMessageAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(body))
+            return $"{(int)response.StatusCode} {response.ReasonPhrase}";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("error", out var errorProp) && errorProp.ValueKind == JsonValueKind.String)
+                return errorProp.GetString() ?? body;
+            if (root.TryGetProperty("detail", out var detailProp) && detailProp.ValueKind == JsonValueKind.String)
+                return detailProp.GetString() ?? body;
+            if (root.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+                return titleProp.GetString() ?? body;
+        }
+        catch (JsonException)
+        {
+            // fall through
+        }
+
+        return body.Length > 240 ? body[..240] + "…" : body;
     }
 }

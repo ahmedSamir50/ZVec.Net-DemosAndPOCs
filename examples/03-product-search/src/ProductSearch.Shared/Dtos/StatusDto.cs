@@ -13,6 +13,7 @@ public sealed class StatusDto
     public int IngestOffset { get; set; }
     public int CatalogTotal { get; set; }
     public bool ModelBootstrapComplete { get; set; }
+    public ModelBootstrapSnapshotDto? ModelBootstrap { get; set; }
     public string? StampWarning { get; set; }
     public string? IndexWarning { get; set; }
 }
