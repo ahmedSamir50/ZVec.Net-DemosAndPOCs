@@ -170,7 +170,13 @@ public sealed class IngestService : IIngestService
                     catalog.Count,
                     i + 1);
 
-                var imagePath = await _downloader.EnsureImageAsync(product.CatalogId).ConfigureAwait(false);
+                var imagePath = await _downloader.TryEnsureImageAsync(product.CatalogId).ConfigureAwait(false);
+                if (imagePath is null)
+                {
+                    _logger.LogWarning("Skipping catalog id {CatalogId} — image not found in pack.", product.CatalogId);
+                    continue;
+                }
+
                 var textEmbedding = _encoder.EncodeText(product.ConcatenatedText);
                 var imageEmbedding = _encoder.EncodeImage(imagePath);
 

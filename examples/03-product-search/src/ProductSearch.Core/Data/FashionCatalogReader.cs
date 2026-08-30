@@ -15,9 +15,9 @@ public sealed class FashionCatalogReader
 
     public async Task<IReadOnlyList<CatalogProduct>> ReadAllAsync(CancellationToken ct = default)
     {
-        var path = _options.CatalogStylesPath();
+        var path = _options.CatalogCsvPath();
         if (!File.Exists(path))
-            throw new FileNotFoundException("styles.csv not found. Download the catalog first.", path);
+            throw new FileNotFoundException("Catalog data.csv not found. Extract the in-repo pack first.", path);
 
         var lines = await File.ReadAllLinesAsync(path, ct).ConfigureAwait(false);
         if (lines.Length == 0)
@@ -34,29 +34,69 @@ public sealed class FashionCatalogReader
             if (fields.Count == 0)
                 continue;
 
-            var catalogId = Get(fields, index, "id");
-            if (string.IsNullOrWhiteSpace(catalogId))
-                continue;
-
-            var product = new CatalogProduct
-            {
-                CatalogId = catalogId.Trim(),
-                Gender = Get(fields, index, "gender"),
-                MasterCategory = Get(fields, index, "masterCategory"),
-                SubCategory = Get(fields, index, "subCategory"),
-                ArticleType = Get(fields, index, "articleType"),
-                BaseColour = Get(fields, index, "baseColour"),
-                Season = Get(fields, index, "season"),
-                Year = int.TryParse(Get(fields, index, "year"), out var y) ? y : 0,
-                Usage = Get(fields, index, "usage"),
-                ProductDisplayName = Get(fields, index, "productDisplayName"),
-                ImageRelPath = Path.Combine(_options.ImagesSubdir, $"{catalogId.Trim()}.jpg")
-            };
-            product.ConcatenatedText = BuildConcatenatedText(product);
-            rows.Add(product);
+            var product = TryParseRow(fields, index);
+            if (product is not null)
+                rows.Add(product);
         }
 
         return rows;
+    }
+
+    private CatalogProduct? TryParseRow(IReadOnlyList<string> fields, IReadOnlyDictionary<string, int> index)
+    {
+        if (index.ContainsKey("image"))
+            return ParseDataCsvRow(fields, index);
+
+        return ParseStylesCsvRow(fields, index);
+    }
+
+    private CatalogProduct? ParseDataCsvRow(IReadOnlyList<string> fields, IReadOnlyDictionary<string, int> index)
+    {
+        var imageFile = Get(fields, index, "image");
+        if (string.IsNullOrWhiteSpace(imageFile))
+            return null;
+
+        var catalogId = Path.GetFileNameWithoutExtension(imageFile.Trim());
+        if (string.IsNullOrWhiteSpace(catalogId))
+            return null;
+
+        var category = Get(fields, index, "category");
+        var product = new CatalogProduct
+        {
+            CatalogId = catalogId,
+            ProductDisplayName = Get(fields, index, "display name"),
+            Description = Get(fields, index, "description"),
+            MasterCategory = category,
+            SubCategory = category,
+            ArticleType = category,
+            ImageRelPath = Path.Combine(_options.ImagesSubdir, $"{catalogId}.jpg")
+        };
+        product.ConcatenatedText = BuildConcatenatedText(product);
+        return product;
+    }
+
+    private CatalogProduct? ParseStylesCsvRow(IReadOnlyList<string> fields, IReadOnlyDictionary<string, int> index)
+    {
+        var catalogId = Get(fields, index, "id");
+        if (string.IsNullOrWhiteSpace(catalogId))
+            return null;
+
+        var product = new CatalogProduct
+        {
+            CatalogId = catalogId.Trim(),
+            Gender = Get(fields, index, "gender"),
+            MasterCategory = Get(fields, index, "masterCategory"),
+            SubCategory = Get(fields, index, "subCategory"),
+            ArticleType = Get(fields, index, "articleType"),
+            BaseColour = Get(fields, index, "baseColour"),
+            Season = Get(fields, index, "season"),
+            Year = int.TryParse(Get(fields, index, "year"), out var y) ? y : 0,
+            Usage = Get(fields, index, "usage"),
+            ProductDisplayName = Get(fields, index, "productDisplayName"),
+            ImageRelPath = Path.Combine(_options.ImagesSubdir, $"{catalogId.Trim()}.jpg")
+        };
+        product.ConcatenatedText = BuildConcatenatedText(product);
+        return product;
     }
 
     private static Dictionary<string, int> BuildHeaderIndex(IReadOnlyList<string> headers)
@@ -84,6 +124,13 @@ public sealed class FashionCatalogReader
             var ch = line[i];
             if (ch == '"')
             {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    current += '"';
+                    i++;
+                    continue;
+                }
+
                 inQuotes = !inQuotes;
                 continue;
             }
@@ -110,6 +157,7 @@ public sealed class FashionCatalogReader
             product.ArticleType,
             product.SubCategory,
             product.MasterCategory,
+            product.Description,
             product.BaseColour,
             product.Season,
             product.Usage,
@@ -119,5 +167,4 @@ public sealed class FashionCatalogReader
 
         return string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
-
 }

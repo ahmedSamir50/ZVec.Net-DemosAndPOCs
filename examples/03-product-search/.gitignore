@@ -1,6 +1,7 @@
 # Runtime / downloaded data (keep demo wow-queries.json)
 /data/*
 !/data/wow-queries.json
+!/data/fashion-10k.zip
 /data/cache/
 /data/zvec-text/
 /data/zvec-image/

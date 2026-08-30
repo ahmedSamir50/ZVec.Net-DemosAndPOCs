@@ -12,6 +12,7 @@ public sealed class CatalogProduct
     public int Year { get; set; }
     public string Usage { get; set; } = "";
     public string ProductDisplayName { get; set; } = "";
+    public string Description { get; set; } = "";
     public string ConcatenatedText { get; set; } = "";
     public string ImageRelPath { get; set; } = "";
 }

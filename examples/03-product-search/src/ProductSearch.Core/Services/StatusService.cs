@@ -65,7 +65,7 @@ public sealed class StatusService : IStatusService
         }
         catch
         {
-            // styles.csv may not be downloaded yet.
+            // data.csv may not be extracted from the in-repo pack yet.
         }
 
         string? indexWarning = null;

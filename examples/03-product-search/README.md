@@ -2,7 +2,7 @@
 
 **Requires ZVec.NET 1.0.0-beta.6** (NuGet; `+zvec.0.7.0`).
 
-Google Search + Lens over the **Param Aggarwal fashion-product-images-small** catalog (~44k Myntra SKUs). Same SigLIP embedding, three stores:
+Google Search + Lens over a **10,000-SKU curated fashion catalog** (Myntra-style product images + descriptions). Same SigLIP embedding, three stores:
 
 | Store | Role |
 |-------|------|
@@ -25,14 +25,25 @@ Other examples in this repo show **one HNSW field**. This one is the production 
 
 ## Dataset
 
-| Source | Link |
-|--------|------|
+The demo ships an in-repo pack: [`data/fashion-10k.zip`](data/fashion-10k.zip) (~77 MB, max-compressed). It contains **10,000** products sampled from the Param Aggarwal fashion catalog (image + display name + category + product description).
+
+| Original source | Link |
+|-----------------|------|
 | Kaggle | [paramaggarwal/fashion-product-images-small](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small) |
 | Hugging Face | [ashraq/fashion-product-images-small](https://huggingface.co/datasets/ashraq/fashion-product-images-small) |
 
-First ingest pages the Hugging Face [datasets-server `/rows` API](https://datasets-server.huggingface.co/rows?dataset=ashraq/fashion-product-images-small&config=default&split=train&offset=0&length=100) (max 100 rows per request; ~44,072 rows) into `data/cache/fashion-small/styles.csv`. Images are fetched on demand from each row's `image.src` into `images/{id}.jpg`. Attribution: Param Aggarwal, Myntra catalog scrape.
+**First ingest** lazily extracts from the pack (no network):
 
-**Honest gap:** the small pack has no long descriptions — search text is `productDisplayName` + metadata (colour, season, usage, article type, …). Implicit / visual wow queries rely on SigLIP **image** vectors.
+1. `data.csv` → `data/cache/fashion-small/data.csv` (once)
+2. Each `images/{id}.jpg` → cache **only when that SKU is in the current patch**
+
+Re-curate the pack from a full Kaggle archive with:
+
+```bash
+dotnet run --project tools/CurateFashion10k -- "path/to/archive.zip" "data/fashion-10k.zip"
+```
+
+Attribution: Param Aggarwal, Myntra catalog scrape.
 
 ## Run (Aspire — recommended)
 

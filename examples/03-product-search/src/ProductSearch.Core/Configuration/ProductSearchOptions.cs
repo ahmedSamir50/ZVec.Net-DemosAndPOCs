@@ -21,7 +21,11 @@ public sealed class ProductSearchOptions
 
     public string CatalogCachePath { get; set; } = "./data/cache/fashion-small";
     public string WowQueriesPath { get; set; } = "../../data/wow-queries.json";
-    public string StylesCsvFile { get; set; } = "styles.csv";
+
+    /// <summary>In-repo curated pack (10k SKUs). Resolved against API ContentRoot.</summary>
+    public string CatalogPackZip { get; set; } = "../../data/fashion-10k.zip";
+
+    public string StylesCsvFile { get; set; } = "data.csv";
     public string ImagesSubdir { get; set; } = "images";
 
     public string VisionModelFile { get; set; } = "vision_model.onnx";
@@ -44,18 +48,6 @@ public sealed class ProductSearchOptions
     public float TextCollectionFusionWeight { get; set; } = 0.5f;
     public float ImageCollectionFusionWeight { get; set; } = 0.5f;
 
-    /// <summary>
-    /// Hugging Face datasets-server rows endpoint. Placeholders: {offset}, {length}.
-    /// The server rejects length greater than 100 — we page in 100-row chunks.
-    /// </summary>
-    public string HuggingFaceRowsUrl { get; set; } =
-        "https://datasets-server.huggingface.co/rows?dataset=ashraq/fashion-product-images-small&config=default&split=train&offset={offset}&length={length}";
-
-    /// <summary>datasets-server hard cap; do not raise above 100.</summary>
-    public int HuggingFaceRowsPageSize { get; set; } = 100;
-
-    public string HfRowIndexFile { get; set; } = "hf-row-index.tsv";
-
     public IReadOnlyList<int> AllowedPatchSizes { get; } = [100, 500, 1000];
 
     /// <summary>Resolve relative demo paths against the API ContentRoot (never process CWD).</summary>
@@ -70,6 +62,7 @@ public sealed class ProductSearchOptions
         options.ImageCollectionRoot = ResolvePath(options.ImageCollectionRoot, contentRoot);
         options.CatalogCachePath = ResolvePath(options.CatalogCachePath, contentRoot);
         options.WowQueriesPath = ResolvePath(options.WowQueriesPath, contentRoot);
+        options.CatalogPackZip = ResolvePath(options.CatalogPackZip, contentRoot);
     }
 
     public static string ResolvePath(string path, string contentRoot)
@@ -91,11 +84,8 @@ public sealed class ProductSearchOptions
     public string ModelsDirectoryFor(string modelId)
         => Path.Combine(ModelsDir, modelId);
 
-    public string CatalogStylesPath()
+    public string CatalogCsvPath()
         => Path.Combine(CatalogCachePath, StylesCsvFile);
-
-    public string CatalogRowIndexPath()
-        => Path.Combine(CatalogCachePath, HfRowIndexFile);
 
     public string CatalogImagesDirectory()
         => Path.Combine(CatalogCachePath, ImagesSubdir);
