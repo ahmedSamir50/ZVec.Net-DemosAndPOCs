@@ -65,12 +65,4 @@ public sealed class ProductSearchOptions
 
     public string CatalogImagesDirectory()
         => Path.GetFullPath(Path.Combine(CatalogCachePath, ImagesSubdir));
-
-    public IReadOnlyList<string> RequiredModelFiles =>
-    [
-        VisionModelFile,
-        TextModelFile,
-        TokenizerFile,
-        "spiece.model"
-    ];
 }

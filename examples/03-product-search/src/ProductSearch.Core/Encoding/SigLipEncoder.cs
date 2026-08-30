@@ -17,6 +17,7 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
     private SigLipTokenizer? _tokenizer;
     private int _embeddingDim = 768;
     private int _imageSize = 224;
+    private bool _useBilinearResize;
     private string? _activeModelId;
 
     public SigLipEncoder(IOptions<ProductSearchOptions> options, ILogger<SigLipEncoder> logger)
@@ -47,18 +48,26 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
     {
         lock (_gate)
         {
-            var visionPath = Path.Combine(modelsDir, _options.VisionModelFile);
-            var textPath = Path.Combine(modelsDir, _options.TextModelFile);
-            var tokenizerPath = Path.Combine(modelsDir, _options.TokenizerFile);
-
-            foreach (var path in new[] { visionPath, textPath, tokenizerPath })
+            foreach (var name in model.RequiredModelFiles)
             {
+                var path = Path.Combine(modelsDir, name);
                 if (!File.Exists(path) || new FileInfo(path).Length == 0)
                 {
                     NotReadyReason = $"SigLIP model file missing: {path}";
                     throw new FileNotFoundException(NotReadyReason, path);
                 }
+
+                if (SigLipModelCatalog.TryGetExpectedBytes(model, name, out var expected)
+                    && new FileInfo(path).Length != expected)
+                {
+                    NotReadyReason =
+                        $"SigLIP model file size mismatch for {name}: expected {expected} bytes, found {new FileInfo(path).Length} bytes.";
+                    throw new InvalidDataException(NotReadyReason);
+                }
             }
+
+            var visionPath = Path.Combine(modelsDir, _options.VisionModelFile);
+            var textPath = Path.Combine(modelsDir, _options.TextModelFile);
 
             var so = new SessionOptions
             {
@@ -72,14 +81,17 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
 
             _vision = new InferenceSession(visionPath, so);
             _text = new InferenceSession(textPath, so);
-            _tokenizer = new SigLipTokenizer(modelsDir);
+            _tokenizer = new SigLipTokenizer(modelsDir, model);
             _embeddingDim = model.EmbeddingDim;
             _imageSize = model.ImageSize;
+            _useBilinearResize = model.UseBilinearResize;
             _activeModelId = model.Id;
 
             IsReady = true;
             NotReadyReason = null;
-            _logger.LogInformation("SigLIP encoder ready: {ModelId} dim={Dim} size={Size}", model.Id, model.EmbeddingDim, model.ImageSize);
+            _logger.LogInformation(
+                "SigLIP encoder ready: {ModelId} dim={Dim} size={Size} bilinear={Bilinear}",
+                model.Id, model.EmbeddingDim, model.ImageSize, model.UseBilinearResize);
         }
     }
 
@@ -93,7 +105,8 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
     {
         EnsureReady();
         var size = ImageSize;
-        var pixels = SigLipImagePreprocessor.ToSigLipTensor(imageStream, size);
+        var bilinear = _useBilinearResize;
+        var pixels = SigLipImagePreprocessor.ToSigLipTensor(imageStream, size, bilinear);
         lock (_gate)
         {
             var inputName = _vision!.InputMetadata.Keys.First();

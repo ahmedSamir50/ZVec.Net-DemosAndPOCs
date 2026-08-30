@@ -98,7 +98,7 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             var dir = ModelsDirectoryFor(def.Id);
             Directory.CreateDirectory(dir);
             _bootstrap.SetModelsDir(dir);
-            _bootstrap.InitFiles(_options.Value.RequiredModelFiles);
+            _bootstrap.InitFiles(def.RequiredModelFiles);
             _bootstrap.SetState(ModelBootstrapState.Checking, $"Checking {def.DisplayName} in {dir}");
 
             await EnsureFilesAsync(def, dir, ct).ConfigureAwait(false);
@@ -114,7 +114,7 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             catch (Exception loadEx)
             {
                 _logger.LogWarning(loadEx, "ONNX load failed — removing model files in {Dir}", dir);
-                DeleteInvalidModelFiles(dir, _options.Value.RequiredModelFiles);
+                DeleteInvalidModelFiles(dir, def.RequiredModelFiles);
                 throw;
             }
             _collections.SwitchToModel(def);
@@ -159,20 +159,24 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
     private async Task EnsureFilesAsync(SigLipModelDefinition def, string dir, CancellationToken ct)
     {
         var opt = _options.Value;
-        foreach (var localName in opt.RequiredModelFiles)
+        foreach (var localName in def.RequiredModelFiles)
         {
             ct.ThrowIfCancellationRequested();
             var path = Path.Combine(dir, localName);
+            var expectedBytes = await ResolveExpectedBytesAsync(def, localName, ct).ConfigureAwait(false);
+
             if (File.Exists(path))
             {
                 var length = new FileInfo(path).Length;
-                if (IsValidModelFile(localName, length))
+                if (IsExactModelFileSize(length, expectedBytes))
                 {
-                    _bootstrap.UpdateFile(localName, ModelFileStatus.Present, length, length);
+                    _bootstrap.UpdateFile(localName, ModelFileStatus.Present, length, expectedBytes);
                     continue;
                 }
 
-                _logger.LogWarning("Removing invalid model file {Path} ({Length} bytes)", path, length);
+                _logger.LogWarning(
+                    "Removing invalid model file {Path}: expected {Expected} bytes, found {Actual} bytes",
+                    path, expectedBytes, length);
                 TryDelete(path);
                 TryDelete(path + ".partial");
             }
@@ -184,30 +188,59 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
             }
 
             _bootstrap.SetState(ModelBootstrapState.Downloading, $"Downloading {def.Id}/{localName}…");
-            _bootstrap.UpdateFile(localName, ModelFileStatus.Downloading);
+            _bootstrap.UpdateFile(localName, ModelFileStatus.Downloading, 0, expectedBytes);
             var url = SigLipModelCatalog.DownloadUrl(def, localName);
-            await DownloadFileAsync(url, path, localName, ct).ConfigureAwait(false);
+            await DownloadFileAsync(url, path, localName, expectedBytes, ct).ConfigureAwait(false);
             var finalLength = new FileInfo(path).Length;
-            if (!IsValidModelFile(localName, finalLength))
+            if (!IsExactModelFileSize(finalLength, expectedBytes))
             {
                 TryDelete(path);
-                throw new InvalidDataException($"Downloaded file is too small or corrupt: {localName} ({finalLength} bytes)");
+                throw new InvalidDataException(
+                    $"Downloaded {localName} size mismatch: expected {expectedBytes} bytes, got {finalLength} bytes.");
             }
 
-            _bootstrap.UpdateFile(localName, ModelFileStatus.Done, finalLength, finalLength);
+            _bootstrap.UpdateFile(localName, ModelFileStatus.Done, finalLength, expectedBytes);
         }
     }
 
-    private static bool IsValidModelFile(string localName, long length)
+    private async Task<long> ResolveExpectedBytesAsync(
+        SigLipModelDefinition def,
+        string localName,
+        CancellationToken ct)
     {
-        if (length <= 0)
-            return false;
+        if (SigLipModelCatalog.TryGetExpectedBytes(def, localName, out var catalogBytes))
+            return catalogBytes;
 
-        if (localName.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
-            return length > 1_048_576;
+        var url = SigLipModelCatalog.DownloadUrl(def, localName);
+        var remoteBytes = await ProbeRemoteContentLengthAsync(url, ct).ConfigureAwait(false);
+        if (remoteBytes is null or <= 0)
+            throw new InvalidOperationException($"Could not resolve exact byte size for {def.Id}/{localName}.");
 
-        return length > 1024;
+        _logger.LogInformation(
+            "Using remote Content-Length {Bytes} for {ModelId}/{File} (not cataloged)",
+            remoteBytes, def.Id, localName);
+        return remoteBytes.Value;
     }
+
+    private async Task<long?> ProbeRemoteContentLengthAsync(string url, CancellationToken ct)
+    {
+        var client = _http.CreateClient("models");
+        using var request = new HttpRequestMessage(HttpMethod.Head, url);
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+            .ConfigureAwait(false);
+
+        if (response.Content.Headers.ContentLength is > 0)
+            return response.Content.Headers.ContentLength;
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        using var get = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        return get.Content.Headers.ContentLength;
+    }
+
+    private static bool IsExactModelFileSize(long actualBytes, long expectedBytes)
+        => actualBytes > 0 && actualBytes == expectedBytes;
 
     private static void DeleteInvalidModelFiles(string dir, IReadOnlyList<string> files)
     {
@@ -232,7 +265,12 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         }
     }
 
-    private async Task DownloadFileAsync(string url, string destPath, string fileName, CancellationToken ct)
+    private async Task DownloadFileAsync(
+        string url,
+        string destPath,
+        string fileName,
+        long expectedBytes,
+        CancellationToken ct)
     {
         var partial = destPath + ".partial";
         if (File.Exists(partial))
@@ -245,6 +283,13 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         response.EnsureSuccessStatusCode();
 
         var total = response.Content.Headers.ContentLength;
+        if (total is > 0 && total != expectedBytes)
+        {
+            throw new InvalidDataException(
+                $"Remote {fileName} Content-Length is {total} bytes, expected {expectedBytes} bytes.");
+        }
+
+        var bytesTotal = total ?? expectedBytes;
         await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         await using var output = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None, 80 * 1024, useAsync: true);
 
@@ -256,9 +301,9 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         {
             await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
             received += read;
-            if ((DateTime.UtcNow - lastReport).TotalMilliseconds >= 250 || received == total)
+            if ((DateTime.UtcNow - lastReport).TotalMilliseconds >= 250 || received == bytesTotal)
             {
-                _bootstrap.UpdateFile(fileName, ModelFileStatus.Downloading, received, total);
+                _bootstrap.UpdateFile(fileName, ModelFileStatus.Downloading, received, bytesTotal);
                 lastReport = DateTime.UtcNow;
             }
         }
@@ -266,10 +311,17 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         await output.FlushAsync(ct).ConfigureAwait(false);
         output.Close();
 
+        if (received != expectedBytes)
+        {
+            TryDelete(partial);
+            throw new InvalidDataException(
+                $"Incomplete download for {fileName}: received {received} of {expectedBytes} bytes.");
+        }
+
         if (File.Exists(destPath))
             File.Delete(destPath);
         File.Move(partial, destPath);
-        _bootstrap.UpdateFile(fileName, ModelFileStatus.Done, received, total ?? received);
+        _bootstrap.UpdateFile(fileName, ModelFileStatus.Done, received, expectedBytes);
     }
 
     private static ModelExpectationsDto ToDto(SigLipModelDefinition m)

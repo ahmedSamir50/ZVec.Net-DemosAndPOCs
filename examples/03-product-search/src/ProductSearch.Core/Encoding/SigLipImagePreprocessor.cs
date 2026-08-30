@@ -2,12 +2,20 @@ using SkiaSharp;
 
 namespace ProductSearch.Core.Encoding;
 
+/// <summary>
+/// SigLIP image preprocess: stretch-resize to H×W (no center crop), mean/std 0.5.
+/// </summary>
 public static class SigLipImagePreprocessor
 {
     private const float Mean = 0.5f;
     private const float Std = 0.5f;
 
-    public static float[] ToSigLipTensor(Stream imageStream, int size)
+    /// <param name="imageStream">Decoded image bytes.</param>
+    /// <param name="size">Target width and height (stretch resize).</param>
+    /// <param name="bilinear">
+    /// When true, use bilinear (SigLIP 2 HF resample=2). When false, use Mitchell cubic (SigLIP 1 bicubic).
+    /// </param>
+    public static float[] ToSigLipTensor(Stream imageStream, int size, bool bilinear = false)
     {
         using var codec = SKCodec.Create(imageStream)
             ?? throw new InvalidOperationException("Unable to decode image.");
@@ -17,29 +25,15 @@ public static class SigLipImagePreprocessor
         using var rgba = original.Copy(SKColorType.Rgba8888)
             ?? throw new InvalidOperationException("Unable to convert image to RGBA.");
 
-        var scale = Math.Max((float)size / rgba.Width, (float)size / rgba.Height);
-        var newW = Math.Max(1, (int)Math.Round(rgba.Width * scale));
-        var newH = Math.Max(1, (int)Math.Round(rgba.Height * scale));
+        var sampling = bilinear
+            ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None)
+            : new SKSamplingOptions(SKCubicResampler.Mitchell);
 
-        using var resized = rgba.Resize(new SKImageInfo(newW, newH), new SKSamplingOptions(SKCubicResampler.Mitchell))
+        using var resized = rgba.Resize(new SKImageInfo(size, size), sampling)
             ?? throw new InvalidOperationException("Resize failed.");
 
-        var left = Math.Max(0, (newW - size) / 2);
-        var top = Math.Max(0, (newH - size) / 2);
-        var cropW = Math.Min(size, newW);
-        var cropH = Math.Min(size, newH);
-
-        using var cropped = new SKBitmap(size, size, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using (var canvas = new SKCanvas(cropped))
-        {
-            canvas.Clear(SKColors.Black);
-            var src = new SKRect(left, top, left + cropW, top + cropH);
-            var dst = new SKRect(0, 0, cropW, cropH);
-            canvas.DrawBitmap(resized, src, dst);
-        }
-
         var tensor = new float[3 * size * size];
-        var pixels = cropped.Pixels;
+        var pixels = resized.Pixels;
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
@@ -55,9 +49,9 @@ public static class SigLipImagePreprocessor
         return tensor;
     }
 
-    public static float[] ToSigLipTensor(string filePath, int size)
+    public static float[] ToSigLipTensor(string filePath, int size, bool bilinear = false)
     {
         using var fs = File.OpenRead(filePath);
-        return ToSigLipTensor(fs, size);
+        return ToSigLipTensor(fs, size, bilinear);
     }
 }

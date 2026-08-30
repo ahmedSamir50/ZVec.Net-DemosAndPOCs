@@ -19,7 +19,7 @@ Other examples in this repo show **one HNSW field**. This one is the production 
 ## Stack
 
 - .NET 10, Aspire AppHost, MudBlazor 9.7
-- Local **SigLIP ONNX** (default `siglip-base-patch16-224`, 768-d; optional `siglip-so400m-patch14-384`, 1152-d)
+- Local **SigLIP ONNX** (default `siglip-base-patch16-224`, 768-d; optional `siglip2-so400m-patch14-384`, 1152-d)
 - EF Core + Npgsql + Pgvector
 - **No LM Studio**
 
