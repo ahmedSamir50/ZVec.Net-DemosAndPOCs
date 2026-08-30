@@ -1,0 +1,171 @@
+@page "/ingest"
+@rendermode InteractiveServer
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <div>
+        <MudText Typo="Typo.h4">Ingest</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Resume-safe patches over the Param fashion catalog. Each patch encodes SigLIP vectors,
+            upserts both ZVec collections, then commits PostgreSQL in one transaction.
+        </MudText>
+    </div>
+
+    <MudCard Elevation="0" Outlined="true">
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.subtitle2">Patch size</MudText>
+                <MudToggleGroup @bind-Value="_patchSize" T="int" Color="Color.Primary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
+                    <MudToggleItem Value="100" Text="100" />
+                    <MudToggleItem Value="500" Text="500" />
+                    <MudToggleItem Value="1000" Text="1000" />
+                </MudToggleGroup>
+
+                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               OnClick="RunAsync"
+                               Disabled="_busy"
+                               StartIcon="@(_busy ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.CloudDownload)">
+                        @(_busy ? "Running…" : "Start patch")
+                    </MudButton>
+                    <MudButton Color="Color.Secondary"
+                               Variant="Variant.Outlined"
+                               OnClick="OptimizeAsync"
+                               Disabled="_busy"
+                               StartIcon="@Icons.Material.Filled.Speed">
+                        Optimize indexes
+                    </MudButton>
+                    <MudSwitch @bind-Value="_optimizeAfterPatch" Label="Optimize after patch" Color="Color.Primary" />
+                </MudStack>
+
+                @if (_busy)
+                {
+                    <MudText Typo="Typo.caption">@_status</MudText>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                }
+            </MudStack>
+        </MudCardContent>
+    </MudCard>
+
+    @if (_progress is not null)
+    {
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Progress</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudSimpleTable Dense="true" Hover="false" Bordered="false" Style="background: transparent;">
+                    <tbody>
+                        <tr><td>Status</td><td>@_progress.Status</td></tr>
+                        <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
+                        <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
+                        <tr><td>Encoded</td><td>@_progress.Encoded</td></tr>
+                        <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
+                        <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
+                        <tr><td>Ingest offset</td><td>@_progress.IngestOffset</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+                @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-3">@_progress.ErrorMessage</MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudStack>
+
+@code {
+    private IngestProgressDto? _progress;
+    private bool _busy;
+    private string _status = "";
+    private int _patchSize = 100;
+    private bool _optimizeAfterPatch = true;
+    private CancellationTokenSource? _pollCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _progress = await Api.GetIngestAsync();
+    }
+
+    private async Task RunAsync()
+    {
+        _busy = true;
+        _status = "Starting patch…";
+        await InvokeAsync(StateHasChanged);
+
+        _pollCts = new CancellationTokenSource();
+        var pollTask = PollProgressAsync(_pollCts.Token);
+
+        try
+        {
+            _progress = await Api.StartIngestAsync(new IngestRequestDto
+            {
+                PatchSize = _patchSize,
+                OptimizeAfterPatch = _optimizeAfterPatch
+            });
+            Snackbar.Add($"Patch {_progress?.Status}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            _status = ex.Message;
+        }
+        finally
+        {
+            await _pollCts.CancelAsync();
+            try { await pollTask; } catch (OperationCanceledException) { }
+            _pollCts.Dispose();
+            _pollCts = null;
+            _busy = false;
+            _status = "";
+            _progress = await Api.GetIngestAsync() ?? _progress;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OptimizeAsync()
+    {
+        _busy = true;
+        _status = "Optimizing HNSW indexes…";
+        try
+        {
+            await Api.OptimizeIndexAsync();
+            Snackbar.Add("Optimized — flat buffers merged into HNSW.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+            _status = "";
+        }
+    }
+
+    private async Task PollProgressAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var p = await Api.GetIngestAsync(ct);
+                if (p is not null)
+                {
+                    _progress = p;
+                    _status = $"Status: {p.Status} · encoded {p.Encoded} · SQL {p.SqlCommitted}";
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException) { break; }
+            catch { /* transient */ }
+
+            try { await Task.Delay(750, ct); }
+            catch (OperationCanceledException) { break; }
+        }
+    }
+}

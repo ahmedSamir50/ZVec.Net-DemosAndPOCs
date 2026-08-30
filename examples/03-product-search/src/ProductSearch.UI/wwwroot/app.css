@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+html, body {
+    background: #0a0a0a;
+    color: #f5f0eb;
+    font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.fashion-layout {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #1a1410 0%, #0a0a0a 55%);
+}
+
+.fashion-appbar {
+    background: rgba(10, 10, 10, 0.92) !important;
+    border-bottom: 1px solid #2a2420;
+    backdrop-filter: blur(12px);
+}
+
+.fashion-brand {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.fashion-tagline {
+    color: #a89f94 !important;
+    letter-spacing: 0.04em;
+}
+
+.fashion-drawer {
+    border-right: 1px solid #2a2420 !important;
+}
+
+.fashion-main {
+    background: transparent;
+}
+
+.search-hero {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.search-title {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.search-subtitle {
+    color: #a89f94;
+}
+
+.omnibox-paper {
+    background: rgba(20, 20, 20, 0.9) !important;
+    border-color: #3a322c !important;
+    border-radius: 24px !important;
+}
+
+.omnibox-input .mud-input-outlined-border {
+    border-radius: 999px !important;
+}
+
+.latency-hud {
+    background: rgba(20, 20, 20, 0.75) !important;
+    border-color: #3a322c !important;
+}
+
+.wow-chip {
+    border-color: #c9a96e !important;
+    color: #e8d5b5 !important;
+}
+
+.product-card {
+    background: #141414 !important;
+    border-color: #2a2420 !important;
+}
+
+.product-card-inner {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.product-thumb {
+    width: 96px;
+    height: 128px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #2a2420;
+}
+
+.product-meta {
+    flex: 1;
+}
+
+#blazor-error-ui {
+    background: #3a1f1f;
+    color: #f5f0eb;
+}

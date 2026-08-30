@@ -1,0 +1,7 @@
+data/cache/
+data/zvec-text/
+data/zvec-image/
+models/
+zvec/
+**/bin/
+**/obj/

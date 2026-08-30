@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ProductSearch.Api/ProductSearch.Api.csproj" />
+    <Project Path="src/ProductSearch.AppHost/ProductSearch.AppHost.csproj" />
+    <Project Path="src/ProductSearch.Core/ProductSearch.Core.csproj" />
+    <Project Path="src/ProductSearch.ServiceDefaults/ProductSearch.ServiceDefaults.csproj" />
+    <Project Path="src/ProductSearch.Shared/ProductSearch.Shared.csproj" />
+    <Project Path="src/ProductSearch.UI/ProductSearch.UI.csproj" />
+  </Folder>
+</Solution>

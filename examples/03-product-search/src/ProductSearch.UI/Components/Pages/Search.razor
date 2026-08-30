@@ -1,0 +1,318 @@
+@page "/search"
+@rendermode InteractiveServer
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+@inject IJSRuntime Js
+
+<MudStack Spacing="4" Class="search-page">
+    <div class="search-hero">
+        <MudText Typo="Typo.h4" Class="search-title">Search the catalog</MudText>
+        <MudText Typo="Typo.body2" Class="search-subtitle">Text, metadata filters, or Lens — compare ZVec vs PostgreSQL</MudText>
+    </div>
+
+    <MudPaper Class="omnibox-paper pa-4" Elevation="0" Outlined="true">
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_query"
+                          Placeholder="Search products…"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.CameraAlt"
+                          OnAdornmentClick="OpenLensPicker"
+                          Immediate="true"
+                          Class="omnibox-input"
+                          @onkeydown="OnKeyDown" />
+
+            <InputFile id="lens-input" OnChange="OnLensSelected" accept="image/*" class="d-none" />
+
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.caption">Engine</MudText>
+                <MudToggleGroup @bind-Value="_engine" T="VectorEngineMode" Color="Color.Primary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
+                    <MudToggleItem Value="VectorEngineMode.ZVec" Text="ZVec" />
+                    <MudToggleItem Value="VectorEngineMode.Postgres" Text="PostgreSQL" />
+                    <MudToggleItem Value="VectorEngineMode.Both" Text="Both" />
+                </MudToggleGroup>
+
+                <MudText Typo="Typo.caption" Class="ml-4">Results</MudText>
+                <MudToggleGroup @bind-Value="_topK" T="int" Color="Color.Secondary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
+                    <MudToggleItem Value="3" Text="3" />
+                    <MudToggleItem Value="5" Text="5" />
+                    <MudToggleItem Value="10" Text="10" />
+                </MudToggleGroup>
+
+                @if (_engine == VectorEngineMode.ZVec)
+                {
+                    <MudText Typo="Typo.caption" Class="ml-4">Fusion</MudText>
+                    <MudToggleGroup @bind-Value="_fusion" T="FusionMode" Color="Color.Tertiary" SelectionMode="SelectionMode.SingleSelection" CheckMark>
+                        <MudToggleItem Value="FusionMode.Rrf" Text="RRF" />
+                        <MudToggleItem Value="FusionMode.Weighted" Text="Weighted" />
+                    </MudToggleGroup>
+                }
+            </MudStack>
+
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudSelect T="string" Label="Gender" @bind-Value="_gender" Clearable Dense Style="min-width:120px">
+                    @foreach (var g in _filterOptions.Genders)
+                    {
+                        <MudSelectItem Value="@g">@g</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Label="Colour" @bind-Value="_baseColour" Clearable Dense Style="min-width:120px">
+                    @foreach (var c in _filterOptions.Colours)
+                    {
+                        <MudSelectItem Value="@c">@c</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Label="Season" @bind-Value="_season" Clearable Dense Style="min-width:120px">
+                    @foreach (var s in _filterOptions.Seasons)
+                    {
+                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Label="Usage" @bind-Value="_usage" Clearable Dense Style="min-width:120px">
+                    @foreach (var u in _filterOptions.Usages)
+                    {
+                        <MudSelectItem Value="@u">@u</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSwitch @bind-Value="_useInvert" Color="Color.Primary" Label="Invert filters" Class="ml-2" />
+                <MudSwitch @bind-Value="_useHybridFts" Color="Color.Primary" Label="Hybrid FTS" />
+            </MudStack>
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Search">
+                    Search
+                </MudButton>
+                @if (!string.IsNullOrEmpty(_imageBase64))
+                {
+                    <MudChip T="string" Color="Color.Secondary" OnClose="ClearLens">Lens image attached</MudChip>
+                }
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    @if (_wowChips.Count > 0)
+    {
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.caption">Wow chips</MudText>
+            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                @foreach (var chip in _wowChips)
+                {
+                    <MudChip T="string" Variant="Variant.Outlined" OnClick="@(() => ApplyChip(chip))" Class="wow-chip">
+                        @chip.Name
+                    </MudChip>
+                }
+            </MudStack>
+        </MudStack>
+    }
+
+    @if (_response?.Latency is not null)
+    {
+        <MudPaper Class="latency-hud pa-3" Elevation="0" Outlined="true">
+            <MudText Typo="Typo.caption" Class="mb-2">Latency HUD (ms)</MudText>
+            <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+                <MudText Typo="Typo.caption">encode @FormatMs(_response.Latency.EncodeMs)</MudText>
+                <MudText Typo="Typo.caption">text ANN @FormatMs(_response.Latency.TextAnnMs)</MudText>
+                <MudText Typo="Typo.caption">image ANN @FormatMs(_response.Latency.ImageAnnMs)</MudText>
+                <MudText Typo="Typo.caption">FTS @FormatMs(_response.Latency.FtsMs)</MudText>
+                <MudText Typo="Typo.caption">fuse @FormatMs(_response.Latency.FuseMs)</MudText>
+                <MudText Typo="Typo.caption">pgvector @FormatMs(_response.Latency.PgVectorMs)</MudText>
+                <MudText Typo="Typo.caption">SQL @FormatMs(_response.Latency.SqlHydrateMs)</MudText>
+                <MudText Typo="Typo.caption"><strong>total @FormatMs(_response.Latency.TotalMs)</strong></MudText>
+            </MudStack>
+            @if (_response.Compare is not null)
+            {
+                <MudText Typo="Typo.caption" Class="mt-2">
+                    Overlap @_response.Compare.OverlapAtN · Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
+                    rank swaps @_response.Compare.RankDisagreements ·
+                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
+                </MudText>
+            }
+        </MudPaper>
+    }
+
+    @if (!string.IsNullOrEmpty(_response?.Warning))
+    {
+        <MudAlert Severity="Severity.Warning">@_response.Warning</MudAlert>
+    }
+
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+
+    @if (_engine == VectorEngineMode.Both)
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.h6" Class="mb-2">ZVec</MudText>
+                @RenderHits(_response?.ZVecHits)
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.h6" Class="mb-2">PostgreSQL</MudText>
+                @RenderHits(_response?.PostgreSqlHits)
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        @RenderHits(_engine == VectorEngineMode.Postgres ? _response?.PostgreSqlHits : _response?.ZVecHits)
+    }
+</MudStack>
+
+@code {
+    private string _query = "";
+    private string? _imageBase64;
+    private VectorEngineMode _engine = VectorEngineMode.ZVec;
+    private FusionMode _fusion = FusionMode.Rrf;
+    private int _topK = 5;
+    private bool _useInvert = true;
+    private bool _useHybridFts = true;
+    private string? _gender;
+    private string? _baseColour;
+    private string? _season;
+    private string? _usage;
+    private bool _busy;
+    private SearchResponseDto? _response;
+    private List<WowQueryChipDto> _wowChips = [];
+    private readonly FilterOptions _filterOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _wowChips = (await Api.GetWowQueriesAsync())?.ToList() ?? [];
+    }
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_query) && string.IsNullOrEmpty(_imageBase64))
+        {
+            Snackbar.Add("Enter a query or attach a Lens image.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var request = BuildRequest();
+            _response = await Api.SearchAsync(request);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private SearchRequestDto BuildRequest() => new()
+    {
+        QueryText = _query,
+        ImageBase64 = _imageBase64,
+        QueryMode = string.IsNullOrEmpty(_imageBase64) ? QueryMode.Text : QueryMode.Image,
+        Engine = _engine,
+        Fusion = _fusion,
+        TopK = _topK,
+        UseInvertFilter = _useInvert,
+        UseHybridFts = _useHybridFts,
+        Gender = _gender,
+        BaseColour = _baseColour,
+        Season = _season,
+        Usage = _usage
+    };
+
+    private void ApplyChip(WowQueryChipDto chip)
+    {
+        _query = chip.QueryText;
+        _gender = chip.Gender;
+        _baseColour = chip.BaseColour;
+        _season = chip.Season;
+        _usage = chip.Usage;
+        _ = SearchAsync();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SearchAsync();
+    }
+
+    private async Task OpenLensPicker()
+        => await Js.InvokeVoidAsync("eval", "document.getElementById('lens-input')?.click()");
+
+    private async Task OnLensSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        await using var stream = file.OpenReadStream(8 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _imageBase64 = Convert.ToBase64String(ms.ToArray());
+        _query = "";
+        Snackbar.Add("Lens image attached.", Severity.Info);
+    }
+
+    private void ClearLens() => _imageBase64 = null;
+
+    private static string FormatMs(double ms) => ms.ToString("0.#");
+
+    private RenderFragment RenderHits(IReadOnlyList<SearchHitDto>? hits) => builder =>
+    {
+        if (hits is null || hits.Count == 0)
+        {
+            builder.OpenComponent<MudText>(0);
+            builder.AddAttribute(1, "Typo", Typo.body2);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(3, "No results yet.")));
+            builder.CloseComponent();
+            return;
+        }
+
+        foreach (var hit in hits)
+        {
+            builder.OpenComponent<MudCard>(10);
+            builder.AddAttribute(11, "Class", "product-card mb-3");
+            builder.AddAttribute(12, "Elevation", 0);
+            builder.AddAttribute(13, "Outlined", true);
+            builder.AddAttribute(14, "ChildContent", (RenderFragment)(card =>
+            {
+                card.OpenComponent<MudCardContent>(20);
+                card.AddAttribute(21, "ChildContent", (RenderFragment)(content =>
+                {
+                    content.OpenElement(22, "div");
+                    content.AddAttribute(23, "class", "product-card-inner");
+                    content.OpenComponent<MudImage>(24);
+                    content.AddAttribute(25, "Src", hit.Product.ImageUrl);
+                    content.AddAttribute(26, "Alt", hit.Product.ProductDisplayName);
+                    content.AddAttribute(27, "Class", "product-thumb");
+                    content.CloseComponent();
+                    content.OpenElement(28, "div");
+                    content.AddAttribute(29, "class", "product-meta");
+                    content.OpenComponent<MudText>(30);
+                    content.AddAttribute(31, "Typo", Typo.subtitle1);
+                    content.AddAttribute(32, "ChildContent", (RenderFragment)(t => t.AddContent(33, hit.Product.ProductDisplayName)));
+                    content.CloseComponent();
+                    content.OpenComponent<MudText>(34);
+                    content.AddAttribute(35, "Typo", Typo.caption);
+                    content.AddAttribute(36, "ChildContent", (RenderFragment)(t => t.AddContent(37, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}")));
+                    content.CloseComponent();
+                    content.OpenComponent<MudText>(38);
+                    content.AddAttribute(39, "Typo", Typo.caption);
+                    content.AddAttribute(40, "ChildContent", (RenderFragment)(t => t.AddContent(41, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}% · {hit.Engine}")));
+                    content.CloseComponent();
+                    content.CloseElement();
+                    content.CloseElement();
+                }));
+                card.CloseComponent();
+            }));
+            builder.CloseComponent();
+        }
+    };
+
+    private sealed class FilterOptions
+    {
+        public string[] Genders { get; } = ["Men", "Women", "Unisex", "Boys", "Girls"];
+        public string[] Colours { get; } = ["Blue", "Black", "White", "Red", "Green", "Brown", "Grey", "Pink", "Navy Blue"];
+        public string[] Seasons { get; } = ["Summer", "Winter", "Fall", "Spring"];
+        public string[] Usages { get; } = ["Casual", "Formal", "Sports", "Ethnic", "Smart Casual", "Travel"];
+    }
+}

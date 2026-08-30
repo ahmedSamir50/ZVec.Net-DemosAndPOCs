@@ -1,0 +1,195 @@
+@page "/status"
+@rendermode InteractiveServer
+@inject ApiClientService Api
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4">Status</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Catalog counts, model stamp, and maintenance actions.
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" OnClick="RefreshAsync" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_loading">
+            Refresh
+        </MudButton>
+    </MudStack>
+
+    @if (_loading && _status is null)
+    {
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_status is not null)
+    {
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardContent>
+                <MudSimpleTable Dense="true" Hover="false" Bordered="false" Style="background: transparent;">
+                    <tbody>
+                        <tr><td>Demo ready</td><td>@(_status.DemoReady ? "Yes" : "No")</td></tr>
+                        <tr><td>Model</td><td>@_status.ActiveModelId (@_status.EmbeddingDim dim)</td></tr>
+                        <tr><td>Stamp match</td><td>@(_status.StampMatch ? "Yes" : "No")</td></tr>
+                        <tr><td>Postgres count</td><td>@_status.PostgresCount</td></tr>
+                        <tr><td>ZVec text count</td><td>@_status.ZVecTextCount</td></tr>
+                        <tr><td>ZVec image count</td><td>@_status.ZVecImageCount</td></tr>
+                        <tr><td>Ingest offset</td><td>@_status.IngestOffset / @_status.CatalogTotal</td></tr>
+                        <tr><td>Bootstrap</td><td>@(_status.ModelBootstrapComplete ? "Complete" : "Pending")</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudCardContent>
+        </MudCard>
+
+        @if (!string.IsNullOrEmpty(_status.StampWarning))
+        {
+            <MudAlert Severity="Severity.Warning">@_status.StampWarning</MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_status.IndexWarning))
+        {
+            <MudAlert Severity="Severity.Info">@_status.IndexWarning</MudAlert>
+        }
+
+        <MudCard Elevation="0" Outlined="true">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Model</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (_models is not null)
+                {
+                    <MudSelect T="string" Label="Active SigLIP model" Value="_models.ActiveModelId" ValueChanged="OnModelChanged" Disabled="_busy">
+                        @foreach (var model in _models.Models)
+                        {
+                            <MudSelectItem Value="@model.Id">@model.DisplayName (@model.EmbeddingDim)</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="OptimizeAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Speed">
+                Optimize indexes
+            </MudButton>
+            <MudButton Color="Color.Warning" Variant="Variant.Outlined" OnClick="ResetIndexesAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.DeleteSweep">
+                Reset ZVec indexes
+            </MudButton>
+            <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="ResetCatalogAsync" Disabled="_busy" StartIcon="@Icons.Material.Filled.Storage">
+                Reset SQL catalog
+            </MudButton>
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    private StatusDto? _status;
+    private ModelsResponseDto? _models;
+    private bool _loading;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        try
+        {
+            _status = await Api.GetStatusAsync();
+            _models = await Api.GetModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnModelChanged(string modelId)
+    {
+        _busy = true;
+        try
+        {
+            var result = await Api.SelectModelAsync(modelId);
+            if (result?.Ok == true)
+            {
+                Snackbar.Add($"Switched to {modelId}", Severity.Success);
+                await RefreshAsync();
+            }
+            else
+            {
+                Snackbar.Add(result?.Error ?? "Model switch failed", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OptimizeAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Api.OptimizeIndexAsync();
+            Snackbar.Add("Indexes optimized.", Severity.Success);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetIndexesAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Api.ResetIndexesAsync();
+            Snackbar.Add("ZVec indexes reset.", Severity.Warning);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetCatalogAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Api.ResetCatalogAsync();
+            Snackbar.Add("SQL catalog reset.", Severity.Warning);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
