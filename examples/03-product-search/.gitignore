@@ -1,11 +1,16 @@
-# Runtime data under examples/03-product-search/data/ (wow-queries.json is committed)
+# Runtime / downloaded data (keep demo wow-queries.json)
+/data/*
+!/data/wow-queries.json
 /data/cache/
 /data/zvec-text/
 /data/zvec-image/
 /data/state/
 
-# Downloaded SigLIP ONNX weights (not src/ProductSearch.Core/Models/)
+# Downloaded SigLIP ONNX (ContentRoot: src/ProductSearch.Api/models/)
 /models/
+src/ProductSearch.Api/models/
+src/ProductSearch.Api/data/
+
 /zvec/
 **/bin/
 **/obj/

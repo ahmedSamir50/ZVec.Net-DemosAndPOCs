@@ -65,9 +65,14 @@ Directory.CreateDirectory(options.CatalogCachePath);
 
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ProductDbContext>>();
     await using var context = await db.CreateDbContextAsync().ConfigureAwait(false);
+    var pending = await context.Database.GetPendingMigrationsAsync().ConfigureAwait(false);
+    if (pending.Any())
+        logger.LogInformation("Applying EF migrations: {Migrations}", string.Join(", ", pending));
     await context.Database.MigrateAsync().ConfigureAwait(false);
+    logger.LogInformation("Database schema up to date.");
 }
 
 if (app.Environment.IsDevelopment())
