@@ -18,6 +18,7 @@ public sealed class IngestProgressStatus
 {
     private readonly object _gate = new();
     private IngestState _state = IngestState.Idle;
+    private bool _isRunning;
     private string _message = "Idle — start a patch ingest from the UI.";
     private string? _error;
     private int _catalogOffset;
@@ -27,6 +28,8 @@ public sealed class IngestProgressStatus
     private int _encodedThisPatch;
     private int _zvecUpserted;
     private int _sqlCommitted;
+    private long _downloadBytesReceived;
+    private long? _downloadBytesTotal;
 
     public IngestProgressDto Snapshot()
     {
@@ -35,14 +38,27 @@ public sealed class IngestProgressStatus
             return new IngestProgressDto
             {
                 Status = _state.ToString(),
+                IsRunning = _isRunning,
+                Message = _message,
                 PatchSize = _patchSize,
                 PatchIndex = _patchIndex,
                 Encoded = _encodedThisPatch,
                 ZVecUpserted = _zvecUpserted,
                 SqlCommitted = _sqlCommitted,
                 IngestOffset = _catalogOffset,
+                CatalogTotal = _catalogTotal,
+                DownloadBytesReceived = _downloadBytesReceived,
+                DownloadBytesTotal = _downloadBytesTotal,
                 ErrorMessage = _error
             };
+        }
+    }
+
+    public void SetRunning(bool isRunning)
+    {
+        lock (_gate)
+        {
+            _isRunning = isRunning;
         }
     }
 
@@ -50,6 +66,7 @@ public sealed class IngestProgressStatus
     {
         lock (_gate)
         {
+            _isRunning = true;
             _state = IngestState.Downloading;
             _message = $"Starting patch {patchIndex} (size {patchSize})…";
             _error = null;
@@ -58,6 +75,8 @@ public sealed class IngestProgressStatus
             _encodedThisPatch = 0;
             _zvecUpserted = 0;
             _sqlCommitted = 0;
+            _downloadBytesReceived = 0;
+            _downloadBytesTotal = null;
         }
     }
 
@@ -67,6 +86,8 @@ public sealed class IngestProgressStatus
         {
             _state = IngestState.Downloading;
             _message = message;
+            _downloadBytesReceived = received;
+            _downloadBytesTotal = total;
         }
     }
 
@@ -115,6 +136,7 @@ public sealed class IngestProgressStatus
     {
         lock (_gate)
         {
+            _isRunning = false;
             _state = IngestState.Completed;
             _message = message;
             _error = null;
@@ -130,6 +152,7 @@ public sealed class IngestProgressStatus
     {
         lock (_gate)
         {
+            _isRunning = false;
             _state = IngestState.Failed;
             _message = message;
             _error = error;
@@ -140,6 +163,7 @@ public sealed class IngestProgressStatus
     {
         lock (_gate)
         {
+            _isRunning = false;
             _state = IngestState.Idle;
             _message = message;
             _error = null;

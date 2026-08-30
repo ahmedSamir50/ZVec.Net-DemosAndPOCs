@@ -36,6 +36,7 @@ public sealed class FashionDatasetDownloader : IDisposable
             return;
 
         _progress.SetDownloading("Extracting catalog data.csv from in-repo pack…", "data.csv", 0, null);
+        _logger.LogInformation("Opening catalog pack at {PackPath}", _options.CatalogPackZip);
         await ExtractZipEntryAsync("data.csv", csvPath, ct).ConfigureAwait(false);
         _logger.LogInformation("Extracted catalog CSV to {Path}", csvPath);
     }
@@ -62,6 +63,7 @@ public sealed class FashionDatasetDownloader : IDisposable
 
         _progress.SetDownloading($"Extracting image {id}.jpg…", id, 0, null);
         await ExtractZipEntryAsync(zipEntry, localPath, ct).ConfigureAwait(false);
+        _logger.LogDebug("Extracted image {CatalogId} to {Path}", id, localPath);
         return localPath;
     }
 
@@ -98,13 +100,24 @@ public sealed class FashionDatasetDownloader : IDisposable
         var entry = pack.GetEntry(entryName)
             ?? throw new FileNotFoundException($"Entry '{entryName}' not found in catalog pack {_options.CatalogPackZip}.");
 
+        var total = entry.Length;
         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
         var partial = destPath + ".partial";
         DeleteIfExists(partial);
 
         await using var input = entry.Open();
         await using var output = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None, 80 * 1024, useAsync: true);
-        await input.CopyToAsync(output, ct).ConfigureAwait(false);
+
+        var buffer = new byte[80 * 1024];
+        long received = 0;
+        int read;
+        while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false)) > 0)
+        {
+            await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            received += read;
+            _progress.SetDownloading($"Extracting {entryName}…", Path.GetFileName(destPath), received, total);
+        }
+
         await output.FlushAsync(ct).ConfigureAwait(false);
         output.Close();
 

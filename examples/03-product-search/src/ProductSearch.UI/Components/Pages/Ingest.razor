@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject ApiClientService Api
 @inject ToastService Toasts
+@implements IDisposable
 
 <div class="max-w-3xl mx-auto px-4 py-8 space-y-6">
     <div>
@@ -21,6 +22,7 @@
                     {
                         <button type="button"
                                 class="btn btn-sm join-item @(_patchSize == size ? "btn-primary" : "btn-outline")"
+                                disabled="@_busy"
                                 @onclick="() => _patchSize = size">
                             @size
                         </button>
@@ -36,15 +38,26 @@
                     Optimize indexes
                 </button>
                 <label class="label cursor-pointer gap-2 justify-start">
-                    <input type="checkbox" class="toggle toggle-sm toggle-primary" @bind="_optimizeAfterPatch" />
+                    <input type="checkbox" class="toggle toggle-sm toggle-primary" @bind="_optimizeAfterPatch" disabled="@_busy" />
                     <span class="label-text text-xs">Optimize after patch</span>
                 </label>
             </div>
 
             @if (_busy)
             {
-                <p class="text-xs text-base-content/60">@_status</p>
-                <progress class="progress progress-primary w-full"></progress>
+                <div class="flex items-center gap-3">
+                    <span class="loading loading-spinner loading-sm text-primary"></span>
+                    <p class="text-sm">@ActiveMessage</p>
+                </div>
+                @if (ProgressPercent is double pct)
+                {
+                    <progress class="progress progress-primary w-full" value="@pct" max="100"></progress>
+                    <p class="text-xs text-base-content/60 tabular-nums">@($"{pct:0.#}%")</p>
+                }
+                else
+                {
+                    <progress class="progress progress-primary w-full"></progress>
+                }
             }
         </div>
     </div>
@@ -53,17 +66,37 @@
     {
         <div class="card bg-base-200 border border-base-300">
             <div class="card-body">
-                <h2 class="card-title text-base mb-2">Progress</h2>
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <h2 class="card-title text-base">Progress</h2>
+                    @if (_progress.IsRunning)
+                    {
+                        <span class="badge badge-primary badge-sm">Running</span>
+                    }
+                    else if (_progress.Status is "Completed")
+                    {
+                        <span class="badge badge-success badge-sm">Completed</span>
+                    }
+                    else if (_progress.Status is "Failed")
+                    {
+                        <span class="badge badge-error badge-sm">Failed</span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_progress.Message))
+                {
+                    <p class="text-sm mb-3">@_progress.Message</p>
+                }
+
                 <div class="overflow-x-auto">
                     <table class="table table-sm">
                         <tbody>
                             <tr><td>Status</td><td>@_progress.Status</td></tr>
                             <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
                             <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
-                            <tr><td>Encoded</td><td>@_progress.Encoded</td></tr>
+                            <tr><td>Encoded this patch</td><td>@_progress.Encoded / @_progress.PatchSize</td></tr>
+                            <tr><td>Catalog offset</td><td>@FormatOffset()</td></tr>
                             <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
                             <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
-                            <tr><td>Ingest offset</td><td>@_progress.IngestOffset</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -79,16 +112,48 @@
 @code {
     private IngestProgressDto? _progress;
     private bool _busy;
-    private string _status = "";
     private int _patchSize = 100;
     private bool _optimizeAfterPatch = true;
     private CancellationTokenSource? _pollCts;
+
+    private string ActiveMessage =>
+        string.IsNullOrWhiteSpace(_progress?.Message)
+            ? "Ingest running…"
+            : _progress!.Message;
+
+    private double? ProgressPercent
+    {
+        get
+        {
+            if (_progress is null || !_progress.IsRunning)
+                return null;
+
+            if (_progress.Status is "Encoding" && _progress.PatchSize > 0)
+                return Math.Clamp(_progress.Encoded * 100.0 / _progress.PatchSize, 0, 100);
+
+            if (_progress.Status is "Downloading"
+                && _progress.DownloadBytesTotal is > 0)
+            {
+                return Math.Clamp(
+                    _progress.DownloadBytesReceived * 100.0 / _progress.DownloadBytesTotal.Value,
+                    0,
+                    100);
+            }
+
+            return null;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             _progress = await Api.GetIngestAsync();
+            if (_progress?.IsRunning == true)
+            {
+                BeginPolling();
+                _ = ResumePollingAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -96,14 +161,30 @@
         }
     }
 
+    private async Task ResumePollingAsync()
+    {
+        try
+        {
+            await PollUntilDoneAsync();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            StopPolling();
+            _busy = false;
+            try { _progress = await Api.GetIngestAsync() ?? _progress; }
+            catch { /* ignore */ }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task RunAsync()
     {
         _busy = true;
-        _status = "Starting patch…";
         await InvokeAsync(StateHasChanged);
-
-        _pollCts = new CancellationTokenSource();
-        var pollTask = PollProgressAsync(_pollCts.Token);
 
         try
         {
@@ -112,21 +193,27 @@
                 PatchSize = _patchSize,
                 OptimizeAfterPatch = _optimizeAfterPatch
             });
-            Toasts.Show($"Patch {_progress?.Status}", ToastLevel.Success);
+
+            if (_progress is null)
+                return;
+
+            if (!_progress.IsRunning && !string.IsNullOrEmpty(_progress.ErrorMessage))
+            {
+                Toasts.Show(_progress.ErrorMessage, ToastLevel.Error);
+                return;
+            }
+
+            BeginPolling();
+            await PollUntilDoneAsync();
         }
         catch (Exception ex)
         {
             Toasts.Show(ex.Message, ToastLevel.Error);
-            _status = ex.Message;
         }
         finally
         {
-            await _pollCts.CancelAsync();
-            try { await pollTask; } catch (OperationCanceledException) { }
-            _pollCts.Dispose();
-            _pollCts = null;
+            StopPolling();
             _busy = false;
-            _status = "";
             try { _progress = await Api.GetIngestAsync() ?? _progress; }
             catch { /* ignore */ }
             await InvokeAsync(StateHasChanged);
@@ -136,7 +223,6 @@
     private async Task OptimizeAsync()
     {
         _busy = true;
-        _status = "Optimizing HNSW indexes…";
         try
         {
             await Api.OptimizeIndexAsync();
@@ -149,12 +235,29 @@
         finally
         {
             _busy = false;
-            _status = "";
         }
     }
 
-    private async Task PollProgressAsync(CancellationToken ct)
+    private void BeginPolling()
     {
+        StopPolling();
+        _pollCts = new CancellationTokenSource();
+        _busy = true;
+    }
+
+    private void StopPolling()
+    {
+        if (_pollCts is null)
+            return;
+
+        _pollCts.Cancel();
+        _pollCts.Dispose();
+        _pollCts = null;
+    }
+
+    private async Task PollUntilDoneAsync()
+    {
+        var ct = _pollCts?.Token ?? CancellationToken.None;
         while (!ct.IsCancellationRequested)
         {
             try
@@ -163,15 +266,43 @@
                 if (p is not null)
                 {
                     _progress = p;
-                    _status = $"Status: {p.Status} · encoded {p.Encoded} · SQL {p.SqlCommitted}";
                     await InvokeAsync(StateHasChanged);
+
+                    if (!p.IsRunning)
+                    {
+                        if (p.Status is "Failed")
+                            Toasts.Show(p.ErrorMessage ?? "Ingest failed", ToastLevel.Error);
+                        else if (p.Status is "Completed")
+                            Toasts.Show(p.Message, ToastLevel.Success);
+                        break;
+                    }
                 }
             }
-            catch (OperationCanceledException) { break; }
-            catch { /* transient */ }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch
+            {
+                // transient poll errors
+            }
 
-            try { await Task.Delay(750, ct); }
+            try { await Task.Delay(500, ct); }
             catch (OperationCanceledException) { break; }
         }
+    }
+
+    private string FormatOffset()
+    {
+        if (_progress is null)
+            return "—";
+        if (_progress.CatalogTotal > 0)
+            return $"{_progress.IngestOffset} / {_progress.CatalogTotal}";
+        return _progress.IngestOffset.ToString();
+    }
+
+    public void Dispose()
+    {
+        StopPolling();
     }
 }

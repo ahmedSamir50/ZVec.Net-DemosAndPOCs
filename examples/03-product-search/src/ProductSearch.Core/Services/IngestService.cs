@@ -81,6 +81,7 @@ public sealed class IngestService : IIngestService
 
             var patchIndex = (_stamp.Load().IngestOffset / Math.Max(1, patchSize)) + 1;
             _progress.ResetForPatch(patchSize, patchIndex);
+            _logger.LogInformation("Starting ingest patch {PatchIndex} size {PatchSize}", patchIndex, patchSize);
             _ = Task.Run(() => RunPatchAsync(patchSize, request.OptimizeAfterPatch));
             return new IngestStartResult(true, patchSize, null);
         }
@@ -138,8 +139,10 @@ public sealed class IngestService : IIngestService
         try
         {
             var active = _models.ActiveDefinition;
+            _logger.LogInformation("Ingest patch: ensuring catalog CSV from pack…");
             await _downloader.EnsureStylesCsvAsync().ConfigureAwait(false);
             var catalog = await _catalogReader.ReadAllAsync().ConfigureAwait(false);
+            _logger.LogInformation("Ingest patch: catalog loaded ({Count} rows)", catalog.Count);
             var stamp = _stamp.Load();
             var offset = Math.Clamp(stamp.IngestOffset, 0, catalog.Count);
 
@@ -151,8 +154,13 @@ public sealed class IngestService : IIngestService
             if (target == 0)
             {
                 _progress.SetCompleted($"Caught up — offset {offset}/{catalog.Count}.", offset, catalog.Count, 0, 0, 0, sw.ElapsedMilliseconds);
+                _logger.LogInformation("Ingest patch: nothing left to ingest at offset {Offset}/{Total}", offset, catalog.Count);
                 return;
             }
+
+            _logger.LogInformation(
+                "Ingest patch: encoding {Target} products starting at catalog offset {Offset}/{Total}",
+                target, offset, catalog.Count);
 
             var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, float[] Embedding)>();
             var imageBatch = new List<(string Id, float[] Embedding)>();
@@ -205,6 +213,7 @@ public sealed class IngestService : IIngestService
             }
 
             _progress.SetUpsertingZVec($"Upserting {writtenIds.Count} docs to ZVec…", writtenIds.Count);
+            _logger.LogInformation("Ingest patch: upserting {Count} vectors to ZVec", writtenIds.Count);
             await _collections.UpsertTextBatchAsync(textBatch).ConfigureAwait(false);
             await _collections.UpsertImageBatchAsync(imageBatch).ConfigureAwait(false);
 
@@ -257,6 +266,9 @@ public sealed class IngestService : IIngestService
             }
 
             sw.Stop();
+            _logger.LogInformation(
+                "Ingest patch complete — embedded {Encoded}, offset {Offset}/{Total}, {ElapsedMs} ms",
+                writtenIds.Count, offset, catalog.Count, sw.ElapsedMilliseconds);
             _progress.SetCompleted(
                 $"Patch complete — embedded {target}, offset {offset}/{catalog.Count} ({active.Id}).",
                 offset,
@@ -280,6 +292,7 @@ public sealed class IngestService : IIngestService
         finally
         {
             Interlocked.Exchange(ref _running, 0);
+            _progress.SetRunning(false);
         }
     }
 }
