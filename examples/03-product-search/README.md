@@ -30,7 +30,7 @@ Other examples in this repo show **one HNSW field**. This one is the production 
 | Kaggle | [paramaggarwal/fashion-product-images-small](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small) |
 | Hugging Face | [ashraq/fashion-product-images-small](https://huggingface.co/datasets/ashraq/fashion-product-images-small) |
 
-First run downloads `styles.csv` from HF into `data/cache/fashion-small/`; images are fetched on demand during ingest (`images/{id}.jpg`). Attribution: Param Aggarwal, Myntra catalog scrape.
+First ingest pages the Hugging Face [datasets-server `/rows` API](https://datasets-server.huggingface.co/rows?dataset=ashraq/fashion-product-images-small&config=default&split=train&offset=0&length=100) (max 100 rows per request; ~44,072 rows) into `data/cache/fashion-small/styles.csv`. Images are fetched on demand from each row's `image.src` into `images/{id}.jpg`. Attribution: Param Aggarwal, Myntra catalog scrape.
 
 **Honest gap:** the small pack has no long descriptions — search text is `productDisplayName` + metadata (colour, season, usage, article type, …). Implicit / visual wow queries rely on SigLIP **image** vectors.
 

@@ -44,11 +44,17 @@ public sealed class ProductSearchOptions
     public float TextCollectionFusionWeight { get; set; } = 0.5f;
     public float ImageCollectionFusionWeight { get; set; } = 0.5f;
 
-    public string StylesCsvUrl { get; set; } =
-        "https://huggingface.co/datasets/ashraq/fashion-product-images-small/resolve/main/styles.csv";
+    /// <summary>
+    /// Hugging Face datasets-server rows endpoint. Placeholders: {offset}, {length}.
+    /// The server rejects length greater than 100 — we page in 100-row chunks.
+    /// </summary>
+    public string HuggingFaceRowsUrl { get; set; } =
+        "https://datasets-server.huggingface.co/rows?dataset=ashraq/fashion-product-images-small&config=default&split=train&offset={offset}&length={length}";
 
-    public string ImageUrlTemplate { get; set; } =
-        "https://huggingface.co/datasets/ashraq/fashion-product-images-small/resolve/main/images/{id}.jpg";
+    /// <summary>datasets-server hard cap; do not raise above 100.</summary>
+    public int HuggingFaceRowsPageSize { get; set; } = 100;
+
+    public string HfRowIndexFile { get; set; } = "hf-row-index.tsv";
 
     public IReadOnlyList<int> AllowedPatchSizes { get; } = [100, 500, 1000];
 
@@ -87,6 +93,9 @@ public sealed class ProductSearchOptions
 
     public string CatalogStylesPath()
         => Path.Combine(CatalogCachePath, StylesCsvFile);
+
+    public string CatalogRowIndexPath()
+        => Path.Combine(CatalogCachePath, HfRowIndexFile);
 
     public string CatalogImagesDirectory()
         => Path.Combine(CatalogCachePath, ImagesSubdir);

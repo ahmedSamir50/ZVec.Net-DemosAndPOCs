@@ -24,7 +24,11 @@ public static class ServiceCollectionExtensions
             c.Timeout = TimeSpan.FromHours(2);
             c.DefaultRequestHeaders.UserAgent.ParseAdd("ZVec.ProductSearch/1.0");
         });
-        services.AddHttpClient("fashion", c => c.Timeout = TimeSpan.FromMinutes(30));
+        services.AddHttpClient("fashion", c =>
+        {
+            c.Timeout = TimeSpan.FromMinutes(30);
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("ZVec.ProductSearch/1.0");
+        });
 
         services.AddZVec(options =>
         {
