@@ -1,16 +1,19 @@
-using Microsoft.ML.Tokenizers;
 using ProductSearch.Core.Models;
+using HfTokenizer = Tokenizers.HuggingFace.Tokenizer.Tokenizer;
 
 namespace ProductSearch.Core.Encoding;
 
 /// <summary>
-/// Loads SentencePiece for SigLIP 1 (<c>spiece.model</c>) or SigLIP 2 (<c>tokenizer.model</c>).
+/// Loads Hugging Face <c>tokenizer.json</c> (Unigram) — same file transformers / transformers.js use.
+/// Do not load <c>spiece.model</c> via Microsoft.ML.Tokenizers: that protobuf path throws
+/// IndexOutOfRangeException on SigLIP (BOS/EOS ids are not valid vocab indexes).
 /// </summary>
 public sealed class SigLipTokenizer
 {
     public const int DefaultContextLength = 64;
+    public const int PadTokenId = 1;
 
-    private readonly SentencePieceTokenizer _tokenizer;
+    private readonly HfTokenizer _tokenizer;
     private readonly int _contextLength;
     private readonly bool _lowercaseText;
 
@@ -21,15 +24,11 @@ public sealed class SigLipTokenizer
         _contextLength = contextLength;
         _lowercaseText = model.LowercaseText;
 
-        var spPath = Path.Combine(modelsDir, model.SentencePieceFile);
-        if (!File.Exists(spPath))
-            throw new FileNotFoundException($"SigLIP {model.SentencePieceFile} not found.", spPath);
+        var jsonPath = Path.Combine(modelsDir, "tokenizer.json");
+        if (!File.Exists(jsonPath))
+            throw new FileNotFoundException("SigLIP tokenizer.json not found.", jsonPath);
 
-        using var spStream = File.OpenRead(spPath);
-        _tokenizer = SentencePieceTokenizer.Create(
-            spStream,
-            addBeginningOfSentence: false,
-            addEndOfSentence: false);
+        _tokenizer = HfTokenizer.FromFile(jsonPath);
     }
 
     public (long[] InputIds, long[] AttentionMask) Encode(string text)
@@ -37,15 +36,18 @@ public sealed class SigLipTokenizer
         if (_lowercaseText)
             text = text.ToLowerInvariant();
 
-        var encoding = _tokenizer.EncodeToIds(text);
+        var encoding = _tokenizer.Encode(text, addSpecialTokens: false).First();
         var ids = new long[_contextLength];
         var mask = new long[_contextLength];
-        var n = Math.Min(encoding.Count, _contextLength);
+        var n = Math.Min(encoding.Ids.Count, _contextLength);
         for (var i = 0; i < n; i++)
         {
-            ids[i] = encoding[i];
+            ids[i] = encoding.Ids[i];
             mask[i] = 1;
         }
+
+        for (var i = n; i < _contextLength; i++)
+            ids[i] = PadTokenId;
 
         return (ids, mask);
     }

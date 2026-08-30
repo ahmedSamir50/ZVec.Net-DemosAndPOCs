@@ -98,7 +98,7 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
                 _vision = null;
                 _text = null;
                 throw new InvalidOperationException(
-                    $"Failed loading tokenizer {model.SentencePieceFile} in {modelsDir}.", ex);
+                    $"Failed loading tokenizer.json in {modelsDir}.", ex);
             }
 
             _embeddingDim = model.EmbeddingDim;
