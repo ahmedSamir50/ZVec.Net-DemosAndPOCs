@@ -43,3 +43,4 @@ Desktop.ini
 appsettings.Development.json
 *.pfx
 .env
+/examples/03-product-search/stitch-design-prototypes
