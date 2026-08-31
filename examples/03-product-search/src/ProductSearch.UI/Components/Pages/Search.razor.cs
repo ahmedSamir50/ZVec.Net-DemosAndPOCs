@@ -24,7 +24,7 @@ public partial class Search : IAsyncDisposable
     private string? _imagePreviewUrl;
     private string? _pendingImageBase64;
     private string? _lensPreviewUrl;
-    private VectorEngineMode _engine = VectorEngineMode.ZVec;
+    private VectorEngineMode _engine = VectorEngineMode.Both;
     private FusionMode _fusion = FusionMode.Rrf;
     private int _topK = 5;
     private bool _useInvert = false;
@@ -302,21 +302,25 @@ public partial class Search : IAsyncDisposable
             yield break;
 
         var lat = _response.Latency;
-        var isImageQuery = HasImageQuery();
-        var usesZvec = _engine is VectorEngineMode.ZVec or VectorEngineMode.Both;
-        var usesPg = _engine is VectorEngineMode.Postgres or VectorEngineMode.Both;
-        var usesFts = usesZvec && _useHybridFts && !isImageQuery;
+        var usesPg = lat.PgVectorMs > 0 || (_response.PostgreSqlHits?.Count ?? 0) > 0;
+        var usesFts = lat.FtsMs > 0;
+        var usesFuse = lat.FuseMs > 0;
+        var usesTextAnn = lat.TextAnnMs > 0;
+        var usesImageAnn = lat.ImageAnnMs > 0;
 
         yield return new TimingChip("Encode", FormatMs(lat.EncodeMs),
             "SigLIP turns the query (text or photo) into a vector. Usually the largest number.");
-        yield return new TimingChip("Text ANN", FormatStage(lat.TextAnnMs, usesZvec && !isImageQuery),
+        yield return new TimingChip("Text ANN", FormatStage(lat.TextAnnMs, usesTextAnn),
             "ZVec nearest-neighbor on product text embeddings.");
-        yield return new TimingChip("Image ANN", FormatStage(lat.ImageAnnMs, usesZvec && isImageQuery),
+        yield return new TimingChip("Image ANN", FormatStage(lat.ImageAnnMs, usesImageAnn),
             "ZVec nearest-neighbor on product photos.");
         yield return new TimingChip("FTS", FormatStage(lat.FtsMs, usesFts),
             "Keyword full-text on product descriptions (Hybrid FTS).");
-        yield return new TimingChip("Fuse", FormatStage(lat.FuseMs, usesZvec && !isImageQuery && _engine == VectorEngineMode.ZVec),
-            "Merge text + image (and FTS) ranked lists.");
+        if (usesFuse)
+        {
+            yield return new TimingChip("Fuse", FormatMs(lat.FuseMs),
+                "Merge text + image (and FTS) ranked lists.");
+        }
         yield return new TimingChip("pgvector", FormatStage(lat.PgVectorMs, usesPg),
             "Postgres cosine search (0 when Engine is ZVec-only).");
         yield return new TimingChip("SQL", FormatMs(lat.SqlHydrateMs),

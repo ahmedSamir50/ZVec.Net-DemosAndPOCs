@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Pgvector;
 using Pgvector.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public sealed class ProductSearchService : IProductSearchService
     private readonly IProcessRuntimeMonitor _runtime;
     private readonly IRemoteImageFetcher _remoteImages;
     private readonly ProductSearchOptions _options;
+    private readonly ILogger<ProductSearchService> _logger;
 
     public ProductSearchService(
         DualCollectionHolder collections,
@@ -38,7 +40,8 @@ public sealed class ProductSearchService : IProductSearchService
         IDbContextFactory<ProductDbContext> dbFactory,
         IProcessRuntimeMonitor runtime,
         IRemoteImageFetcher remoteImages,
-        IOptions<ProductSearchOptions> options)
+        IOptions<ProductSearchOptions> options,
+        ILogger<ProductSearchService> logger)
     {
         _collections = collections;
         _encoder = encoder;
@@ -48,6 +51,7 @@ public sealed class ProductSearchService : IProductSearchService
         _runtime = runtime;
         _remoteImages = remoteImages;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<SearchResponseDto> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
@@ -110,6 +114,7 @@ public sealed class ProductSearchService : IProductSearchService
             imageAnnMs = zvecResult.ImageAnnMs;
             ftsMs = zvecResult.FtsMs;
             fuseMs = zvecResult.FuseMs;
+            LogSdkOrder("ZVec", zvecResult.Hits);
             var filtered = ApplyConfidenceFilter(zvecResult.Hits, topK, minCosine);
             var hydrateSw = Stopwatch.StartNew();
             zvecHits = await HydrateAsync(filtered, "zvec", ct).ConfigureAwait(false);
@@ -128,6 +133,7 @@ public sealed class ProductSearchService : IProductSearchService
             var raw = await SearchPostgresAsync(request, queryVector, topK, ct).ConfigureAwait(false);
             pgSw.Stop();
             pgMs = pgSw.Elapsed.TotalMilliseconds;
+            LogSdkOrder("Postgres", raw);
             var filtered = ApplyConfidenceFilter(raw, topK, minCosine);
             var hydrateSw = Stopwatch.StartNew();
             pgHits = await HydrateAsync(filtered, "postgres", ct).ConfigureAwait(false);
@@ -240,7 +246,7 @@ public sealed class ProductSearchService : IProductSearchService
             var dense = await _collections.QueryImageDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
             imageSw.Stop();
             imageAnnMs = imageSw.Elapsed.TotalMilliseconds;
-            var imageInternal = dense.Select(h => new InternalHit(h.Id, h.Score, false, true, false)).ToList();
+            var imageInternal = ToDenseHits(dense, fromText: false, fromImage: true);
             if (request.UseInvertFilter)
                 imageInternal = await PostFilterByInvertAsync(imageInternal, request, ct).ConfigureAwait(false);
             imageHits.AddRange(imageInternal);
@@ -255,8 +261,12 @@ public sealed class ProductSearchService : IProductSearchService
             return new ZVecSearchResult(fused, textAnnMs, imageAnnMs, ftsMs, fuseMs);
         }
 
-        var combined = FuseHits(textHits, imageHits, request.Fusion, topK);
-        return new ZVecSearchResult(combined, textAnnMs, imageAnnMs, ftsMs, fuseMs);
+        if (textHits.Count > 0 && imageHits.Count == 0)
+            return new ZVecSearchResult(textHits, textAnnMs, imageAnnMs, ftsMs, fuseMs);
+        if (imageHits.Count > 0 && textHits.Count == 0)
+            return new ZVecSearchResult(imageHits, textAnnMs, imageAnnMs, ftsMs, fuseMs);
+
+        return new ZVecSearchResult(FuseHits(textHits, imageHits, request.Fusion, topK), textAnnMs, imageAnnMs, ftsMs, fuseMs);
     }
 
     private sealed record TextQueryResult(List<InternalHit> Hits, double TextAnnMs, double FtsMs, double FuseMs);
@@ -275,14 +285,15 @@ public sealed class ProductSearchService : IProductSearchService
             var dense = await _collections.QueryTextDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
             annSw.Stop();
             return new TextQueryResult(
-                dense.Select(h => new InternalHit(h.Id, h.Score, true, false, false)).ToList(),
+                ToDenseHits(dense, fromText: true, fromImage: false),
                 annSw.Elapsed.TotalMilliseconds,
                 0,
                 0);
         }
 
+        var fetchK = Math.Min(80, Math.Max(topK * 8, topK));
         var annOnlySw = Stopwatch.StartNew();
-        var annHits = await _collections.QueryTextDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
+        var annHits = await _collections.QueryTextDenseAsync(queryVector, fetchK, filter, ct).ConfigureAwait(false);
         annOnlySw.Stop();
 
         var ftsSw = Stopwatch.StartNew();
@@ -293,12 +304,12 @@ public sealed class ProductSearchService : IProductSearchService
                 Fts = new ZVecFtsQuery
                 {
                     QueryString = request.QueryText!.Trim(),
-                    DefaultOperator = ZVecFtsDefaultOperator.Or
+                    DefaultOperator = ZVecFtsDefaultOperator.And
                 }
             }],
             filter,
             reranker: null,
-            topK,
+            fetchK,
             ct).ConfigureAwait(false);
         ftsSw.Stop();
 
@@ -315,33 +326,37 @@ public sealed class ProductSearchService : IProductSearchService
         FusionMode mode,
         int topK)
     {
+        var ann = ToDenseHits(annHits, fromText: true, fromImage: false);
+        var annById = ann.ToDictionary(h => h.Id, StringComparer.Ordinal);
+
         if (mode == FusionMode.Weighted)
         {
             var map = new Dictionary<string, InternalHit>(StringComparer.Ordinal);
-            foreach (var hit in annHits)
-            {
-                var score = hit.Score * _options.DenseFusionWeight;
-                map[hit.Id] = new InternalHit(hit.Id, score, true, false, false);
-            }
+            foreach (var hit in ann)
+                map[hit.Id] = hit with { DisplayCosine = hit.DisplayCosine * _options.DenseFusionWeight };
 
             foreach (var hit in ftsHits)
             {
-                var score = hit.Score * _options.FtsFusionWeight;
+                var boost = _options.FtsFusionWeight;
                 if (!map.TryGetValue(hit.Id, out var existing))
                 {
-                    map[hit.Id] = new InternalHit(hit.Id, score, true, false, true);
+                    map[hit.Id] = new InternalHit(hit.Id, hit.Score, true, false, true, boost);
                     continue;
                 }
 
-                map[hit.Id] = existing with { Score = Math.Min(existing.Score, score), FromFts = true };
+                map[hit.Id] = existing with
+                {
+                    DisplayCosine = existing.DisplayCosine + boost,
+                    FromFts = true
+                };
             }
 
-            return map.Values.OrderBy(h => h.Score).Take(topK).ToList();
+            return [.. map.Values.OrderByDescending(h => h.DisplayCosine).Take(topK)];
         }
 
         var ranks = new Dictionary<string, (int AnnRank, int FtsRank)>(StringComparer.Ordinal);
         for (var i = 0; i < annHits.Count; i++)
-            ranks[annHits[i].Id] = (i + 1, ranks.TryGetValue(annHits[i].Id, out var r) ? r.FtsRank : 0);
+            ranks[annHits[i].Id] = (i + 1, 0);
         for (var i = 0; i < ftsHits.Count; i++)
         {
             if (ranks.TryGetValue(ftsHits[i].Id, out var r))
@@ -351,18 +366,18 @@ public sealed class ProductSearchService : IProductSearchService
         }
 
         const float k = 60f;
-        return ranks
+        return [.. ranks
             .Select(pair =>
             {
                 var (annRank, ftsRank) = pair.Value;
                 var rrf = 0f;
                 if (annRank > 0) rrf += 1f / (k + annRank);
                 if (ftsRank > 0) rrf += 1f / (k + ftsRank);
-                return new InternalHit(pair.Key, -rrf, true, false, ftsRank > 0);
+                var cosine = annById.TryGetValue(pair.Key, out var annHit) ? annHit.DisplayCosine : 0f;
+                return new InternalHit(pair.Key, rrf, true, false, ftsRank > 0, cosine);
             })
-            .OrderBy(h => h.Score)
-            .Take(topK)
-            .ToList();
+            .OrderByDescending(h => h.Score)
+            .Take(topK)];
     }
 
     private async Task<List<InternalHit>> PostFilterByInvertAsync(
@@ -387,32 +402,58 @@ public sealed class ProductSearchService : IProductSearchService
         FusionMode mode,
         int topK)
     {
-        var map = new Dictionary<string, InternalHit>(StringComparer.Ordinal);
-        void AddHits(IEnumerable<InternalHit> hits, float weight)
-        {
-            foreach (var hit in hits)
-            {
-                var score = mode == FusionMode.Weighted ? hit.Score * weight : hit.Score;
-                if (!map.TryGetValue(hit.Id, out var existing))
-                {
-                    map[hit.Id] = hit with { Score = score };
-                    continue;
-                }
+        if (textHits.Count == 0)
+            return imageHits.Take(topK).ToList();
+        if (imageHits.Count == 0)
+            return textHits.Take(topK).ToList();
 
-                map[hit.Id] = existing with
+        var ranks = new Dictionary<string, (InternalHit Hit, int TextRank, int ImageRank)>(StringComparer.Ordinal);
+        for (var i = 0; i < textHits.Count; i++)
+        {
+            var hit = textHits[i];
+            ranks[hit.Id] = (hit, i + 1, 0);
+        }
+
+        for (var i = 0; i < imageHits.Count; i++)
+        {
+            var hit = imageHits[i];
+            if (ranks.TryGetValue(hit.Id, out var r))
+            {
+                ranks[hit.Id] = (r.Hit with
                 {
-                    Score = Math.Min(existing.Score, score),
-                    FromText = existing.FromText || hit.FromText,
-                    FromImage = existing.FromImage || hit.FromImage,
-                    FromFts = existing.FromFts || hit.FromFts
-                };
+                    FromImage = true,
+                    DisplayCosine = Math.Max(r.Hit.DisplayCosine, hit.DisplayCosine)
+                }, r.TextRank, i + 1);
+            }
+            else
+            {
+                ranks[hit.Id] = (hit, 0, i + 1);
             }
         }
 
-        AddHits(textHits, 0.5f);
-        AddHits(imageHits, 0.5f);
+        if (mode == FusionMode.Weighted)
+        {
+            return [.. ranks.Values
+                .Select(v => v.Hit with
+                {
+                    DisplayCosine = v.Hit.DisplayCosine * (v.TextRank > 0 && v.ImageRank > 0 ? 1f : 0.5f)
+                })
+                .OrderByDescending(h => h.DisplayCosine)
+                .Take(topK)];
+        }
 
-        return [.. map.Values.OrderBy(h => h.Score).Take(topK)];
+        const float k = 60f;
+        return [.. ranks
+            .Select(pair =>
+            {
+                var (hit, textRank, imageRank) = pair.Value;
+                var rrf = 0f;
+                if (textRank > 0) rrf += 1f / (k + textRank);
+                if (imageRank > 0) rrf += 1f / (k + imageRank);
+                return hit with { Score = rrf };
+            })
+            .OrderByDescending(h => h.Score)
+            .Take(topK)];
     }
 
     private async Task<List<InternalHit>> SearchPostgresAsync(
@@ -439,7 +480,13 @@ public sealed class ProductSearchService : IProductSearchService
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            return [.. rows.Select(r => new InternalHit(r.Id.ToString(), (float)r.Distance, false, true, false))];
+            return [.. rows.Select(r => new InternalHit(
+                r.Id.ToString(),
+                (float)r.Distance,
+                false,
+                true,
+                false,
+                SigLipScoreSemantics.CosineFromDistance((float)r.Distance)))];
         }
 
         var textRows = await q.Where(p => p.TextEmbedding != null)
@@ -449,7 +496,13 @@ public sealed class ProductSearchService : IProductSearchService
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return [.. textRows.Select(r => new InternalHit(r.Id.ToString(), (float)r.Distance, true, false, false))];
+        return [.. textRows.Select(r => new InternalHit(
+            r.Id.ToString(),
+            (float)r.Distance,
+            true,
+            false,
+            false,
+            SigLipScoreSemantics.CosineFromDistance((float)r.Distance)))];
     }
 
     private async Task<IReadOnlyList<SearchHitDto>> HydrateAsync(
@@ -469,17 +522,16 @@ public sealed class ProductSearchService : IProductSearchService
 
         var result = new List<SearchHitDto>();
         var rank = 1;
-        foreach (var hit in hits.OrderBy(h => h.Score))
+        foreach (var hit in hits)
         {
             if (!rows.TryGetValue(Guid.Parse(hit.Id), out var row))
                 continue;
 
-            var cosine = SigLipScoreSemantics.CosineFromZVecScore(hit.Score);
             result.Add(new SearchHitDto
             {
                 Product = ToCard(row),
                 Score = hit.Score,
-                SimilarityPercent = SigLipScoreSemantics.SimilarityPercent(cosine),
+                SimilarityPercent = SigLipScoreSemantics.SimilarityPercent(hit.DisplayCosine),
                 Rank = rank++,
                 FromText = hit.FromText,
                 FromImage = hit.FromImage,
@@ -517,20 +569,73 @@ public sealed class ProductSearchService : IProductSearchService
         if (hits.Count == 0)
             return [];
 
-        var ordered = hits
-            .Select(h => (Hit: h, Cosine: SigLipScoreSemantics.CosineFromZVecScore(h.Score)))
-            .OrderByDescending(x => x.Cosine)
-            .ToList();
-
-        var topCosine = ordered[0].Cosine;
+        var topCosine = hits[0].DisplayCosine;
         if (topCosine < minCosine)
             return [];
 
         var gap = _options.MaxCosineGapFromTop;
-        return [.. ordered
-            .Where(x => x.Cosine >= minCosine && x.Cosine >= topCosine - gap)
-            .Take(topK)
-            .Select(x => x.Hit)];
+        var kept = new List<InternalHit>(Math.Min(topK, hits.Count));
+        foreach (var hit in hits)
+        {
+            if (kept.Count >= topK)
+                break;
+            if (hit.DisplayCosine < minCosine || hit.DisplayCosine < topCosine - gap)
+                break;
+            kept.Add(hit);
+        }
+
+        return kept;
+    }
+
+    private void LogSdkOrder(string engine, IReadOnlyList<InternalHit> hits)
+    {
+        if (hits.Count == 0)
+            return;
+
+        var first = hits[0];
+        var last = hits[^1];
+        _logger.LogDebug(
+            "{Engine} hit order: first={FirstId} raw={FirstScore:0.###} cosine={FirstCosine:0.###}; last={LastId} raw={LastScore:0.###} cosine={LastCosine:0.###} n={Count}",
+            engine,
+            first.Id,
+            first.Score,
+            first.DisplayCosine,
+            last.Id,
+            last.Score,
+            last.DisplayCosine,
+            hits.Count);
+    }
+
+    private static List<InternalHit> ToDenseHits(
+        IReadOnlyList<(string Id, float Score)> dense,
+        bool fromText,
+        bool fromImage)
+    {
+        if (dense.Count == 0)
+            return [];
+
+        var similarity = LooksLikeSimilarity(dense);
+        var list = new List<InternalHit>(dense.Count);
+        foreach (var hit in dense)
+        {
+            var cosine = similarity
+                ? Math.Clamp(hit.Score, -1f, 1f)
+                : SigLipScoreSemantics.CosineFromDistance(hit.Score);
+            list.Add(new InternalHit(hit.Id, hit.Score, fromText, fromImage, false, cosine));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// SDK best-first: non-increasing scores ⇒ cosine similarity; non-decreasing ⇒ distance.
+    /// A single Cosine hit is treated as similarity (ZVecMetricType.Cosine).
+    /// </summary>
+    private static bool LooksLikeSimilarity(IReadOnlyList<(string Id, float Score)> hits)
+    {
+        if (hits.Count >= 2)
+            return hits[0].Score >= hits[^1].Score;
+        return true;
     }
 
     private static CompareMetricsDto BuildCompareMetrics(
@@ -561,5 +666,11 @@ public sealed class ProductSearchService : IProductSearchService
         };
     }
 
-    private sealed record InternalHit(string Id, float Score, bool FromText, bool FromImage, bool FromFts);
+    private sealed record InternalHit(
+        string Id,
+        float Score,
+        bool FromText,
+        bool FromImage,
+        bool FromFts,
+        float DisplayCosine);
 }
