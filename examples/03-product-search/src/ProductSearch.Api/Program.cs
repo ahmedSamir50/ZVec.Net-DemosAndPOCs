@@ -77,6 +77,8 @@ var options = app.Services.GetRequiredService<IOptions<ProductSearchOptions>>().
 Directory.CreateDirectory(options.DataRoot);
 Directory.CreateDirectory(options.ModelsDir);
 Directory.CreateDirectory(options.CatalogCachePath);
+Directory.CreateDirectory(options.TextCollectionRoot);
+Directory.CreateDirectory(options.ImageCollectionRoot);
 
 using (var scope = app.Services.CreateScope())
 {

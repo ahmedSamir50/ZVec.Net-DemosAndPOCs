@@ -20,6 +20,7 @@ public interface IIngestService
     IngestStartResult TryStartPatch(IngestRequestDto request);
     IngestResetResult TryResetIndexes();
     IngestOptimizeResult TryOptimize();
+    void CancelRunningPatch();
 }
 
 public sealed class IngestService : IIngestService
@@ -137,6 +138,14 @@ public sealed class IngestService : IIngestService
                 _logger.LogError(ex, "Optimize failed");
                 return new IngestOptimizeResult(false, ex.Message);
             }
+        }
+    }
+
+    public void CancelRunningPatch()
+    {
+        lock (_startGate)
+        {
+            _patchCts?.Cancel();
         }
     }
 

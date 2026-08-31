@@ -12,6 +12,7 @@ public sealed class ModelBootstrapHostedService : IHostedService
     private readonly IServiceProvider _services;
     private readonly IOptions<ProductSearchOptions> _options;
     private readonly ILogger<ModelBootstrapHostedService> _logger;
+    private CancellationTokenSource? _workCts;
     private Task? _work;
 
     public ModelBootstrapHostedService(
@@ -26,15 +27,16 @@ public sealed class ModelBootstrapHostedService : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _work = Task.Run(() => RunAsync(cancellationToken), CancellationToken.None);
+        _workCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _work = Task.Run(() => RunAsync(_workCts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
-        if (_work is null) return;
-        try { await _work.WaitAsync(cancellationToken).ConfigureAwait(false); }
-        catch (OperationCanceledException) { /* shutting down */ }
+        // Do not block shutdown on model download — ZVec collections must close promptly.
+        _workCts?.Cancel();
+        return Task.CompletedTask;
     }
 
     private async Task RunAsync(CancellationToken ct)
@@ -53,6 +55,10 @@ public sealed class ModelBootstrapHostedService : IHostedService
             }
 
             _logger.LogInformation("Bootstrapped SigLIP model {ModelId}", result.ActiveModelId);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogDebug("Model bootstrap cancelled during host shutdown");
         }
         catch (Exception ex)
         {

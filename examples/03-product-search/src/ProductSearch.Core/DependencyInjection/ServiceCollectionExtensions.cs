@@ -63,6 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStatusService, StatusService>();
         services.AddSingleton<ICatalogMaintenanceService, CatalogMaintenanceService>();
         services.AddHostedService<ModelBootstrapHostedService>();
+        services.AddHostedService<ZVecShutdownHostedService>();
 
         return services;
     }
