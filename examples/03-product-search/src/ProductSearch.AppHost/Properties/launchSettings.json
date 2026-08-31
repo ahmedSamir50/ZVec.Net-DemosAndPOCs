@@ -9,7 +9,10 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21200",
-        "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22200"
+        "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22200",
+        "ASPIRE_CONTAINER_RUNTIME": "docker",
+        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "docker",
+        "DOTNET_ASPIRE_DEPENDENCY_CHECK_TIMEOUT": "120"
       }
     },
     "http": {
@@ -20,7 +23,10 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:21200",
-        "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:22200"
+        "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:22200",
+        "ASPIRE_CONTAINER_RUNTIME": "docker",
+        "DOTNET_ASPIRE_CONTAINER_RUNTIME": "docker",
+        "DOTNET_ASPIRE_DEPENDENCY_CHECK_TIMEOUT": "120"
       }
     }
   }

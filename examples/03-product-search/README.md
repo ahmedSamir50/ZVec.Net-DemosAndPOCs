@@ -45,7 +45,13 @@ dotnet run --project tools/CurateFashion10k -- "path/to/archive.zip" "data/fashi
 
 Attribution: Param Aggarwal, Myntra catalog scrape.
 
-## Run (Aspire — recommended)
+## Run
+
+Start **ProductSearch.AppHost** — any normal launcher is fine:
+
+- **Visual Studio** — F5 or Ctrl+F5 on AppHost
+- **VS Code / Cursor** — debug or run AppHost
+- **CMD / terminal** — `dotnet run --project src/ProductSearch.AppHost` (or `aspire run` if the Aspire CLI is installed)
 
 ```bash
 cd examples/03-product-search
@@ -54,9 +60,7 @@ dotnet run --project src/ProductSearch.AppHost
 
 Opens **pgvector/pgvector:pg16** Postgres, API, and Blazor UI. UI reads `ProductSearchUi__ApiBaseUrl` from Aspire.
 
-AppHost starts `productsearch-api` / `productsearch-ui` as **OS processes**, not via Visual Studio `run_session`. F5 on AppHost debugs AppHost only; attach to `ProductSearch.Api` if you need to debug the API.
-
-**Visual Studio:** if the dashboard still shows `Timeout waiting for the IDE to start a run session` or `dotnet.exe` with empty args, stop any leftover `ProductSearch.Api.exe`, then use **Ctrl+F5** or the `dotnet run` command above — do not rely on VS launching child projects.
+**Docker Desktop** must be running for Postgres (resume from Resource Saver if the tray icon is a moon).
 
 After a successful start, if Status shows a model/dim stamp mismatch (e.g. index built with SigLIP2 1152-d while Base 768-d is active), **Reset indexes** then ingest.
 
