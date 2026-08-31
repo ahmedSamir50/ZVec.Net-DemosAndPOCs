@@ -1,5 +1,6 @@
 using ProductSearch.Core.Configuration;
 using ProductSearch.Core.Models;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZVec.NET;
 
@@ -9,6 +10,7 @@ public sealed class DualCollectionHolder : IDisposable
 {
     private readonly IZvecFactory _factory;
     private readonly ProductSearchOptions _options;
+    private readonly ILogger<DualCollectionHolder> _logger;
     private readonly object _gate = new();
     private string _modelId = SigLipModelCatalog.DefaultModelId;
     private int _embeddingDim = 768;
@@ -16,10 +18,11 @@ public sealed class DualCollectionHolder : IDisposable
     private object _imageCollection = null!;
     private bool _indexesEnsured;
 
-    public DualCollectionHolder(IZvecFactory factory, IOptions<ProductSearchOptions> options)
+    public DualCollectionHolder(IZvecFactory factory, IOptions<ProductSearchOptions> options, ILogger<DualCollectionHolder> logger)
     {
         _factory = factory;
         _options = options.Value;
+        _logger = logger;
         var initial = SigLipModelCatalog.Get(
             string.IsNullOrWhiteSpace(_options.ActiveModelId)
                 ? SigLipModelCatalog.DefaultModelId
@@ -85,36 +88,50 @@ public sealed class DualCollectionHolder : IDisposable
             if (_indexesEnsured)
                 return;
 
-            if (_embeddingDim == 1152)
+            try
             {
-                var text = (IZvecCollection<ProductTextDoc1152>)_textCollection;
-                text.CreateIndex(p => p.Gender, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
-                {
-                    Tokenizer = ZVecFtsTokenizer.Standard,
-                    Filters = [ZVecFtsTokenFilter.Lowercase, ZVecFtsTokenFilter.AsciiFolding]
-                });
+                CreateIndexesUnlocked();
             }
-            else
+            catch (Exception ex)
             {
-                var text = (IZvecCollection<ProductTextDoc768>)_textCollection;
-                text.CreateIndex(p => p.Gender, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
-                text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
-                {
-                    Tokenizer = ZVecFtsTokenizer.Standard,
-                    Filters = [ZVecFtsTokenFilter.Lowercase, ZVecFtsTokenFilter.AsciiFolding]
-                });
+                _logger.LogWarning(ex, "ZVec index creation failed — recreating collections with current schema");
+                RecreateEmptyUnlocked();
+                CreateIndexesUnlocked();
             }
 
             _indexesEnsured = true;
+        }
+    }
+
+    private void CreateIndexesUnlocked()
+    {
+        if (_embeddingDim == 1152)
+        {
+            var text = (IZvecCollection<ProductTextDoc1152>)_textCollection;
+            text.CreateIndex(p => p.Gender, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
+            {
+                Tokenizer = ZVecFtsTokenizer.Standard,
+                Filters = [ZVecFtsTokenFilter.Lowercase, ZVecFtsTokenFilter.AsciiFolding]
+            });
+        }
+        else
+        {
+            var text = (IZvecCollection<ProductTextDoc768>)_textCollection;
+            text.CreateIndex(p => p.Gender, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
+            text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
+            {
+                Tokenizer = ZVecFtsTokenizer.Standard,
+                Filters = [ZVecFtsTokenFilter.Lowercase, ZVecFtsTokenFilter.AsciiFolding]
+            });
         }
     }
 
@@ -270,11 +287,16 @@ public sealed class DualCollectionHolder : IDisposable
     {
         lock (_gate)
         {
-            var model = SigLipModelCatalog.Get(_modelId);
-            TryDestroyBoth();
-            (_textCollection, _imageCollection) = OpenBoth(model);
-            _indexesEnsured = false;
+            RecreateEmptyUnlocked();
         }
+    }
+
+    private void RecreateEmptyUnlocked()
+    {
+        var model = SigLipModelCatalog.Get(_modelId);
+        TryDestroyBoth();
+        (_textCollection, _imageCollection) = OpenBoth(model);
+        _indexesEnsured = false;
     }
 
     public IZvecCollection GetTextCollectionUntyped()

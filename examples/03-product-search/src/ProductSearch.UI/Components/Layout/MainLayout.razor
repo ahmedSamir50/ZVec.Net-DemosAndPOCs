@@ -43,22 +43,3 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">✕</span>
 </div>
-
-@code {
-    [Inject] private ApiClientService Api { get; set; } = default!;
-
-    private bool _demoReady;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var status = await Api.GetStatusAsync();
-            _demoReady = status?.DemoReady == true;
-        }
-        catch
-        {
-            _demoReady = false;
-        }
-    }
-}

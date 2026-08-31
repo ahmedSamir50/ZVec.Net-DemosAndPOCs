@@ -1,15 +1,10 @@
-<div class="flex items-center gap-2.5 min-w-0 @CssClass">
-    <img src="zlens-logo.svg" alt="" class="w-9 h-9 shrink-0 rounded-xl" />
-    <div class="flex items-center gap-2 min-w-0">
-        <span class="text-lg font-bold tracking-tight text-base-content truncate">ZLens</span>
+<div class="flex items-center gap-3 min-w-0 @CssClass">
+    <img src="zlens-logo.svg" alt="" class="w-10 h-10 shrink-0 rounded-[11px]" />
+    <div class="flex items-center gap-2.5 min-w-0">
+        <span class="text-xl font-bold tracking-tight text-base-content truncate">ZLens</span>
         @if (ShowBadge)
         {
-            <span class="badge badge-sm badge-outline border-primary/40 text-primary/90 font-mono text-[10px] shrink-0">.NET 10</span>
+            <span class="inline-flex items-center rounded-full bg-[#2563EB] px-2.5 py-0.5 text-[11px] font-semibold text-white shrink-0">.NET 10</span>
         }
     </div>
 </div>
-
-@code {
-    [Parameter] public bool ShowBadge { get; set; } = true;
-    [Parameter] public string? CssClass { get; set; }
-}
