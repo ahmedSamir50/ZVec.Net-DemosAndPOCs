@@ -69,7 +69,7 @@
     @apply min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4.5rem)] xl:min-h-[calc(100vh-5rem)] flex flex-col items-center px-4;
     padding-top: 18vh;
     padding-bottom: 4rem;
-    transition: padding-top 0.4s ease;
+    transition: padding-top 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .search-canvas--serp {
@@ -87,7 +87,7 @@
     opacity: 1;
     overflow: hidden;
     transform: translateY(0) scale(1);
-    transition: max-height 0.4s ease, opacity 0.28s ease, margin 0.4s ease, transform 0.4s ease, padding 0.4s ease;
+    transition: max-height 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, margin 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), padding 0.7s ease;
   }
 
   .search-canvas--serp .search-hero {
@@ -116,7 +116,7 @@
     max-height: 8rem;
     opacity: 1;
     overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.28s ease, margin 0.35s ease;
+    transition: max-height 0.55s ease, opacity 0.45s ease, margin 0.55s ease;
   }
 
   .search-canvas--serp .search-chips {
@@ -130,7 +130,7 @@
     max-height: 24rem;
     opacity: 1;
     overflow: hidden;
-    transition: max-height 0.4s ease, opacity 0.28s ease;
+    transition: max-height 0.65s ease, opacity 0.5s ease;
   }
 
   .search-canvas--serp .search-home-demo {
@@ -196,8 +196,8 @@
 
   .product-tile {
     @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-base-200 border border-base-300 cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30;
-    animation: result-in 0.38s ease both;
-    animation-delay: calc(var(--result-i, 0) * 45ms);
+    animation: result-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--result-i, 0) * 120ms);
   }
 
   .product-tile img {
@@ -206,8 +206,8 @@
 
   .product-card-row {
     @apply flex gap-4 p-3 rounded-2xl bg-base-200 border border-base-300 hover:border-primary/30 transition-colors;
-    animation: result-in 0.38s ease both;
-    animation-delay: calc(var(--result-i, 0) * 45ms);
+    animation: result-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--result-i, 0) * 120ms);
   }
 
   .dock-nav {
@@ -312,8 +312,8 @@
 
   .serp-timing-chip {
     @apply badge badge-sm lg:badge-md badge-ghost font-mono tabular-nums gap-1;
-    animation: result-in 0.32s ease both;
-    animation-delay: calc(var(--chip-i, 0) * 40ms);
+    animation: result-in 0.6s ease both;
+    animation-delay: calc(var(--chip-i, 0) * 80ms);
   }
 
   .serp-timing-chip--total {
@@ -326,8 +326,8 @@
 
   .product-match-badge {
     @apply absolute top-2 right-2 rounded-full bg-base-100/90 border border-primary/40 px-2 py-0.5 text-xs lg:text-sm font-semibold text-primary tabular-nums shadow-sm;
-    animation: badge-in 0.28s ease both;
-    animation-delay: calc(var(--result-i, 0) * 45ms + 120ms);
+    animation: badge-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--result-i, 0) * 120ms + 280ms);
   }
 
   .product-card-media {
@@ -361,21 +361,21 @@
   }
 
   .zlens-mark--animate {
-    animation: zlens-glow 3s ease-in-out infinite;
+    animation: zlens-glow 4s ease-in-out infinite;
   }
 
   .zlens-mark--animate .zlens-stroke {
     stroke-dasharray: 32;
     stroke-dashoffset: 32;
-    animation: zlens-draw 0.6s ease forwards;
+    animation: zlens-draw 5s ease-in-out infinite;
   }
 
   .zlens-mark--animate .zlens-stroke--2 {
-    animation-delay: 0.12s;
+    animation-delay: 0.35s;
   }
 
   .zlens-mark--animate .zlens-stroke--3 {
-    animation-delay: 0.24s;
+    animation-delay: 0.7s;
   }
 
   .ingest-terminal {
@@ -408,12 +408,15 @@
 }
 
 @keyframes zlens-draw {
-  to { stroke-dashoffset: 0; }
+  0% { stroke-dashoffset: 32; }
+  30% { stroke-dashoffset: 0; }
+  70% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 32; }
 }
 
 @keyframes zlens-glow {
   0%, 100% { box-shadow: 0 0 0 0 rgb(59 130 246 / 0); }
-  50% { box-shadow: 0 0 18px 2px rgb(59 130 246 / 0.45); }
+  50% { box-shadow: 0 0 22px 4px rgb(59 130 246 / 0.55); }
 }
 
 @keyframes omnibox-spin {
@@ -421,20 +424,45 @@
 }
 
 @keyframes result-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(28px); }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes badge-in {
-  from { opacity: 0; transform: scale(0.85); }
+  from { opacity: 0; transform: scale(0.7); }
   to { opacity: 1; transform: none; }
+}
+
+.demo-strip .collapse-content {
+  transition: grid-template-rows 0.65s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.65s, padding 0.65s ease-out !important;
+}
+
+.lens-modal {
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.lens-modal .modal-box,
+.lens-modal__box {
+  transform: translateY(1.5rem) scale(0.94);
+  opacity: 0;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease;
+}
+
+.lens-modal.modal-open .modal-box,
+.lens-modal.modal-open .lens-modal__box {
+  transform: none;
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .search-canvas,
   .search-hero,
   .search-chips,
-  .search-home-demo {
+  .search-home-demo,
+  .demo-strip .collapse > .collapse-content,
+  .lens-modal,
+  .lens-modal .modal-box,
+  .lens-modal__box {
     transition: none !important;
   }
 
@@ -457,6 +485,12 @@
   .product-match-badge,
   .serp-timing-chip {
     animation: none !important;
+  }
+
+  .lens-modal .modal-box,
+  .lens-modal__box {
+    transform: none;
+    opacity: 1;
   }
 }
 

@@ -1,8 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Pgvector;
-using ProductSearch.Core.Configuration;
-using ProductSearch.Core.Models;
 
 namespace ProductSearch.Core.Data;
 
@@ -21,24 +17,28 @@ public sealed class ProductEntity
     public string ProductDisplayName { get; set; } = "";
     public string ConcatenatedText { get; set; } = "";
     public string ImageRelPath { get; set; } = "";
-    public Vector? TextEmbedding { get; set; }
-    public Vector? ImageEmbedding { get; set; }
     public DateTimeOffset UpdatedUtc { get; set; }
 }
 
 public sealed class ProductDbContext : DbContext
 {
-    private readonly int _embeddingDim;
-
-    public ProductDbContext(DbContextOptions<ProductDbContext> options, IOptions<ProductSearchOptions> searchOptions)
+    public ProductDbContext(DbContextOptions<ProductDbContext> options)
         : base(options)
     {
-        _embeddingDim = SigLipModelCatalog.Get(searchOptions.Value.ActiveModelId).EmbeddingDim;
     }
 
     public DbSet<ProductEntity> Products => Set<ProductEntity>();
+    public DbSet<ProductEmbedding768Entity> Embeddings768 => Set<ProductEmbedding768Entity>();
+    public DbSet<ProductEmbedding1152Entity> Embeddings1152 => Set<ProductEmbedding1152Entity>();
 
-   
+    public int ClearEmbeddings(int embeddingDim)
+        => embeddingDim switch
+        {
+            768 => Embeddings768.ExecuteDelete(),
+            1152 => Embeddings1152.ExecuteDelete(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(embeddingDim), embeddingDim, "Unsupported embedding dimension.")
+        };
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,9 +59,27 @@ public sealed class ProductDbContext : DbContext
             entity.Property(e => e.Usage).HasMaxLength(64);
             entity.Property(e => e.ProductDisplayName).HasMaxLength(256);
             entity.Property(e => e.ImageRelPath).HasMaxLength(256);
-            entity.Property(e => e.TextEmbedding).HasColumnType($"vector({_embeddingDim})");
-            entity.Property(e => e.ImageEmbedding).HasColumnType($"vector({_embeddingDim})");
             entity.Property(e => e.UpdatedUtc).HasDefaultValueSql("now()");
+        });
+
+        ConfigureEmbeddingTable<ProductEmbedding768Entity>(modelBuilder, "product_embeddings_768", 768);
+        ConfigureEmbeddingTable<ProductEmbedding1152Entity>(modelBuilder, "product_embeddings_1152", 1152);
+    }
+
+    private static void ConfigureEmbeddingTable<TEntity>(ModelBuilder modelBuilder, string tableName, int dim)
+        where TEntity : class
+    {
+        modelBuilder.Entity<TEntity>(entity =>
+        {
+            entity.ToTable(tableName);
+            entity.HasKey(nameof(ProductEmbedding768Entity.Id));
+            entity.Property(nameof(ProductEmbedding768Entity.TextEmbedding)).HasColumnType($"vector({dim})");
+            entity.Property(nameof(ProductEmbedding768Entity.ImageEmbedding)).HasColumnType($"vector({dim})");
+            entity.Property(nameof(ProductEmbedding768Entity.UpdatedUtc)).HasDefaultValueSql("now()");
+            entity.HasOne<ProductEntity>()
+                .WithMany()
+                .HasForeignKey(nameof(ProductEmbedding768Entity.Id))
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

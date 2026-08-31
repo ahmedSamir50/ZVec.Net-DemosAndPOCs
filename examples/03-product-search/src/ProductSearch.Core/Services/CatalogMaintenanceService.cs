@@ -64,6 +64,8 @@ public sealed class CatalogMaintenanceService : ICatalogMaintenanceService
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var count = await db.Products.CountAsync(ct).ConfigureAwait(false);
 
+        await db.Embeddings768.ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await db.Embeddings1152.ExecuteDeleteAsync(ct).ConfigureAwait(false);
         if (count > 0)
             await db.Products.ExecuteDeleteAsync(ct).ConfigureAwait(false);
 

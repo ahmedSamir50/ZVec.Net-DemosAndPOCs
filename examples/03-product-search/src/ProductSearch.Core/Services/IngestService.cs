@@ -108,6 +108,8 @@ public sealed class IngestService : IIngestService
                 _collections.SwitchToModel(active);
                 _collections.RecreateEmpty();
                 _collections.EnsureIndexes();
+                using (var db = _dbFactory.CreateDbContext())
+                    db.ClearEmbeddings(active.EmbeddingDim);
                 _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0));
                 _progress.SetIdle($"Indexes reset for {active.DisplayName}. Start ingest to re-embed.");
                 return new IngestResetResult(true, null);
@@ -222,7 +224,8 @@ public sealed class IngestService : IIngestService
                 var chunkIds = new List<string>(slice.Count);
                 var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, string MasterCategory, float[] Embedding)>(slice.Count);
                 var imageBatch = new List<(string Id, float[] Embedding)>(slice.Count);
-                var entities = new List<ProductEntity>(slice.Count);
+                var catalog = new List<ProductEntity>(slice.Count);
+                var embeddings = new List<ProductEmbeddingWrite>(slice.Count);
 
                 _progress.SetEncoding(
                     $"Sub-batch {chunkIndex + 1}/{chunkCount} · prefetching {slice.Count} images…",
@@ -286,9 +289,10 @@ public sealed class IngestService : IIngestService
 
                     textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, product.MasterCategory, textEmbedding));
                     imageBatch.Add((id, imageEmbedding));
-                    entities.Add(new ProductEntity
+                    var productId = Guid.Parse(id);
+                    catalog.Add(new ProductEntity
                     {
-                        Id = Guid.Parse(id),
+                        Id = productId,
                         CatalogId = product.CatalogId,
                         Gender = product.Gender,
                         MasterCategory = product.MasterCategory,
@@ -301,10 +305,13 @@ public sealed class IngestService : IIngestService
                         ProductDisplayName = product.ProductDisplayName,
                         ConcatenatedText = product.ConcatenatedText,
                         ImageRelPath = product.ImageRelPath,
-                        TextEmbedding = new Vector(textEmbedding),
-                        ImageEmbedding = new Vector(imageEmbedding),
                         UpdatedUtc = now
                     });
+                    embeddings.Add(new ProductEmbeddingWrite(
+                        productId,
+                        new Vector(textEmbedding),
+                        new Vector(imageEmbedding),
+                        now));
                     chunkIds.Add(id);
                 }
 
@@ -334,11 +341,11 @@ public sealed class IngestService : IIngestService
                 try
                 {
                     _progress.SetCommittingSql(
-                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · SQL committing {entities.Count} rows…",
-                        totalSql + entities.Count);
+                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · SQL committing {catalog.Count} rows…",
+                        totalSql + catalog.Count);
                     await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
                     await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-                    await ProductBulkUpsert.UpsertChunkAsync(db, entities, active.EmbeddingDim, ct).ConfigureAwait(false);
+                    await ProductBulkUpsert.UpsertChunkAsync(db, catalog, embeddings, active.EmbeddingDim, ct).ConfigureAwait(false);
                     await tx.CommitAsync(ct).ConfigureAwait(false);
                 }
                 catch
@@ -353,7 +360,7 @@ public sealed class IngestService : IIngestService
                 processedInPatch += slice.Count;
                 totalEncoded += chunkIds.Count;
                 totalZvec += chunkIds.Count;
-                totalSql += entities.Count;
+                totalSql += catalog.Count;
 
                 _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, offset));
                 chunkSw.Stop();
@@ -366,7 +373,8 @@ public sealed class IngestService : IIngestService
 
                 textBatch.Clear();
                 imageBatch.Clear();
-                entities.Clear();
+                catalog.Clear();
+                embeddings.Clear();
                 chunkIds.Clear();
             }
 

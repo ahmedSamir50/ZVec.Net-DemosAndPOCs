@@ -182,10 +182,14 @@ public sealed class ProductSearchService : IProductSearchService
         if (request.SimilarToProductId is Guid similarId)
         {
             await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            var row = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == similarId, ct)
-                      .ConfigureAwait(false)
-                      ?? throw new InvalidOperationException($"Product {similarId} not found.");
-            var source = request.QueryMode == QueryMode.Image ? row.ImageEmbedding : row.TextEmbedding;
+            var exists = await db.Products.AsNoTracking().AnyAsync(p => p.Id == similarId, ct)
+                .ConfigureAwait(false);
+            if (!exists)
+                throw new InvalidOperationException($"Product {similarId} not found.");
+
+            var source = await LoadStoredEmbeddingAsync(
+                    db, similarId, request.QueryMode == QueryMode.Image, ct)
+                .ConfigureAwait(false);
             if (source is null)
                 throw new InvalidOperationException("Stored embedding missing for similar-to query.");
             return source.ToArray();
@@ -456,6 +460,30 @@ public sealed class ProductSearchService : IProductSearchService
             .Take(topK)];
     }
 
+    private async Task<Vector?> LoadStoredEmbeddingAsync(
+        ProductDbContext db,
+        Guid id,
+        bool image,
+        CancellationToken ct)
+    {
+        var dim = _models.ActiveDefinition.EmbeddingDim;
+        if (dim == 1152)
+        {
+            var row = await db.Embeddings1152.AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == id, ct)
+                .ConfigureAwait(false);
+            return image ? row?.ImageEmbedding : row?.TextEmbedding;
+        }
+
+        if (dim != 768)
+            throw new InvalidOperationException($"Unsupported embedding dimension {dim}.");
+
+        var row768 = await db.Embeddings768.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id, ct)
+            .ConfigureAwait(false);
+        return image ? row768?.ImageEmbedding : row768?.TextEmbedding;
+    }
+
     private async Task<List<InternalHit>> SearchPostgresAsync(
         SearchRequestDto request,
         float[] queryVector,
@@ -464,46 +492,89 @@ public sealed class ProductSearchService : IProductSearchService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var vector = new Vector(queryVector);
-        IQueryable<ProductEntity> q = db.Products.AsNoTracking();
-        q = SearchInvertFilter.ApplyPostgres(q, request);
-
+        var products = SearchInvertFilter.ApplyPostgres(db.Products.AsNoTracking(), request);
         var isImageSearch = request.QueryMode == QueryMode.Image
                             || !string.IsNullOrWhiteSpace(request.ImageBase64)
                             || !string.IsNullOrWhiteSpace(request.ImageUrl);
 
+        var dim = _models.ActiveDefinition.EmbeddingDim;
+        if (dim == 1152)
+        {
+            var q = db.Embeddings1152.AsNoTracking()
+                .Join(products, e => e.Id, p => p.Id, (e, _) => e);
+            return await QueryPostgresDistanceAsync(q, vector, topK, isImageSearch, ct).ConfigureAwait(false);
+        }
+
+        if (dim != 768)
+            throw new InvalidOperationException($"Unsupported embedding dimension {dim}.");
+
+        var q768 = db.Embeddings768.AsNoTracking()
+            .Join(products, e => e.Id, p => p.Id, (e, _) => e);
+        return await QueryPostgresDistanceAsync(q768, vector, topK, isImageSearch, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<List<InternalHit>> QueryPostgresDistanceAsync(
+        IQueryable<ProductEmbedding1152Entity> embeddings,
+        Vector vector,
+        int topK,
+        bool isImageSearch,
+        CancellationToken ct)
+    {
         if (isImageSearch)
         {
-            var rows = await q.Where(p => p.ImageEmbedding != null)
-                .Select(p => new { p.Id, Distance = p.ImageEmbedding!.CosineDistance(vector) })
+            var rows = await embeddings.Where(e => e.ImageEmbedding != null)
+                .Select(e => new { e.Id, Distance = e.ImageEmbedding!.CosineDistance(vector) })
                 .OrderBy(x => x.Distance)
                 .Take(topK)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
-
-            return [.. rows.Select(r => new InternalHit(
-                r.Id.ToString(),
-                (float)r.Distance,
-                false,
-                true,
-                false,
-                SigLipScoreSemantics.CosineFromDistance((float)r.Distance)))];
+            return ToPgHits(rows.Select(r => (r.Id, r.Distance)), fromImage: true);
         }
 
-        var textRows = await q.Where(p => p.TextEmbedding != null)
-            .Select(p => new { p.Id, Distance = p.TextEmbedding!.CosineDistance(vector) })
+        var textRows = await embeddings.Where(e => e.TextEmbedding != null)
+            .Select(e => new { e.Id, Distance = e.TextEmbedding!.CosineDistance(vector) })
             .OrderBy(x => x.Distance)
             .Take(topK)
             .ToListAsync(ct)
             .ConfigureAwait(false);
+        return ToPgHits(textRows.Select(r => (r.Id, r.Distance)), fromImage: false);
+    }
 
-        return [.. textRows.Select(r => new InternalHit(
+    private static async Task<List<InternalHit>> QueryPostgresDistanceAsync(
+        IQueryable<ProductEmbedding768Entity> embeddings,
+        Vector vector,
+        int topK,
+        bool isImageSearch,
+        CancellationToken ct)
+    {
+        if (isImageSearch)
+        {
+            var rows = await embeddings.Where(e => e.ImageEmbedding != null)
+                .Select(e => new { e.Id, Distance = e.ImageEmbedding!.CosineDistance(vector) })
+                .OrderBy(x => x.Distance)
+                .Take(topK)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            return ToPgHits(rows.Select(r => (r.Id, r.Distance)), fromImage: true);
+        }
+
+        var textRows = await embeddings.Where(e => e.TextEmbedding != null)
+            .Select(e => new { e.Id, Distance = e.TextEmbedding!.CosineDistance(vector) })
+            .OrderBy(x => x.Distance)
+            .Take(topK)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        return ToPgHits(textRows.Select(r => (r.Id, r.Distance)), fromImage: false);
+    }
+
+    private static List<InternalHit> ToPgHits(IEnumerable<(Guid Id, double Distance)> rows, bool fromImage)
+        => [.. rows.Select(r => new InternalHit(
             r.Id.ToString(),
             (float)r.Distance,
-            true,
-            false,
+            !fromImage,
+            fromImage,
             false,
             SigLipScoreSemantics.CosineFromDistance((float)r.Distance)))];
-    }
 
     private async Task<IReadOnlyList<SearchHitDto>> HydrateAsync(
         IReadOnlyList<InternalHit> hits,
