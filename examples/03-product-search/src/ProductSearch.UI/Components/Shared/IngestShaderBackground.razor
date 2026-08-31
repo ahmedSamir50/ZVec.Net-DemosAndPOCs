@@ -1,0 +1,39 @@
+@implements IAsyncDisposable
+@inject IJSRuntime Js
+
+<div class="ingest-shader-layer" aria-hidden="true">
+    <canvas @ref="_canvas" class="ingest-shader-canvas"></canvas>
+</div>
+
+@code {
+    private ElementReference _canvas;
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            try
+            {
+                await Js.InvokeVoidAsync("productSearchIngestShader.init", _canvas);
+            }
+            catch
+            {
+                // WebGL unavailable — decorative only.
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("productSearchIngestShader.dispose");
+        }
+        catch
+        {
+            // ignore teardown errors
+        }
+    }
+}

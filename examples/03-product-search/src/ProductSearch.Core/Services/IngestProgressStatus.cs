@@ -18,7 +18,10 @@ public enum IngestState
 
 public sealed class IngestProgressStatus
 {
+    private const int MaxLogEvents = 80;
+
     private readonly object _gate = new();
+    private readonly Queue<IngestLogEventDto> _events = new();
     private IngestState _state = IngestState.Idle;
     private bool _isRunning;
     private string _message = "Idle — start a patch ingest from the UI.";
@@ -51,8 +54,35 @@ public sealed class IngestProgressStatus
                 CatalogTotal = _catalogTotal,
                 DownloadBytesReceived = _downloadBytesReceived,
                 DownloadBytesTotal = _downloadBytesTotal,
-                ErrorMessage = _error
+                ErrorMessage = _error,
+                Events = _events.ToList()
             };
+        }
+    }
+
+    public void AppendEvent(string level, string stage, string message, long? elapsedMs = null)
+    {
+        lock (_gate)
+        {
+            _events.Enqueue(new IngestLogEventDto
+            {
+                Timestamp = DateTimeOffset.UtcNow,
+                Level = level,
+                Stage = stage,
+                Message = message,
+                ElapsedMs = elapsedMs
+            });
+
+            while (_events.Count > MaxLogEvents)
+                _events.Dequeue();
+        }
+    }
+
+    public void ClearEvents()
+    {
+        lock (_gate)
+        {
+            _events.Clear();
         }
     }
 
@@ -105,6 +135,7 @@ public sealed class IngestProgressStatus
             _sqlCommitted = 0;
             _downloadBytesReceived = 0;
             _downloadBytesTotal = null;
+            _events.Clear();
         }
     }
 

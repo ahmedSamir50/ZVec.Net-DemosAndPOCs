@@ -23,6 +23,19 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    font-size: 16px;
+  }
+
+  @media (min-width: 1024px) {
+    html {
+      font-size: 17px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    html {
+      font-size: 18px;
+    }
   }
 
   body {
@@ -35,8 +48,24 @@
     background: radial-gradient(ellipse at top, #131b2e 0%, #0b1326 55%, #060e20 100%);
   }
 
+  .zlens-header {
+    @apply h-16 lg:h-[4.5rem] xl:h-20;
+  }
+
+  .zlens-header-offset {
+    @apply top-16 lg:top-[4.5rem] xl:top-20;
+  }
+
+  .page-title {
+    @apply text-2xl lg:text-3xl font-semibold;
+  }
+
+  .page-subtitle {
+    @apply text-sm lg:text-base text-base-content/60 mt-1;
+  }
+
   .search-canvas {
-    @apply min-h-[calc(100vh-4rem)] flex flex-col;
+    @apply min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4.5rem)] xl:min-h-[calc(100vh-5rem)] flex flex-col;
   }
 
   .search-canvas--home {
@@ -52,7 +81,7 @@
   }
 
   .omnibox {
-    @apply flex items-center gap-2 w-full max-w-[680px] h-14 px-4 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
+    @apply flex items-center gap-2 w-full max-w-[680px] lg:max-w-3xl xl:max-w-4xl h-14 lg:h-16 px-4 lg:px-5 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
   }
 
   .omnibox:focus-within {
@@ -60,11 +89,15 @@
   }
 
   .omnibox-input {
-    @apply flex-1 bg-transparent outline-none text-base placeholder:text-base-content/40;
+    @apply flex-1 bg-transparent outline-none text-base lg:text-lg placeholder:text-base-content/40;
   }
 
   .omnibox-icon {
-    @apply btn btn-ghost btn-circle btn-sm text-base-content/60 hover:text-primary shrink-0;
+    @apply btn btn-ghost btn-circle btn-sm lg:btn-md text-base-content/60 hover:text-primary shrink-0;
+  }
+
+  .omnibox-icon svg {
+    @apply h-5 w-5 lg:h-6 lg:w-6;
   }
 
   .lens-dropzone {
@@ -92,11 +125,15 @@
   }
 
   .dock-nav {
-    @apply fixed bottom-0 left-0 right-0 md:left-0 md:top-16 md:bottom-0 md:right-auto md:w-20 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-6 gap-1 md:gap-2 border-t md:border-t-0 md:border-r border-base-300 bg-base-100/90 backdrop-blur z-30;
+    @apply fixed bottom-0 left-0 right-0 md:left-0 md:top-16 lg:top-[4.5rem] xl:top-20 md:bottom-0 md:right-auto md:w-20 lg:w-24 xl:w-28 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-6 gap-1 md:gap-2 border-t md:border-t-0 md:border-r border-base-300 bg-base-100/90 backdrop-blur z-30;
   }
 
   .dock-link {
-    @apply btn btn-ghost btn-sm md:btn-square flex-col gap-0.5 min-h-0 h-auto md:h-12 px-3 text-base-content/70 hover:text-primary;
+    @apply btn btn-ghost btn-sm md:btn-square flex-col gap-0.5 min-h-0 h-auto md:h-12 lg:h-14 px-3 text-base-content/70 hover:text-primary;
+  }
+
+  .dock-link svg {
+    @apply h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7;
   }
 
   .dock-link.active {
@@ -104,11 +141,11 @@
   }
 
   .dock-label {
-    @apply text-[10px] font-medium md:hidden;
+    @apply text-[10px] lg:text-xs font-medium hidden md:inline;
   }
 
   .main-with-dock {
-    @apply md:pl-20;
+    @apply md:pl-20 lg:pl-24 xl:pl-28;
   }
 
   .zlens-busy {
@@ -120,15 +157,141 @@
   }
 
   .stat-label {
-    @apply text-xs uppercase tracking-wide text-base-content/50;
+    @apply text-xs lg:text-sm uppercase tracking-wide text-base-content/50;
   }
 
   .stat-value {
-    @apply text-2xl font-semibold tabular-nums mt-1;
+    @apply text-2xl lg:text-3xl font-semibold tabular-nums mt-1;
+  }
+
+  .demo-strip {
+    @apply w-full max-w-xl lg:max-w-2xl xl:max-w-3xl;
   }
 
   .glow-ready {
     box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
+  }
+
+  .demo-labeled-switch {
+    @apply flex items-center justify-between gap-4 rounded-2xl border border-base-300 bg-base-200/60 px-4 py-3;
+  }
+
+  .demo-labeled-switch__text {
+    @apply min-w-0 flex-1;
+  }
+
+  .demo-switch {
+    @apply flex shrink-0 items-center gap-3 rounded-xl border border-base-300 bg-base-300/80 px-3 py-2 transition-colors;
+  }
+
+  .demo-switch:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .demo-switch:not(:disabled) {
+    @apply cursor-pointer hover:border-primary/40;
+  }
+
+  .demo-switch--on {
+    @apply border-primary/50 bg-primary/15;
+  }
+
+  .demo-switch__track {
+    @apply relative h-7 w-12 rounded-full bg-base-300 transition-colors;
+  }
+
+  .demo-switch--on .demo-switch__track {
+    @apply bg-primary;
+  }
+
+  .demo-switch__knob {
+    @apply absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-base-content shadow-md transition-transform;
+  }
+
+  .demo-switch--on .demo-switch__knob {
+    @apply translate-x-5 bg-primary-content;
+  }
+
+  .demo-switch__badge {
+    @apply min-w-[2.25rem] text-center text-xs font-semibold uppercase tracking-wide text-base-content/70;
+  }
+
+  .demo-switch--on .demo-switch__badge {
+    @apply text-primary;
+  }
+
+  .serp-timing {
+    @apply w-full max-w-5xl mx-auto mt-4 flex flex-wrap items-center gap-1.5 lg:gap-2;
+  }
+
+  .serp-timing-chip {
+    @apply badge badge-sm lg:badge-md badge-ghost font-mono tabular-nums gap-1;
+  }
+
+  .serp-timing-chip--total {
+    @apply badge-primary badge-outline font-semibold;
+  }
+
+  .product-tile__media {
+    @apply relative;
+  }
+
+  .product-match-badge {
+    @apply absolute top-2 right-2 rounded-full bg-base-100/90 border border-primary/40 px-2 py-0.5 text-xs lg:text-sm font-semibold text-primary tabular-nums shadow-sm;
+  }
+
+  .product-card-media {
+    @apply relative shrink-0;
+  }
+
+  .ingest-page {
+    @apply relative;
+  }
+
+  .ingest-page__content {
+    @apply relative z-10;
+  }
+
+  .ingest-shader-layer {
+    @apply fixed inset-0 pointer-events-none z-0 opacity-[0.18];
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ingest-shader-layer {
+      @apply hidden;
+    }
+  }
+
+  .ingest-shader-canvas {
+    @apply block w-full h-full;
+  }
+
+  .ingest-terminal {
+    @apply rounded-xl border border-base-300 bg-base-300/40 p-3 max-h-72 overflow-y-auto font-mono text-xs lg:text-sm;
+  }
+
+  .ingest-terminal__line {
+    @apply flex flex-wrap gap-x-2 gap-y-0.5 py-0.5 border-b border-base-300/30 last:border-0;
+  }
+
+  .ingest-terminal__time {
+    @apply text-base-content/40 shrink-0;
+  }
+
+  .ingest-terminal__stage {
+    @apply text-primary/80 shrink-0;
+  }
+
+  .ingest-terminal__line--Warn .ingest-terminal__stage {
+    @apply text-warning;
+  }
+
+  .ingest-terminal__line--Error .ingest-terminal__stage {
+    @apply text-error;
+  }
+
+  .ingest-terminal__elapsed {
+    @apply text-base-content/40 ml-auto tabular-nums;
   }
 }
 

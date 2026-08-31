@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using ProductSearch.Core.Data;
 using ProductSearch.Core.Services;
 using ProductSearch.Core.Storage;
@@ -16,19 +17,22 @@ public sealed class IngestController : ControllerBase
     private readonly ICatalogMaintenanceService _catalog;
     private readonly IIndexStampStore _stamp;
     private readonly FashionCatalogReader _catalogReader;
+    private readonly ILogger<IngestController> _logger;
 
     public IngestController(
         IIngestService ingest,
         IngestProgressStatus progress,
         ICatalogMaintenanceService catalog,
         IIndexStampStore stamp,
-        FashionCatalogReader catalogReader)
+        FashionCatalogReader catalogReader,
+        ILogger<IngestController> logger)
     {
         _ingest = ingest;
         _progress = progress;
         _catalog = catalog;
         _stamp = stamp;
         _catalogReader = catalogReader;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -48,15 +52,18 @@ public sealed class IngestController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IngestProgressDto>> GetProgressAsync(CancellationToken cancellationToken)
     {
+        var snapshot = _progress.Snapshot();
+        if (snapshot.IsRunning)
+            return Ok(_progress.SnapshotHydrated(_stamp.Load(), snapshot.CatalogTotal));
+
         var catalogTotal = 0;
         try
         {
-            var catalog = await _catalogReader.ReadAllAsync(cancellationToken).ConfigureAwait(false);
-            catalogTotal = catalog.Count;
+            catalogTotal = await _catalogReader.GetCatalogTotalAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // data.csv may not be extracted from the in-repo pack yet.
+            _logger.LogDebug(ex, "Catalog total unavailable during ingest progress poll");
         }
 
         return Ok(_progress.SnapshotHydrated(_stamp.Load(), catalogTotal));

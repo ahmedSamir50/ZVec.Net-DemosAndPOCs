@@ -3,6 +3,7 @@ using ProductSearch.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZVec.NET;
+using ZVec.NET.Query;
 
 namespace ProductSearch.Core.Storage;
 
@@ -225,27 +226,39 @@ public sealed class DualCollectionHolder : IDisposable
         if (list.Count == 0)
             return;
 
-        lock (_gate)
+        if (_embeddingDim == 1152)
         {
-            if (_embeddingDim == 1152)
+            IZvecCollection<ProductTextDoc1152> text;
+            IZvecCollection<ProductImageDoc1152> image;
+            lock (_gate)
             {
-                var text = (IZvecCollection<ProductTextDoc1152>)_textCollection;
-                var image = (IZvecCollection<ProductImageDoc1152>)_imageCollection;
-                foreach (var id in list)
-                {
-                    text.Delete(id);
-                    image.Delete(id);
-                }
+                text = (IZvecCollection<ProductTextDoc1152>)_textCollection;
+                image = (IZvecCollection<ProductImageDoc1152>)_imageCollection;
             }
-            else
+
+            foreach (var id in list)
             {
-                var text = (IZvecCollection<ProductTextDoc768>)_textCollection;
-                var image = (IZvecCollection<ProductImageDoc768>)_imageCollection;
-                foreach (var id in list)
-                {
-                    text.Delete(id);
-                    image.Delete(id);
-                }
+                ct.ThrowIfCancellationRequested();
+                text.Delete(id);
+                image.Delete(id);
+            }
+            return;
+        }
+
+        {
+            IZvecCollection<ProductTextDoc768> text;
+            IZvecCollection<ProductImageDoc768> image;
+            lock (_gate)
+            {
+                text = (IZvecCollection<ProductTextDoc768>)_textCollection;
+                image = (IZvecCollection<ProductImageDoc768>)_imageCollection;
+            }
+
+            foreach (var id in list)
+            {
+                ct.ThrowIfCancellationRequested();
+                text.Delete(id);
+                image.Delete(id);
             }
         }
 
@@ -312,9 +325,19 @@ public sealed class DualCollectionHolder : IDisposable
     public async Task<IReadOnlyList<(string Id, float Score)>> QueryTextDenseAsync(
         float[] vector,
         int topK,
-        Func<object, object?>? filter = null,
+        string? filter = null,
         CancellationToken ct = default)
     {
+        if (filter is not null)
+        {
+            return await QueryTextUntypedAsync(
+                [new ZVecQuery { FieldName = "TextEmbedding", Vector = vector }],
+                filter,
+                reranker: null,
+                topK,
+                ct).ConfigureAwait(false);
+        }
+
         if (_embeddingDim == 1152)
         {
             IZvecCollection<ProductTextDoc1152> col;
@@ -336,24 +359,47 @@ public sealed class DualCollectionHolder : IDisposable
     public async Task<IReadOnlyList<(string Id, float Score)>> QueryImageDenseAsync(
         float[] vector,
         int topK,
+        string? filter = null,
         CancellationToken ct = default)
     {
+        var fetchK = filter is null ? topK : Math.Min(topK * 8, Math.Max(topK, 80));
         if (_embeddingDim == 1152)
         {
             IZvecCollection<ProductImageDoc1152> col;
             lock (_gate) col = (IZvecCollection<ProductImageDoc1152>)_imageCollection;
-            var hits = await col.QueryAsync(p => p.ImageEmbedding, vector, topK, filter: null, includeVector: false, ct)
+            var hits = await col.QueryAsync(p => p.ImageEmbedding, vector, fetchK, filter: null, includeVector: false, ct)
                 .ConfigureAwait(false);
-            return hits.Select(h => (h.Record.Id, h.Score)).ToList();
+            return hits.Select(h => (h.Record.Id, h.Score)).Take(topK).ToList();
         }
 
         {
             IZvecCollection<ProductImageDoc768> col;
             lock (_gate) col = (IZvecCollection<ProductImageDoc768>)_imageCollection;
-            var hits = await col.QueryAsync(p => p.ImageEmbedding, vector, topK, filter: null, includeVector: false, ct)
+            var hits = await col.QueryAsync(p => p.ImageEmbedding, vector, fetchK, filter: null, includeVector: false, ct)
                 .ConfigureAwait(false);
-            return hits.Select(h => (h.Record.Id, h.Score)).ToList();
+            return hits.Select(h => (h.Record.Id, h.Score)).Take(topK).ToList();
         }
+    }
+
+    public async Task<IReadOnlyList<(string Id, float Score)>> QueryTextUntypedAsync(
+        IReadOnlyList<ZVecQuery> queries,
+        string? filter,
+        ZVecReranker? reranker,
+        int topK,
+        CancellationToken ct = default)
+    {
+        IZvecCollection col;
+        lock (_gate) col = GetTextCollectionUntyped();
+
+        var docs = await Task.Run(() =>
+        {
+            if (queries.Count == 1)
+                return col.Query(queries[0], topk: topK, filter: filter, includeVector: false);
+
+            return col.Query(queries, topk: topK, reranker: reranker!, filter: filter, includeVector: false);
+        }, ct).ConfigureAwait(false);
+
+        return docs.Select(d => (d.Id, d.Score)).ToList();
     }
 
     private (object Text, object Image) OpenBoth(SigLipModelDefinition model)

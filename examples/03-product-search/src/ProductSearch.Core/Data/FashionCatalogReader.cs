@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using ProductSearch.Core.Configuration;
 using ProductSearch.Core.Models;
 
@@ -7,18 +9,81 @@ namespace ProductSearch.Core.Data;
 public sealed class FashionCatalogReader
 {
     private readonly ProductSearchOptions _options;
+    private readonly ILogger<FashionCatalogReader>? _logger;
+    private readonly object _cacheGate = new();
+    private IReadOnlyList<CatalogProduct>? _cache;
+    private long _cacheWriteTicks;
+    private string? _cachePath;
 
-    public FashionCatalogReader(ProductSearchOptions options)
+    public FashionCatalogReader(ProductSearchOptions options, ILogger<FashionCatalogReader>? logger = null)
     {
         _options = options;
+        _logger = logger;
     }
 
-    public async Task<IReadOnlyList<CatalogProduct>> ReadAllAsync(CancellationToken ct = default)
+    public async Task<int> GetCatalogTotalAsync(CancellationToken ct = default)
+    {
+        var catalog = await GetOrLoadCatalogAsync(ct).ConfigureAwait(false);
+        return catalog.Count;
+    }
+
+    public async Task<IReadOnlyList<CatalogProduct>> ReadSliceAsync(int offset, int count, CancellationToken ct = default)
+    {
+        if (count <= 0)
+            return [];
+
+        var catalog = await GetOrLoadCatalogAsync(ct).ConfigureAwait(false);
+        if (offset >= catalog.Count)
+            return [];
+
+        var take = Math.Min(count, catalog.Count - offset);
+        var slice = new List<CatalogProduct>(take);
+        for (var i = 0; i < take; i++)
+            slice.Add(catalog[offset + i]);
+        return slice;
+    }
+
+    public Task<IReadOnlyList<CatalogProduct>> ReadAllAsync(CancellationToken ct = default)
+        => GetOrLoadCatalogAsync(ct);
+
+    private async Task<IReadOnlyList<CatalogProduct>> GetOrLoadCatalogAsync(CancellationToken ct)
     {
         var path = _options.CatalogCsvPath();
         if (!File.Exists(path))
             throw new FileNotFoundException("Catalog data.csv not found. Extract the in-repo pack first.", path);
 
+        var writeTicks = new FileInfo(path).LastWriteTimeUtc.Ticks;
+        lock (_cacheGate)
+        {
+            if (_cache is not null
+                && string.Equals(_cachePath, path, StringComparison.OrdinalIgnoreCase)
+                && _cacheWriteTicks == writeTicks)
+                return _cache;
+        }
+
+        var loaded = await ParseCatalogFileAsync(path, ct).ConfigureAwait(false);
+        lock (_cacheGate)
+        {
+            _cache = loaded;
+            _cachePath = path;
+            _cacheWriteTicks = writeTicks;
+        }
+
+        return loaded;
+    }
+
+    public void InvalidateCache()
+    {
+        lock (_cacheGate)
+        {
+            _cache = null;
+            _cachePath = null;
+            _cacheWriteTicks = 0;
+        }
+    }
+
+    private async Task<IReadOnlyList<CatalogProduct>> ParseCatalogFileAsync(string path, CancellationToken ct)
+    {
         var lines = await File.ReadAllLinesAsync(path, ct).ConfigureAwait(false);
         if (lines.Length == 0)
             return [];
@@ -39,6 +104,7 @@ public sealed class FashionCatalogReader
                 rows.Add(product);
         }
 
+        _logger?.LogDebug("Parsed {Count} catalog rows from {Path}", rows.Count, path);
         return rows;
     }
 
@@ -117,7 +183,7 @@ public sealed class FashionCatalogReader
     private static List<string> SplitCsvLine(string line)
     {
         var result = new List<string>();
-        var current = "";
+        var current = new StringBuilder();
         var inQuotes = false;
         for (var i = 0; i < line.Length; i++)
         {
@@ -126,7 +192,7 @@ public sealed class FashionCatalogReader
             {
                 if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
                 {
-                    current += '"';
+                    current.Append('"');
                     i++;
                     continue;
                 }
@@ -137,15 +203,15 @@ public sealed class FashionCatalogReader
 
             if (ch == ',' && !inQuotes)
             {
-                result.Add(current);
-                current = "";
+                result.Add(current.ToString());
+                current.Clear();
                 continue;
             }
 
-            current += ch;
+            current.Append(ch);
         }
 
-        result.Add(current);
+        result.Add(current.ToString());
         return result;
     }
 

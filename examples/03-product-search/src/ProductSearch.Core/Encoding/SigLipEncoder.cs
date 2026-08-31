@@ -19,6 +19,7 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
     private int _imageSize = 224;
     private bool _useBilinearResize;
     private string? _activeModelId;
+    private int _intraOpNumThreads = Math.Max(1, Environment.ProcessorCount / 2);
 
     public SigLipEncoder(IOptions<ProductSearchOptions> options, ILogger<SigLipEncoder> logger)
     {
@@ -44,6 +45,11 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
         get { lock (_gate) return _imageSize; }
     }
 
+    public int IntraOpNumThreads
+    {
+        get { lock (_gate) return _intraOpNumThreads; }
+    }
+
     public void InitializeFromDisk(string modelsDir, SigLipModelDefinition model)
     {
         lock (_gate)
@@ -59,6 +65,7 @@ public sealed class SigLipEncoder : ISigLipEncoder, IDisposable
                 InterOpNumThreads = 1,
                 IntraOpNumThreads = Math.Max(1, Environment.ProcessorCount / 2)
             };
+            _intraOpNumThreads = so.IntraOpNumThreads;
 
             _vision?.Dispose();
             _text?.Dispose();

@@ -9,6 +9,7 @@ public interface ISigLipEncoder
     string? ActiveModelId { get; }
     int EmbeddingDim { get; }
     int ImageSize { get; }
+    int IntraOpNumThreads { get; }
     void InitializeFromDisk(string modelsDir, SigLipModelDefinition model);
     float[] EncodeImage(Stream imageStream);
     float[] EncodeImage(string filePath);

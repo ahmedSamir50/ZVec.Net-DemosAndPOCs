@@ -56,23 +56,14 @@
         </label>
     </div>
 
-    <div class="flex flex-wrap gap-4">
-        <label class="label cursor-pointer gap-2 justify-start items-start">
-            <input type="checkbox"
-                   class="toggle toggle-sm toggle-primary mt-0.5"
-                   @bind="UseInvert"
-                   @bind:after="() => UseInvertChanged.InvokeAsync(UseInvert)" />
-            <span class="flex flex-col">
-                <span class="label-text text-xs font-medium">Filter by category</span>
-                <span class="text-[11px] text-base-content/50 max-w-xs">When on, search only the selected Category. Off = whole catalog.</span>
-            </span>
-        </label>
-        <label class="label cursor-pointer gap-2 justify-start">
-            <input type="checkbox"
-                   class="toggle toggle-sm toggle-primary"
-                   @bind="UseHybridFts"
-                   @bind:after="() => UseHybridFtsChanged.InvokeAsync(UseHybridFts)" />
-            <span class="label-text text-xs">Hybrid FTS</span>
-        </label>
+    <div class="flex flex-col gap-4">
+        <LabeledSwitch Label="Filter by category"
+                       Description="When on, search only the selected Category. Off = whole catalog."
+                       @bind-Value="UseInvert"
+                       @bind-Value:after="() => UseInvertChanged.InvokeAsync(UseInvert)" />
+        <LabeledSwitch Label="Hybrid FTS"
+                       Description="Blend keyword full-text with vector search on text queries."
+                       @bind-Value="UseHybridFts"
+                       @bind-Value:after="() => UseHybridFtsChanged.InvokeAsync(UseHybridFts)" />
     </div>
 </div>

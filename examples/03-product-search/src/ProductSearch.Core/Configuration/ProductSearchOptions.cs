@@ -37,6 +37,7 @@ public sealed class ProductSearchOptions
 
     public int DefaultTopK { get; set; } = 10;
     public int DefaultPatchSize { get; set; } = 100;
+  public int IngestChunkSize { get; set; } = 20;
     public long MaxUploadBytes { get; set; } = 8 * 1024 * 1024;
 
     public float MinCosine { get; set; } = 0.15f;

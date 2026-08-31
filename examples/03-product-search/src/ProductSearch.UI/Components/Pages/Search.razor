@@ -2,12 +2,19 @@
 @rendermode InteractiveServer
 
 <div class="search-canvas @(_searched && _hasResults ? "search-canvas--serp" : "search-canvas--home") relative">
-    @if (_busy)
+    @if (_initLoading || _busy)
     {
         <BusyBlock Visible="true"
-                   Message="Searching…"
-                   SubMessage="@(_queryModeLabel)"
+                   Message="@(_initLoading ? "Loading search…" : "Searching…")"
+                   SubMessage="@(_initLoading ? (_encoderReady ? "Preparing demo…" : "Waiting for SigLIP…") : _queryModeLabel)"
                    CssClass="search-busy-overlay" />
+    }
+
+    @if (_ingestRunning)
+    {
+        <div role="status" class="alert alert-info w-full max-w-5xl mx-auto mb-4 rounded-2xl">
+            <span>Ingest in progress — results include committed products so far.</span>
+        </div>
     }
 
     @if (!_searched || !_hasResults)
@@ -17,10 +24,10 @@
         </div>
     }
 
-    <div class="w-full flex flex-col items-center @(_searched && _hasResults ? "sticky top-16 z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
+    <div class="w-full flex flex-col items-center @(_searched && _hasResults ? "sticky zlens-header-offset z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
         <div class="omnibox @(_encoderReady ? "" : "opacity-60")">
             <button type="button" class="omnibox-icon" disabled="@(!_encoderReady || _busy)" @onclick="SearchAsync" title="Search">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
             </button>
 
             @if (!string.IsNullOrEmpty(_imagePreviewUrl))
@@ -28,27 +35,31 @@
                 <img src="@_imagePreviewUrl" alt="Lens query" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-base-300" />
                 <button type="button" class="btn btn-ghost btn-xs btn-circle shrink-0" @onclick="ClearLens" title="Remove image">✕</button>
             }
+            else if (IsHttpImageUrl(_query))
+            {
+                <span class="badge badge-primary badge-sm shrink-0" title="Image URL query">URL</span>
+            }
 
             <input class="omnibox-input"
-                   placeholder="@(_encoderReady ? "Search fashion products with ZLens…" : "Waiting for SigLIP…")"
+                   placeholder="@(_encoderReady ? "Search products, paste an image URL, or use Lens…" : "Waiting for SigLIP…")"
                    @bind="_query"
                    @bind:event="oninput"
                    @onkeydown="OnKeyDown"
                    disabled="@(!_encoderReady || _busy)" />
 
             <button type="button" class="omnibox-icon text-primary" disabled="@(!_encoderReady || _busy)" @onclick="OpenLens" title="Lens camera">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
         </div>
 
         @if (!_encoderReady && _boot is not null)
         {
-            <p class="text-xs text-base-content/50 mt-2 max-w-[680px] text-center">@_boot.Message</p>
+            <p class="text-xs lg:text-sm text-base-content/50 mt-2 max-w-[680px] lg:max-w-3xl xl:max-w-4xl text-center">@_boot.Message</p>
         }
 
         @if (_wowChips.Count > 0 && (!_searched || !_hasResults))
         {
-            <div class="flex flex-wrap justify-center gap-2 mt-5 max-w-[680px]">
+            <div class="flex flex-wrap justify-center gap-2 mt-5 max-w-[680px] lg:max-w-3xl xl:max-w-4xl">
                 @foreach (var chip in _wowChips)
                 {
                     <button type="button" class="btn btn-ghost btn-sm rounded-full border border-base-300/80" @onclick="async () => await ApplyChip(chip)">
@@ -80,7 +91,7 @@
 
     @if (!_searched || !_hasResults)
     {
-        <div class="demo-strip mt-8 w-full max-w-xl">
+        <div class="demo-strip mt-8">
             <div class="collapse collapse-arrow bg-base-200/40 border border-base-300/60 rounded-2xl">
                 <input type="checkbox" />
                 <div class="collapse-title text-sm font-medium py-3 min-h-0">Demo settings</div>
@@ -104,25 +115,29 @@
 
     @if (_response?.Latency is not null && _searched)
     {
-        <div class="w-full max-w-5xl mx-auto mt-4 rounded-2xl border border-base-300 bg-base-200/50 p-3 font-mono text-xs text-base-content/70">
-            <p class="text-sm font-sans font-semibold text-base-content mb-2">Query timing (ms)</p>
-            <div class="flex flex-wrap gap-x-4 gap-y-1">
-                @foreach (var chip in BuildTimingChips())
-                {
-                    <span title="@chip.Tooltip">@chip.Label @chip.Value</span>
-                }
-                <span class="font-semibold text-base-content" title="Wall clock for the whole request.">Total @FormatMs(_response.Latency.TotalMs)</span>
-            </div>
-            @if (_response.Compare is not null)
+        <div class="serp-timing">
+            @foreach (var chip in BuildTimingChips())
             {
-                <p class="mt-2 font-sans text-xs">
-                    Overlap at N: @_response.Compare.OverlapAtN shared IDs ·
-                    Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
-                    @_response.Compare.RankDisagreements rank disagreements ·
-                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs Postgres @FormatMs(_response.Compare.PostgreSqlTotalMs)
-                </p>
+                <span class="serp-timing-chip" title="@chip.Tooltip">@chip.Label @chip.Value</span>
             }
+            <span class="serp-timing-chip serp-timing-chip--total" title="Wall clock for the whole request.">
+                Total @FormatMs(_response.Latency.TotalMs)
+            </span>
         </div>
+        @if (_response.Compare is not null)
+        {
+            <p class="w-full max-w-5xl mx-auto mt-2 font-mono text-xs lg:text-sm text-base-content/60">
+                Overlap @_response.Compare.OverlapAtN · Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
+                @_response.Compare.RankDisagreements disagreements ·
+                ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
+            </p>
+        }
+        @if (_response.Runtime is not null)
+        {
+            <div class="w-full max-w-5xl mx-auto mt-2">
+                <RuntimeSnapshotPanel Snapshot="_response.Runtime" ShowTitle="false" CssClass="!p-2 !bg-base-200/40 !text-xs lg:!text-sm" />
+            </div>
+        }
     }
 
     @if (!string.IsNullOrEmpty(_response?.Warning) && _searched)
@@ -188,7 +203,7 @@
             {
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-primary/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 <p class="font-medium">Drop image here</p>
-                <p class="text-xs text-base-content/50 mt-2">or click to browse · Ctrl+V to paste</p>
+                <p class="text-xs text-base-content/50 mt-2">or click to browse · Ctrl+V to paste image or URL</p>
             }
         </div>
 

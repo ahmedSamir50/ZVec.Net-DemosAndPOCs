@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using ProductSearch.Core.Configuration;
@@ -23,7 +24,10 @@ public sealed class StatusService : IStatusService
     private readonly IDbContextFactory<ProductDbContext> _dbFactory;
     private readonly FashionCatalogReader _catalogReader;
     private readonly ModelBootstrapStatus _bootstrap;
+    private readonly IngestProgressStatus _ingestProgress;
+    private readonly IProcessRuntimeMonitor _runtime;
     private readonly ProductSearchOptions _options;
+    private readonly ILogger<StatusService> _logger;
 
     public StatusService(
         ISigLipEncoder encoder,
@@ -33,7 +37,10 @@ public sealed class StatusService : IStatusService
         IDbContextFactory<ProductDbContext> dbFactory,
         FashionCatalogReader catalogReader,
         ModelBootstrapStatus bootstrap,
-        IOptions<ProductSearchOptions> options)
+        IngestProgressStatus ingestProgress,
+        IProcessRuntimeMonitor runtime,
+        IOptions<ProductSearchOptions> options,
+        ILogger<StatusService> logger)
     {
         _encoder = encoder;
         _models = models;
@@ -42,7 +49,10 @@ public sealed class StatusService : IStatusService
         _dbFactory = dbFactory;
         _catalogReader = catalogReader;
         _bootstrap = bootstrap;
+        _ingestProgress = ingestProgress;
+        _runtime = runtime;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<StatusDto> GetStatusAsync(CancellationToken ct = default)
@@ -58,20 +68,26 @@ public sealed class StatusService : IStatusService
             await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
             sqlCount = await db.Products.CountAsync(ct).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // Postgres may be unavailable during bootstrap.
+            _logger.LogDebug(ex, "Postgres count unavailable during status poll");
         }
 
         var catalogTotal = 0;
-        try
+        if (!_ingestProgress.Snapshot().IsRunning)
         {
-            var catalog = await _catalogReader.ReadAllAsync(ct).ConfigureAwait(false);
-            catalogTotal = catalog.Count;
+            try
+            {
+                catalogTotal = await _catalogReader.GetCatalogTotalAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Catalog total unavailable — data.csv may not be extracted yet");
+            }
         }
-        catch
+        else if (_ingestProgress.Snapshot().CatalogTotal > 0)
         {
-            // data.csv may not be extracted from the in-repo pack yet.
+            catalogTotal = _ingestProgress.Snapshot().CatalogTotal;
         }
 
         string? indexWarning = null;
@@ -98,10 +114,12 @@ public sealed class StatusService : IStatusService
             IngestOffset = stamp.IngestOffset,
             CatalogTotal = catalogTotal,
             ModelBootstrapComplete = _encoder.IsReady,
+            IngestRunning = _ingestProgress.Snapshot().IsRunning,
             ModelBootstrap = ToDto(boot),
             StampWarning = stampMatch ? null : _stamp.MismatchMessage(active, stamp),
             IndexWarning = indexWarning,
-            Postgres = ParsePostgresConnection(_options.PostgresConnectionString)
+            Postgres = ParsePostgresConnection(_options.PostgresConnectionString),
+            Runtime = _runtime.Capture()
         };
     }
 

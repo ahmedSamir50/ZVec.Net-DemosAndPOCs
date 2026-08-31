@@ -1,0 +1,21 @@
+<div class="demo-labeled-switch">
+    <div class="demo-labeled-switch__text">
+        <span class="text-sm font-medium text-base-content">@Label</span>
+        @if (!string.IsNullOrEmpty(Description))
+        {
+            <span class="text-xs text-base-content/60 mt-0.5 block max-w-md">@Description</span>
+        }
+    </div>
+    <button type="button"
+            role="switch"
+            aria-checked="@Value"
+            aria-label="@Label"
+            disabled="@Disabled"
+            class="demo-switch @(Value ? "demo-switch--on" : "demo-switch--off")"
+            @onclick="ToggleAsync">
+        <span class="demo-switch__track">
+            <span class="demo-switch__knob"></span>
+        </span>
+        <span class="demo-switch__badge">@(Value ? "On" : "Off")</span>
+    </button>
+</div>

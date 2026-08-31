@@ -6,6 +6,7 @@ public sealed class SearchResponseDto
     public IReadOnlyList<SearchHitDto> ZVecHits { get; set; } = [];
     public IReadOnlyList<SearchHitDto> PostgreSqlHits { get; set; } = [];
     public LatencyHudDto Latency { get; set; } = new();
+    public RuntimeSnapshotDto? Runtime { get; set; }
     public CompareMetricsDto? Compare { get; set; }
     public string? Warning { get; set; }
 }

@@ -14,8 +14,8 @@ window.productSearchLens = {
       prevent(e);
       const file = e.dataTransfer?.files?.[0];
       if (!file || !file.type.startsWith('image/')) return;
-      const base64 = await readFileAsBase64(file);
-      await dotNetRef.invokeMethodAsync('OnLensFileReceived', base64, file.type);
+      const payload = await readFilePayload(file);
+      await dotNetRef.invokeMethodAsync('OnLensFileReceived', payload.base64, payload.contentType, payload.blobUrl);
     });
 
     element.addEventListener('paste', async (e) => {
@@ -26,28 +26,49 @@ window.productSearchLens = {
           e.preventDefault();
           const file = item.getAsFile();
           if (!file) return;
-          const base64 = await readFileAsBase64(file);
-          await dotNetRef.invokeMethodAsync('OnLensFileReceived', base64, file.type);
-          break;
+          const payload = await readFilePayload(file);
+          await dotNetRef.invokeMethodAsync('OnLensFileReceived', payload.base64, payload.contentType, payload.blobUrl);
+          return;
         }
       }
+
+      const text = e.clipboardData?.getData('text/plain')?.trim();
+      if (text && /^https?:\/\//i.test(text)) {
+        e.preventDefault();
+        await dotNetRef.invokeMethodAsync('OnLensUrlReceived', text);
+      }
     });
+  },
+
+  revokeBlobUrl: function (url) {
+    if (url && url.startsWith('blob:')) {
+      try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+    }
   }
 };
 
-function readFileAsBase64(file) {
+function readFilePayload(file) {
   return new Promise((resolve, reject) => {
+    const blobUrl = URL.createObjectURL(file);
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result;
       if (typeof result !== 'string') {
+        URL.revokeObjectURL(blobUrl);
         reject(new Error('Unexpected file reader result'));
         return;
       }
       const comma = result.indexOf(',');
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      resolve({
+        base64: comma >= 0 ? result.slice(comma + 1) : result,
+        contentType: file.type,
+        blobUrl
+      });
     };
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+    reader.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      reject(reader.error ?? new Error('Failed to read file'));
+    };
     reader.readAsDataURL(file);
   });
 }

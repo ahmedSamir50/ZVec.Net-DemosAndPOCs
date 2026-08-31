@@ -4,8 +4,8 @@
 <div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-semibold">Status</h1>
-            <p class="text-sm text-base-content/60 mt-1">Catalog counts, Postgres, SigLIP bootstrap, and maintenance.</p>
+            <h1 class="page-title">Status</h1>
+            <p class="page-subtitle">Catalog counts, Postgres, SigLIP bootstrap, and maintenance.</p>
         </div>
         <button type="button" class="btn btn-outline btn-sm" disabled="@_loading" @onclick="RefreshAsync">Refresh</button>
     </div>
@@ -62,6 +62,11 @@
                 <p class="stat-value">@_status.ZVecImageCount</p>
             </div>
         </div>
+
+        @if (_status.Runtime is not null)
+        {
+            <RuntimeSnapshotPanel Snapshot="_status.Runtime" />
+        }
 
         @if (_status.ModelBootstrap is not null)
         {

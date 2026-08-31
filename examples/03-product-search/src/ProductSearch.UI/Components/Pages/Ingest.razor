@@ -1,128 +1,154 @@
 @page "/ingest"
 @rendermode InteractiveServer
 
-<div class="max-w-3xl mx-auto px-4 py-8 space-y-6">
-    <div>
-        <h1 class="text-2xl font-semibold">Ingest</h1>
-        <p class="text-sm text-base-content/60 mt-1">
-            Resume-safe patches over the fashion catalog. Each patch encodes SigLIP vectors,
-            upserts ZVec collections, then commits PostgreSQL in one transaction.
-        </p>
-    </div>
+<div class="ingest-page">
+    <IngestShaderBackground />
 
-    @if (_loadError is not null && _progress is null)
-    {
-        <ErrorBanner Title="Could not load ingest state" Message="@_loadError" OnRetry="ReloadProgressAsync" RetryDisabled="@_busy" />
-    }
-
-    <div class="card bg-base-200 border border-base-300 rounded-2xl">
-        <div class="card-body gap-4">
-            <div>
-                <span class="label-text text-xs">Patch size</span>
-                <div class="join mt-2">
-                    @foreach (var size in new[] { 100, 500, 1000 })
-                    {
-                        <button type="button"
-                                class="btn btn-sm join-item @(_patchSize == size ? "btn-primary" : "btn-outline")"
-                                disabled="@_busy"
-                                @onclick="() => _patchSize = size">
-                            @size
-                        </button>
-                    }
-                </div>
-            </div>
-
-            <div class="flex flex-wrap gap-2 items-center">
-                <button type="button" class="btn btn-primary btn-sm" disabled="@_busy" @onclick="RunAsync">
-                    @(_busy ? "Running…" : "Start patch")
-                </button>
-                <button type="button" class="btn btn-outline btn-sm" disabled="@_busy" @onclick="OptimizeAsync">
-                    Optimize indexes
-                </button>
-                <label class="label cursor-pointer gap-2 justify-start">
-                    <input type="checkbox" class="toggle toggle-sm toggle-primary" @bind="_optimizeAfterPatch" disabled="@_busy" />
-                    <span class="label-text text-xs">Optimize after patch</span>
-                </label>
-            </div>
-
-            @if (_busy)
-            {
-                <BusyBlock Visible="true"
-                           Message="@ActiveMessage"
-                           SubMessage="@(ProgressPercent is double pct ? $"{pct:0.#}%" : null)"
-                           CssClass="py-4" />
-                @if (ProgressPercent is double progress)
-                {
-                    <progress class="progress progress-primary w-full" value="@progress" max="100"></progress>
-                }
-                else
-                {
-                    <progress class="progress progress-primary w-full"></progress>
-                }
-            }
-            else if (_progress is not null && !_progress.IsRunning && _progress.IngestOffset > 0)
-            {
-                <div class="alert alert-success rounded-xl text-sm">
-                    <span>Ready — catalog offset @_progress.IngestOffset / @FormatCatalogTotal()</span>
-                </div>
-            }
-            else if (_progress is not null && _progress.IngestOffset <= 0)
-            {
-                <EmptyState Icon="📥"
-                            Title="Nothing ingested yet"
-                            Message="Start a patch to populate Postgres and ZVec."
-                            CssClass="border-dashed py-6" />
-            }
+    <div class="ingest-page__content max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div>
+            <h1 class="page-title">Ingest</h1>
+            <p class="page-subtitle">
+                Resume-safe patches over the fashion catalog. Each patch encodes SigLIP vectors,
+                upserts ZVec collections, then commits PostgreSQL in one transaction.
+            </p>
         </div>
-    </div>
 
-    @if (_progress is not null)
-    {
-        <div class="card bg-base-200 border border-base-300 rounded-2xl">
-            <div class="card-body">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <h2 class="card-title text-base">Progress</h2>
-                    @if (_progress.IsRunning)
+        @if (_loadError is not null && _progress is null)
+        {
+            <ErrorBanner Title="Could not load ingest state" Message="@_loadError" OnRetry="ReloadProgressAsync" RetryDisabled="@_busy" />
+        }
+
+        <div class="card bg-base-200/90 border border-base-300 rounded-2xl">
+            <div class="card-body gap-4">
+                <div>
+                    <span class="label-text text-xs lg:text-sm">Patch size</span>
+                    <div class="join mt-2">
+                        @foreach (var size in new[] { 100, 500, 1000 })
+                        {
+                            <button type="button"
+                                    class="btn btn-sm lg:btn-md join-item @(_patchSize == size ? "btn-primary" : "btn-outline")"
+                                    disabled="@_busy"
+                                    @onclick="() => _patchSize = size">
+                                @size
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 items-center">
+                    <button type="button" class="btn btn-primary btn-sm lg:btn-md" disabled="@_busy" @onclick="RunAsync">
+                        @(_busy ? "Running…" : "Start patch")
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm lg:btn-md" disabled="@_busy" @onclick="OptimizeAsync">
+                        Optimize indexes
+                    </button>
+                    <label class="label cursor-pointer gap-2 justify-start">
+                        <input type="checkbox" class="toggle toggle-sm toggle-primary" @bind="_optimizeAfterPatch" disabled="@_busy" />
+                        <span class="label-text text-xs lg:text-sm">Optimize after patch</span>
+                    </label>
+                </div>
+
+                @if (_busy)
+                {
+                    <BusyBlock Visible="true"
+                               Message="@ActiveMessage"
+                               SubMessage="@(ProgressPercent is double pct ? $"{pct:0.#}%" : null)"
+                               CssClass="py-4" />
+                    @if (ProgressPercent is double progress)
                     {
-                        <span class="badge badge-primary badge-sm">Running</span>
-                    }
-                    else if (_progress.Status is "Completed")
-                    {
-                        <span class="badge badge-success badge-sm">Completed</span>
-                    }
-                    else if (_progress.Status is "Failed")
-                    {
-                        <span class="badge badge-error badge-sm">Failed</span>
+                        <progress class="progress progress-primary w-full" value="@progress" max="100"></progress>
                     }
                     else
                     {
-                        <span class="badge badge-ghost badge-sm">Idle</span>
+                        <progress class="progress progress-primary w-full"></progress>
                     }
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(_progress.Message))
-                {
-                    <p class="text-sm mb-3">@_progress.Message</p>
                 }
-
-                <div class="overflow-x-auto">
-                    <table class="table table-sm">
-                        <tbody>
-                            <tr><td>Status</td><td>@_progress.Status</td></tr>
-                            <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
-                            <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
-                            <tr><td>Encoded this patch</td><td>@_progress.Encoded / @_progress.PatchSize</td></tr>
-                            <tr><td>Catalog offset</td><td>@FormatOffset()</td></tr>
-                            <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
-                            <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
+                else if (_progress is not null && !_progress.IsRunning && _progress.IngestOffset > 0)
                 {
-                    <ErrorBanner Title="Ingest failed" Message="@_progress.ErrorMessage" CssClass="mt-3" />
+                    <div class="alert alert-success rounded-xl text-sm lg:text-base">
+                        <span>Ready — catalog offset @_progress.IngestOffset / @FormatCatalogTotal()</span>
+                    </div>
+                }
+                else if (_progress is not null && _progress.IngestOffset <= 0)
+                {
+                    <EmptyState Icon="📥"
+                                Title="Nothing ingested yet"
+                                Message="Start a patch to populate Postgres and ZVec."
+                                CssClass="border-dashed py-6" />
                 }
             </div>
         </div>
-    }
+
+        @if (_progress is not null)
+        {
+            <div class="card bg-base-200/90 border border-base-300 rounded-2xl">
+                <div class="card-body">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <h2 class="card-title text-base lg:text-lg">Progress</h2>
+                        @if (_progress.IsRunning)
+                        {
+                            <span class="badge badge-primary badge-sm lg:badge-md">Running</span>
+                        }
+                        else if (_progress.Status is "Completed")
+                        {
+                            <span class="badge badge-success badge-sm lg:badge-md">Completed</span>
+                        }
+                        else if (_progress.Status is "Failed")
+                        {
+                            <span class="badge badge-error badge-sm lg:badge-md">Failed</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-ghost badge-sm lg:badge-md">Idle</span>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_progress.Message))
+                    {
+                        <p class="text-sm lg:text-base mb-3">@_progress.Message</p>
+                    }
+
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm lg:table-md">
+                            <tbody>
+                                <tr><td>Status</td><td>@_progress.Status</td></tr>
+                                <tr><td>Patch size</td><td>@_progress.PatchSize</td></tr>
+                                <tr><td>Patch index</td><td>@_progress.PatchIndex</td></tr>
+                                <tr><td>Encoded this patch</td><td>@_progress.Encoded / @_progress.PatchSize</td></tr>
+                                <tr><td>Catalog offset</td><td>@FormatOffset()</td></tr>
+                                <tr><td>ZVec upserted</td><td>@_progress.ZVecUpserted</td></tr>
+                                <tr><td>SQL committed</td><td>@_progress.SqlCommitted</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (_progress.Events.Count > 0)
+                    {
+                        <div class="mt-4">
+                            <h3 class="text-sm lg:text-base font-semibold mb-2">Live log</h3>
+                            <div class="ingest-terminal" @ref="_terminal">
+                                @foreach (var ev in _progress.Events)
+                                {
+                                    <div class="ingest-terminal__line ingest-terminal__line--@ev.Level">
+                                        <span class="ingest-terminal__time">@ev.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
+                                        <span class="ingest-terminal__stage">[@ev.Stage]</span>
+                                        <span>@ev.Message</span>
+                                        @if (ev.ElapsedMs is not null)
+                                        {
+                                            <span class="ingest-terminal__elapsed">@ev.ElapsedMs ms</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
+                    {
+                        <ErrorBanner Title="Ingest failed" Message="@_progress.ErrorMessage" CssClass="mt-3" />
+                    }
+                </div>
+            </div>
+        }
+    </div>
 </div>

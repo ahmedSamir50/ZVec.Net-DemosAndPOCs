@@ -13,7 +13,9 @@ public sealed class StatusDto
     public int IngestOffset { get; set; }
     public int CatalogTotal { get; set; }
     public bool ModelBootstrapComplete { get; set; }
+    public bool IngestRunning { get; set; }
     public ModelBootstrapSnapshotDto? ModelBootstrap { get; set; }
+    public RuntimeSnapshotDto? Runtime { get; set; }
     public string? StampWarning { get; set; }
     public string? IndexWarning { get; set; }
     public PostgresConnectionDto? Postgres { get; set; }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using ProductSearch.Shared.Dtos;
 using ProductSearch.UI.Services;
 
@@ -8,6 +9,7 @@ public partial class Ingest : IDisposable
 {
     [Inject] private ApiClientService Api { get; set; } = default!;
     [Inject] private ToastService Toasts { get; set; } = default!;
+    [Inject] private IJSRuntime Js { get; set; } = default!;
 
     private IngestProgressDto? _progress;
     private bool _busy;
@@ -15,6 +17,7 @@ public partial class Ingest : IDisposable
     private bool _optimizeAfterPatch = true;
     private string? _loadError;
     private CancellationTokenSource? _pollCts;
+    private ElementReference _terminal;
 
     private string ActiveMessage =>
         string.IsNullOrWhiteSpace(_progress?.Message)
@@ -174,6 +177,7 @@ public partial class Ingest : IDisposable
                 {
                     _progress = p;
                     await InvokeAsync(StateHasChanged);
+                    await ScrollTerminalAsync();
 
                     if (!p.IsRunning)
                     {
@@ -210,6 +214,21 @@ public partial class Ingest : IDisposable
 
     private string FormatCatalogTotal()
         => _progress?.CatalogTotal > 0 ? _progress.CatalogTotal.ToString() : "?";
+
+    private async Task ScrollTerminalAsync()
+    {
+        if (_progress?.Events.Count is not > 0)
+            return;
+
+        try
+        {
+            await Js.InvokeVoidAsync("productSearchIngestShader.scrollTerminal", _terminal);
+        }
+        catch
+        {
+            // ignore scroll errors during teardown
+        }
+    }
 
     public void Dispose()
     {

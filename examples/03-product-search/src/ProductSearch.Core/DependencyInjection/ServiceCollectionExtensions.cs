@@ -24,6 +24,12 @@ public static class ServiceCollectionExtensions
             c.DefaultRequestHeaders.UserAgent.ParseAdd("ZVec.ProductSearch/1.0");
         });
 
+        services.AddHttpClient("remote-image", c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(20);
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("ZVec.ProductSearch/1.0");
+        });
+
         services.AddZVec(options =>
         {
             options.LogLevel = ZVecLogLevel.Warn;
@@ -50,6 +56,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IngestProgressStatus>();
         services.AddSingleton<ISigLipEncoder, SigLipEncoder>();
         services.AddSingleton<ISigLipModelSelectionService, SigLipModelSelectionService>();
+        services.AddSingleton<IProcessRuntimeMonitor, ProcessRuntimeMonitor>();
+        services.AddSingleton<IRemoteImageFetcher, RemoteImageFetcher>();
         services.AddSingleton<IIngestService, IngestService>();
         services.AddSingleton<IProductSearchService, ProductSearchService>();
         services.AddSingleton<IStatusService, StatusService>();

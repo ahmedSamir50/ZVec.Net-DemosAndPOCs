@@ -7,11 +7,12 @@ public sealed class SearchRequestDto
 {
     public string? QueryText { get; set; }
     public string? ImageBase64 { get; set; }
+    public string? ImageUrl { get; set; }
     public QueryMode QueryMode { get; set; } = QueryMode.Text;
     public VectorEngineMode Engine { get; set; } = VectorEngineMode.ZVec;
     public FusionMode Fusion { get; set; } = FusionMode.Rrf;
     public int TopK { get; set; } = 5;
-    public bool UseInvertFilter { get; set; } = true;
+    public bool UseInvertFilter { get; set; } = false;
     public bool UseHybridFts { get; set; } = true;
     public string? Gender { get; set; }
     public string? BaseColour { get; set; }

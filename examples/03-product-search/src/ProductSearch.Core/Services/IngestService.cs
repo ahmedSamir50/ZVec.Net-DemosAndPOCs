@@ -36,6 +36,7 @@ public sealed class IngestService : IIngestService
     private readonly ILogger<IngestService> _logger;
     private readonly object _startGate = new();
     private int _running;
+    private CancellationTokenSource? _patchCts;
 
     public IngestService(
         DualCollectionHolder collections,
@@ -79,10 +80,16 @@ public sealed class IngestService : IIngestService
             if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
                 return new IngestStartResult(false, patchSize, "Ingest already running.");
 
+            _patchCts?.Cancel();
+            _patchCts?.Dispose();
+            _patchCts = new CancellationTokenSource();
+
             var patchIndex = (_stamp.Load().IngestOffset / Math.Max(1, patchSize)) + 1;
             _progress.ResetForPatch(patchSize, patchIndex);
+            _progress.AppendEvent("Info", "start", $"Patch {patchIndex} started (size {patchSize})");
             _logger.LogInformation("Starting ingest patch {PatchIndex} size {PatchSize}", patchIndex, patchSize);
-            _ = Task.Run(() => RunPatchAsync(patchSize, request.OptimizeAfterPatch));
+            var ct = _patchCts.Token;
+            _ = Task.Run(() => RunPatchAsync(patchSize, request.OptimizeAfterPatch, ct), ct);
             return new IngestStartResult(true, patchSize, null);
         }
     }
@@ -133,23 +140,30 @@ public sealed class IngestService : IIngestService
         }
     }
 
-    private async Task RunPatchAsync(int patchSize, bool optimizeAfterPatch)
+    private async Task RunPatchAsync(int patchSize, bool optimizeAfterPatch, CancellationToken ct)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var writtenIds = new List<string>();
+        var chunkSize = Math.Clamp(_options.IngestChunkSize, 1, patchSize);
+        var totalEncoded = 0;
+        var totalZvec = 0;
+        var totalSql = 0;
+
         try
         {
             var active = _models.ActiveDefinition;
             _logger.LogInformation("Ingest patch: ensuring catalog CSV from pack…");
-            await _downloader.EnsureStylesCsvAsync().ConfigureAwait(false);
-            var catalog = await _catalogReader.ReadAllAsync().ConfigureAwait(false);
-            _logger.LogInformation("Ingest patch: catalog loaded ({Count} rows)", catalog.Count);
-            var stamp = _stamp.Load();
-            var offset = Math.Clamp(stamp.IngestOffset, 0, catalog.Count);
+            _progress.AppendEvent("Info", "catalog", "Ensuring catalog CSV from pack…");
+            await _downloader.EnsureStylesCsvAsync(ct).ConfigureAwait(false);
+            var catalogTotal = await _catalogReader.GetCatalogTotalAsync(ct).ConfigureAwait(false);
+            _logger.LogInformation("Ingest patch: catalog has {Count} rows", catalogTotal);
+            _progress.AppendEvent("Info", "catalog", $"Catalog ready — {catalogTotal} products");
 
-            await using (var dbCheck = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false))
+            var stamp = _stamp.Load();
+            var offset = Math.Clamp(stamp.IngestOffset, 0, catalogTotal);
+
+            await using (var dbCheck = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
             {
-                var sqlCount = await dbCheck.Products.CountAsync().ConfigureAwait(false);
+                var sqlCount = await dbCheck.Products.CountAsync(ct).ConfigureAwait(false);
                 if (sqlCount == 0 && stamp.IngestOffset > 0)
                 {
                     _logger.LogWarning(
@@ -169,144 +183,184 @@ public sealed class IngestService : IIngestService
             if (_stamp.IsMismatch(active, stamp) && stamp.IngestOffset > 0)
                 throw new InvalidOperationException(_stamp.MismatchMessage(active, stamp));
 
-            var remaining = Math.Max(0, catalog.Count - offset);
+            var remaining = Math.Max(0, catalogTotal - offset);
             var target = Math.Min(patchSize, remaining);
             if (target == 0)
             {
-                _progress.SetCompleted($"Caught up — offset {offset}/{catalog.Count}.", offset, catalog.Count, 0, 0, 0, sw.ElapsedMilliseconds);
-                _logger.LogInformation("Ingest patch: nothing left to ingest at offset {Offset}/{Total}", offset, catalog.Count);
+                _progress.AppendEvent("Info", "complete", $"Caught up — offset {offset}/{catalogTotal}");
+                _progress.SetCompleted($"Caught up — offset {offset}/{catalogTotal}.", offset, catalogTotal, 0, 0, 0, sw.ElapsedMilliseconds);
+                _logger.LogInformation("Ingest patch: nothing left to ingest at offset {Offset}/{Total}", offset, catalogTotal);
                 return;
             }
 
+            var chunkCount = (target + chunkSize - 1) / chunkSize;
             _logger.LogInformation(
-                "Ingest patch: encoding {Target} products starting at catalog offset {Offset}/{Total}",
-                target, offset, catalog.Count);
+                "Ingest patch: {Target} products in {Chunks} sub-batches of {ChunkSize} starting at offset {Offset}/{Total}",
+                target, chunkCount, chunkSize, offset, catalogTotal);
 
-            var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, string MasterCategory, float[] Embedding)>();
-            var imageBatch = new List<(string Id, float[] Embedding)>();
-            var entities = new List<ProductEntity>();
-            writtenIds.Clear();
+            var processedInPatch = 0;
 
-            for (var i = 0; i < target; i++)
+            for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++)
             {
-                var product = catalog[offset + i];
-                var id = ProductIdGenerator.StringFromCatalogId(product.CatalogId);
+                ct.ThrowIfCancellationRequested();
+                var chunkSw = System.Diagnostics.Stopwatch.StartNew();
+
+                var thisChunkSize = Math.Min(chunkSize, target - processedInPatch);
+                var slice = await _catalogReader.ReadSliceAsync(offset, thisChunkSize, ct).ConfigureAwait(false);
+                if (slice.Count == 0)
+                    break;
+
+                var chunkIds = new List<string>(slice.Count);
+                var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, string MasterCategory, float[] Embedding)>(slice.Count);
+                var imageBatch = new List<(string Id, float[] Embedding)>(slice.Count);
+                var entities = new List<ProductEntity>(slice.Count);
 
                 _progress.SetEncoding(
-                    $"Encoding {i + 1}/{target} (catalog offset {offset + i + 1}/{catalog.Count})…",
-                    offset + i,
-                    catalog.Count,
-                    i + 1);
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · prefetching {slice.Count} images…",
+                    offset,
+                    catalogTotal,
+                    totalEncoded);
+                _progress.AppendEvent("Info", "prefetch",
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · prefetching {slice.Count} images");
 
-                var imagePath = await _downloader.TryEnsureImageAsync(product.CatalogId).ConfigureAwait(false);
-                if (imagePath is null)
+                var imagePaths = await _downloader.PrefetchImagesAsync(slice.Select(p => p.CatalogId), ct).ConfigureAwait(false);
+
+                for (var i = 0; i < slice.Count; i++)
                 {
-                    _logger.LogWarning("Skipping catalog id {CatalogId} — image not found in pack.", product.CatalogId);
+                    ct.ThrowIfCancellationRequested();
+                    var product = slice[i];
+                    if (!imagePaths.TryGetValue(product.CatalogId.Trim(), out var imagePath))
+                    {
+                        _logger.LogWarning("Skipping catalog id {CatalogId} — image not found in pack.", product.CatalogId);
+                        continue;
+                    }
+
+                    _progress.SetEncoding(
+                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoding {i + 1}/{slice.Count} (offset {offset + i + 1}/{catalogTotal})…",
+                        offset + i,
+                        catalogTotal,
+                        totalEncoded + i + 1);
+
+                    var id = ProductIdGenerator.StringFromCatalogId(product.CatalogId);
+                    var textEmbedding = _encoder.EncodeText(product.ConcatenatedText);
+                    var imageEmbedding = _encoder.EncodeImage(imagePath);
+
+                    textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, product.MasterCategory, textEmbedding));
+                    imageBatch.Add((id, imageEmbedding));
+                    entities.Add(new ProductEntity
+                    {
+                        Id = Guid.Parse(id),
+                        CatalogId = product.CatalogId,
+                        Gender = product.Gender,
+                        MasterCategory = product.MasterCategory,
+                        SubCategory = product.SubCategory,
+                        ArticleType = product.ArticleType,
+                        BaseColour = product.BaseColour,
+                        Season = product.Season,
+                        Year = product.Year,
+                        Usage = product.Usage,
+                        ProductDisplayName = product.ProductDisplayName,
+                        ConcatenatedText = product.ConcatenatedText,
+                        ImageRelPath = product.ImageRelPath,
+                        TextEmbedding = new Vector(textEmbedding),
+                        ImageEmbedding = new Vector(imageEmbedding),
+                        UpdatedUtc = DateTimeOffset.UtcNow
+                    });
+                    chunkIds.Add(id);
+                }
+
+                if (chunkIds.Count == 0)
+                {
+                    offset += slice.Count;
+                    processedInPatch += slice.Count;
                     continue;
                 }
 
-                var textEmbedding = _encoder.EncodeText(product.ConcatenatedText);
-                var imageEmbedding = _encoder.EncodeImage(imagePath);
+                _progress.SetUpsertingZVec(
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · ZVec upserting {chunkIds.Count} docs…",
+                    totalZvec + chunkIds.Count);
+                _progress.AppendEvent("Info", "encode",
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoded {chunkIds.Count} products");
+                _logger.LogInformation("Ingest sub-batch {Chunk}/{Total}: upserting {Count} vectors to ZVec", chunkIndex + 1, chunkCount, chunkIds.Count);
 
-                textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, product.MasterCategory, textEmbedding));
-                imageBatch.Add((id, imageEmbedding));
-                entities.Add(new ProductEntity
+                await _collections.UpsertTextBatchAsync(textBatch, ct).ConfigureAwait(false);
+                await _collections.UpsertImageBatchAsync(imageBatch, ct).ConfigureAwait(false);
+                _progress.AppendEvent("Info", "zvec",
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · ZVec upserted {chunkIds.Count} docs");
+
+                try
                 {
-                    Id = Guid.Parse(id),
-                    CatalogId = product.CatalogId,
-                    Gender = product.Gender,
-                    MasterCategory = product.MasterCategory,
-                    SubCategory = product.SubCategory,
-                    ArticleType = product.ArticleType,
-                    BaseColour = product.BaseColour,
-                    Season = product.Season,
-                    Year = product.Year,
-                    Usage = product.Usage,
-                    ProductDisplayName = product.ProductDisplayName,
-                    ConcatenatedText = product.ConcatenatedText,
-                    ImageRelPath = product.ImageRelPath,
-                    TextEmbedding = new Vector(textEmbedding),
-                    ImageEmbedding = new Vector(imageEmbedding),
-                    UpdatedUtc = DateTimeOffset.UtcNow
-                });
-                writtenIds.Add(id);
-            }
-
-            _progress.SetUpsertingZVec($"Upserting {writtenIds.Count} docs to ZVec…", writtenIds.Count);
-            _logger.LogInformation("Ingest patch: upserting {Count} vectors to ZVec", writtenIds.Count);
-            await _collections.UpsertTextBatchAsync(textBatch).ConfigureAwait(false);
-            await _collections.UpsertImageBatchAsync(imageBatch).ConfigureAwait(false);
-
-            try
-            {
-                _progress.SetCommittingSql($"Committing {entities.Count} rows to Postgres…", entities.Count);
-                await using var db = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false);
-                await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
-                foreach (var entity in entities)
+                    _progress.SetCommittingSql(
+                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · SQL committing {entities.Count} rows…",
+                        totalSql + entities.Count);
+                    await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+                    await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+                    await ProductBulkUpsert.UpsertChunkAsync(db, entities, active.EmbeddingDim, ct).ConfigureAwait(false);
+                    await tx.CommitAsync(ct).ConfigureAwait(false);
+                }
+                catch
                 {
-                    var existing = await db.Products.FindAsync(entity.Id).ConfigureAwait(false);
-                    if (existing is null)
-                        db.Products.Add(entity);
-                    else
-                    {
-                        existing.CatalogId = entity.CatalogId;
-                        existing.Gender = entity.Gender;
-                        existing.MasterCategory = entity.MasterCategory;
-                        existing.SubCategory = entity.SubCategory;
-                        existing.ArticleType = entity.ArticleType;
-                        existing.BaseColour = entity.BaseColour;
-                        existing.Season = entity.Season;
-                        existing.Year = entity.Year;
-                        existing.Usage = entity.Usage;
-                        existing.ProductDisplayName = entity.ProductDisplayName;
-                        existing.ConcatenatedText = entity.ConcatenatedText;
-                        existing.ImageRelPath = entity.ImageRelPath;
-                        existing.TextEmbedding = entity.TextEmbedding;
-                        existing.ImageEmbedding = entity.ImageEmbedding;
-                        existing.UpdatedUtc = entity.UpdatedUtc;
-                    }
+                    _progress.AppendEvent("Error", "sql",
+                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · SQL failed — rolling back ZVec chunk");
+                    await _collections.DeleteByIdsAsync(chunkIds, ct).ConfigureAwait(false);
+                    throw;
                 }
 
-                await db.SaveChangesAsync().ConfigureAwait(false);
-                await tx.CommitAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-                await _collections.DeleteByIdsAsync(writtenIds).ConfigureAwait(false);
-                throw;
-            }
+                offset += slice.Count;
+                processedInPatch += slice.Count;
+                totalEncoded += chunkIds.Count;
+                totalZvec += chunkIds.Count;
+                totalSql += entities.Count;
 
-            offset += target;
-            _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, offset));
+                _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, offset));
+                chunkSw.Stop();
+                _progress.AppendEvent("Info", "commit",
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · SQL committed · offset {offset}/{catalogTotal}",
+                    chunkSw.ElapsedMilliseconds);
+                _logger.LogInformation(
+                    "Ingest sub-batch {Chunk}/{Total} committed — offset now {Offset}/{CatalogTotal}",
+                    chunkIndex + 1, chunkCount, offset, catalogTotal);
+
+                textBatch.Clear();
+                imageBatch.Clear();
+                entities.Clear();
+                chunkIds.Clear();
+            }
 
             if (optimizeAfterPatch)
             {
                 _progress.SetOptimizing("Optimizing ZVec indexes…");
+                _progress.AppendEvent("Info", "optimize", "Optimizing ZVec HNSW indexes…");
                 _collections.OptimizeBoth();
+                _progress.AppendEvent("Info", "optimize", "ZVec indexes optimized");
             }
 
             sw.Stop();
             _logger.LogInformation(
                 "Ingest patch complete — embedded {Encoded}, offset {Offset}/{Total}, {ElapsedMs} ms",
-                writtenIds.Count, offset, catalog.Count, sw.ElapsedMilliseconds);
-            _progress.SetCompleted(
-                $"Patch complete — embedded {target}, offset {offset}/{catalog.Count} ({active.Id}).",
-                offset,
-                catalog.Count,
-                target,
-                writtenIds.Count,
-                entities.Count,
+                totalEncoded, offset, catalogTotal, sw.ElapsedMilliseconds);
+            _progress.AppendEvent("Info", "complete",
+                $"Patch complete — embedded {totalEncoded}, offset {offset}/{catalogTotal}",
                 sw.ElapsedMilliseconds);
+            _progress.SetCompleted(
+                $"Patch complete — embedded {totalEncoded}, offset {offset}/{catalogTotal} ({active.Id}).",
+                offset,
+                catalogTotal,
+                totalEncoded,
+                totalZvec,
+                totalSql,
+                sw.ElapsedMilliseconds);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Ingest patch cancelled");
+            _progress.AppendEvent("Warn", "cancel", "Ingest patch cancelled");
+            _progress.SetFailed("Ingest cancelled", "The ingest patch was cancelled.");
         }
         catch (Exception ex)
         {
-            if (writtenIds.Count > 0)
-            {
-                try { await _collections.DeleteByIdsAsync(writtenIds).ConfigureAwait(false); }
-                catch (Exception cleanupEx) { _logger.LogWarning(cleanupEx, "ZVec compensation delete failed"); }
-            }
-
             _logger.LogError(ex, "Ingest patch failed");
+            _progress.AppendEvent("Error", "failed", ex.Message);
             _progress.SetFailed("Ingest patch failed", ex.Message);
         }
         finally

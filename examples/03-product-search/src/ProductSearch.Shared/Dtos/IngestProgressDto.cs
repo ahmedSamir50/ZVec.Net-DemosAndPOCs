@@ -16,4 +16,5 @@ public sealed class IngestProgressDto
     public long DownloadBytesReceived { get; set; }
     public long? DownloadBytesTotal { get; set; }
     public string? ErrorMessage { get; set; }
+    public IReadOnlyList<IngestLogEventDto> Events { get; set; } = [];
 }

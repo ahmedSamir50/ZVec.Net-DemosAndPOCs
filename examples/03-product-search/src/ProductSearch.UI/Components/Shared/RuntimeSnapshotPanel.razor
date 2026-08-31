@@ -1,0 +1,47 @@
+@using ProductSearch.Shared.Dtos
+
+@if (Snapshot is not null)
+{
+    <div class="@($"rounded-2xl border border-base-300 bg-base-200/60 p-4 {CssClass}")">
+        @if (ShowTitle)
+        {
+            <p class="text-sm lg:text-base font-semibold text-base-content mb-3">@Snapshot.ProcessLabel</p>
+        }
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm lg:text-base text-base-content/80">
+            <span title="Active SigLIP model and embedding dimension">
+                <span class="text-base-content/50">Model</span>
+                @Snapshot.ActiveModelId · @($"{Snapshot.EmbeddingDim}-d")
+            </span>
+            <span title="ONNX Runtime execution provider">
+                <span class="text-base-content/50">ONNX</span>
+                @Snapshot.OnnxExecutionProvider · @Snapshot.OnnxIntraOpThreads threads
+            </span>
+            <span title="Logical processors on this machine">
+                <span class="text-base-content/50">CPUs</span>
+                @Snapshot.ProcessorCount
+            </span>
+            <span title="API process CPU since last sample">
+                <span class="text-base-content/50">CPU</span>
+                @Snapshot.ProcessCpuPercent.ToString("0.#")%
+            </span>
+            <span title="Process working set">
+                <span class="text-base-content/50">Working set</span>
+                @Snapshot.WorkingSetMb MB
+            </span>
+            <span title="Process private memory">
+                <span class="text-base-content/50">Private</span>
+                @Snapshot.PrivateMemoryMb MB
+            </span>
+            <span title="Managed GC heap">
+                <span class="text-base-content/50">GC heap</span>
+                @Snapshot.GcHeapMb MB
+            </span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public RuntimeSnapshotDto? Snapshot { get; set; }
+    [Parameter] public bool ShowTitle { get; set; } = true;
+    [Parameter] public string? CssClass { get; set; }
+}

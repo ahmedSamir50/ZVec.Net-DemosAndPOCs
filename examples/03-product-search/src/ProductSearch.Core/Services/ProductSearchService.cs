@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pgvector;
@@ -27,8 +26,9 @@ public sealed class ProductSearchService : IProductSearchService
     private readonly ISigLipModelSelectionService _models;
     private readonly IIndexStampStore _stamp;
     private readonly IDbContextFactory<ProductDbContext> _dbFactory;
+    private readonly IProcessRuntimeMonitor _runtime;
+    private readonly IRemoteImageFetcher _remoteImages;
     private readonly ProductSearchOptions _options;
-    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ProductSearchService(
         DualCollectionHolder collections,
@@ -36,16 +36,18 @@ public sealed class ProductSearchService : IProductSearchService
         ISigLipModelSelectionService models,
         IIndexStampStore stamp,
         IDbContextFactory<ProductDbContext> dbFactory,
-        IOptions<ProductSearchOptions> options,
-        IHttpContextAccessor httpContextAccessor)
+        IProcessRuntimeMonitor runtime,
+        IRemoteImageFetcher remoteImages,
+        IOptions<ProductSearchOptions> options)
     {
         _collections = collections;
         _encoder = encoder;
         _models = models;
         _stamp = stamp;
         _dbFactory = dbFactory;
+        _runtime = runtime;
+        _remoteImages = remoteImages;
         _options = options.Value;
-        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<SearchResponseDto> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
@@ -56,7 +58,8 @@ public sealed class ProductSearchService : IProductSearchService
         {
             return new SearchResponseDto
             {
-                Warning = _stamp.MismatchMessage(active) + " Reset indexes → Ingest."
+                Warning = _stamp.MismatchMessage(active) + " Reset indexes → Ingest.",
+                Runtime = _runtime.Capture()
             };
         }
 
@@ -64,32 +67,24 @@ public sealed class ProductSearchService : IProductSearchService
         {
             return new SearchResponseDto
             {
-                Warning = _encoder.NotReadyReason ?? "Encoder not ready."
+                Warning = _encoder.NotReadyReason ?? "Encoder not ready.",
+                Runtime = _runtime.Capture()
             };
         }
 
         var topK = request.TopK > 0 ? request.TopK : _options.DefaultTopK;
         var minCosine = _options.MinCosine;
-
+        var stamp = _stamp.Load();
         var (textCount, imageCount) = _collections.DocCounts;
-        var sqlCount = 0;
-        try
-        {
-            await using var countDb = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            sqlCount = await countDb.Products.CountAsync(ct).ConfigureAwait(false);
-        }
-        catch
-        {
-            // Postgres may be unavailable.
-        }
 
-        if (sqlCount == 0 && (textCount > 0 || imageCount > 0))
+        if (stamp.IngestOffset == 0 && (textCount > 0 || imageCount > 0))
         {
             return new SearchResponseDto
             {
                 Warning =
                     $"SQL catalog is empty but ZVec still has {textCount} text / {imageCount} image docs. " +
-                    "Start ingest (or Reset catalog) to rebuild both stores together."
+                    "Start ingest (or Reset catalog) to rebuild both stores together.",
+                Runtime = _runtime.Capture()
             };
         }
 
@@ -102,6 +97,7 @@ public sealed class ProductSearchService : IProductSearchService
         CompareMetricsDto? compare = null;
         double textAnnMs = 0;
         double imageAnnMs = 0;
+        double ftsMs = 0;
         double fuseMs = 0;
         double pgMs = 0;
         double sqlHydrateMs = 0;
@@ -109,13 +105,12 @@ public sealed class ProductSearchService : IProductSearchService
 
         if (request.Engine is VectorEngineMode.ZVec or VectorEngineMode.Both)
         {
-            var fuseSw = Stopwatch.StartNew();
-            var fused = await SearchZVecAsync(request, queryVector, topK, ct).ConfigureAwait(false);
-            fuseSw.Stop();
-            textAnnMs = fused.TextAnnMs;
-            imageAnnMs = fused.ImageAnnMs;
-            fuseMs = fuseSw.Elapsed.TotalMilliseconds;
-            var filtered = ApplyConfidenceFilter(fused.Hits, topK, minCosine);
+            var zvecResult = await SearchZVecAsync(request, queryVector, topK, ct).ConfigureAwait(false);
+            textAnnMs = zvecResult.TextAnnMs;
+            imageAnnMs = zvecResult.ImageAnnMs;
+            ftsMs = zvecResult.FtsMs;
+            fuseMs = zvecResult.FuseMs;
+            var filtered = ApplyConfidenceFilter(zvecResult.Hits, topK, minCosine);
             var hydrateSw = Stopwatch.StartNew();
             zvecHits = await HydrateAsync(filtered, "zvec", ct).ConfigureAwait(false);
             hydrateSw.Stop();
@@ -146,7 +141,7 @@ public sealed class ProductSearchService : IProductSearchService
         }
 
         if (request.Engine == VectorEngineMode.Both)
-            compare = BuildCompareMetrics(zvecHits, pgHits, fuseMs, pgMs);
+            compare = BuildCompareMetrics(zvecHits, pgHits, textAnnMs + imageAnnMs + ftsMs + fuseMs, pgMs);
 
         totalSw.Stop();
 
@@ -165,11 +160,13 @@ public sealed class ProductSearchService : IProductSearchService
                 EncodeMs = encodeSw.Elapsed.TotalMilliseconds,
                 TextAnnMs = textAnnMs,
                 ImageAnnMs = imageAnnMs,
+                FtsMs = ftsMs,
                 FuseMs = fuseMs,
                 PgVectorMs = pgMs,
                 SqlHydrateMs = sqlHydrateMs,
                 TotalMs = totalSw.Elapsed.TotalMilliseconds
             },
+            Runtime = _runtime.Capture(),
             Warning = warning
         };
     }
@@ -195,117 +192,193 @@ public sealed class ProductSearchService : IProductSearchService
             return _encoder.EncodeImage(ms);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            await using var stream = await _remoteImages.FetchImageAsync(request.ImageUrl, ct).ConfigureAwait(false);
+            return _encoder.EncodeImage(stream);
+        }
+
         if (string.IsNullOrWhiteSpace(request.QueryText))
-            throw new ArgumentException("Query text or image is required.");
+            throw new ArgumentException("Query text, image, or image URL is required.");
 
         return _encoder.EncodeText(request.QueryText.Trim());
     }
 
-    private async Task<(List<InternalHit> Hits, double TextAnnMs, double ImageAnnMs)> SearchZVecAsync(
+    private sealed record ZVecSearchResult(
+        List<InternalHit> Hits,
+        double TextAnnMs,
+        double ImageAnnMs,
+        double FtsMs,
+        double FuseMs);
+
+    private async Task<ZVecSearchResult> SearchZVecAsync(
         SearchRequestDto request,
         float[] queryVector,
         int topK,
         CancellationToken ct)
     {
-        var textSw = Stopwatch.StartNew();
+        var filter = SearchInvertFilter.BuildZVecFilter(request);
         var textHits = new List<InternalHit>();
-        if (request.QueryMode is QueryMode.Text or QueryMode.Hybrid)
-            textHits.AddRange(await QueryTextCollectionAsync(request, queryVector, topK, ct).ConfigureAwait(false));
-        textSw.Stop();
-
-        var imageSw = Stopwatch.StartNew();
         var imageHits = new List<InternalHit>();
+        double textAnnMs = 0;
+        double imageAnnMs = 0;
+        double ftsMs = 0;
+        double fuseMs = 0;
+
+        if (request.QueryMode is QueryMode.Text or QueryMode.Hybrid)
+        {
+            var textResult = await QueryTextCollectionAsync(request, queryVector, topK, filter, ct).ConfigureAwait(false);
+            textHits.AddRange(textResult.Hits);
+            textAnnMs = textResult.TextAnnMs;
+            ftsMs = textResult.FtsMs;
+            fuseMs = textResult.FuseMs;
+        }
+
         if (request.QueryMode is QueryMode.Image or QueryMode.Hybrid)
         {
-            var dense = await _collections.QueryImageDenseAsync(queryVector, topK, ct).ConfigureAwait(false);
-            imageHits.AddRange(dense.Select(h => new InternalHit(h.Id, h.Score, false, true, false)));
+            var imageSw = Stopwatch.StartNew();
+            var dense = await _collections.QueryImageDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
+            imageSw.Stop();
+            imageAnnMs = imageSw.Elapsed.TotalMilliseconds;
+            var imageInternal = dense.Select(h => new InternalHit(h.Id, h.Score, false, true, false)).ToList();
+            if (request.UseInvertFilter)
+                imageInternal = await PostFilterByInvertAsync(imageInternal, request, ct).ConfigureAwait(false);
+            imageHits.AddRange(imageInternal);
         }
-        imageSw.Stop();
 
-        return (FuseHits(textHits, imageHits, request.Fusion, topK), textSw.Elapsed.TotalMilliseconds, imageSw.Elapsed.TotalMilliseconds);
+        if (request.QueryMode is QueryMode.Hybrid)
+        {
+            var fuseSw = Stopwatch.StartNew();
+            var fused = FuseHits(textHits, imageHits, request.Fusion, topK);
+            fuseSw.Stop();
+            fuseMs += fuseSw.Elapsed.TotalMilliseconds;
+            return new ZVecSearchResult(fused, textAnnMs, imageAnnMs, ftsMs, fuseMs);
+        }
+
+        var combined = FuseHits(textHits, imageHits, request.Fusion, topK);
+        return new ZVecSearchResult(combined, textAnnMs, imageAnnMs, ftsMs, fuseMs);
     }
 
-    private async Task<List<InternalHit>> QueryTextCollectionAsync(
+    private sealed record TextQueryResult(List<InternalHit> Hits, double TextAnnMs, double FtsMs, double FuseMs);
+
+    private async Task<TextQueryResult> QueryTextCollectionAsync(
         SearchRequestDto request,
         float[] queryVector,
         int topK,
+        string? filter,
         CancellationToken ct)
     {
-        var textCol = _collections.GetTextCollectionUntyped();
-        var filter = BuildInvertFilter(request);
-        var queries = new List<ZVecQuery>
+        var useHybridFts = request.UseHybridFts && !string.IsNullOrWhiteSpace(request.QueryText);
+        if (!useHybridFts)
         {
-            new() { FieldName = "TextEmbedding", Vector = queryVector }
-        };
+            var annSw = Stopwatch.StartNew();
+            var dense = await _collections.QueryTextDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
+            annSw.Stop();
+            return new TextQueryResult(
+                dense.Select(h => new InternalHit(h.Id, h.Score, true, false, false)).ToList(),
+                annSw.Elapsed.TotalMilliseconds,
+                0,
+                0);
+        }
 
-        if (request.UseHybridFts && !string.IsNullOrWhiteSpace(request.QueryText))
-        {
-            queries.Add(new ZVecQuery
+        var annOnlySw = Stopwatch.StartNew();
+        var annHits = await _collections.QueryTextDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
+        annOnlySw.Stop();
+
+        var ftsSw = Stopwatch.StartNew();
+        var ftsHits = await _collections.QueryTextUntypedAsync(
+            [new ZVecQuery
             {
                 FieldName = "ConcatenatedText",
                 Fts = new ZVecFtsQuery
                 {
-                    QueryString = request.QueryText.Trim(),
+                    QueryString = request.QueryText!.Trim(),
                     DefaultOperator = ZVecFtsDefaultOperator.Or
                 }
-            });
-        }
+            }],
+            filter,
+            reranker: null,
+            topK,
+            ct).ConfigureAwait(false);
+        ftsSw.Stop();
 
-        ZVecReranker reranker = request.Fusion == FusionMode.Weighted
-            ? new ZVecWeightedReranker
-            {
-                TopN = topK,
-                Weights = new Dictionary<string, float>
-                {
-                    ["TextEmbedding"] = _options.DenseFusionWeight,
-                    ["ConcatenatedText"] = _options.FtsFusionWeight
-                }
-            }
-            : new ZVecRrfReranker { TopN = topK };
+        var fuseSw = Stopwatch.StartNew();
+        var fused = FuseAnnAndFts(annHits, ftsHits, request.Fusion, topK);
+        fuseSw.Stop();
 
-        var docs = queries.Count == 1
-            ? textCol.Query(queries[0], topk: topK, filter: filter, includeVector: false)
-            : textCol.Query(queries, topk: topK, reranker: reranker, filter: filter, includeVector: false);
-
-        return [.. docs.Select(d => new InternalHit(d.Id, d.Score, true, false, queries.Count > 1))];
+        return new TextQueryResult(fused, annOnlySw.Elapsed.TotalMilliseconds, ftsSw.Elapsed.TotalMilliseconds, fuseSw.Elapsed.TotalMilliseconds);
     }
 
-    private static string? BuildInvertFilter(SearchRequestDto request)
+    private List<InternalHit> FuseAnnAndFts(
+        IReadOnlyList<(string Id, float Score)> annHits,
+        IReadOnlyList<(string Id, float Score)> ftsHits,
+        FusionMode mode,
+        int topK)
     {
-        if (!request.UseInvertFilter)
-            return null;
+        if (mode == FusionMode.Weighted)
+        {
+            var map = new Dictionary<string, InternalHit>(StringComparer.Ordinal);
+            foreach (var hit in annHits)
+            {
+                var score = hit.Score * _options.DenseFusionWeight;
+                map[hit.Id] = new InternalHit(hit.Id, score, true, false, false);
+            }
 
-        var builder = ZVecFilterBuilder.Create();
-        var has = false;
-        if (!string.IsNullOrWhiteSpace(request.Gender))
-        {
-            builder.Where("Gender", ZVecCompareOp.Eq, request.Gender);
-            has = true;
-        }
-        if (!string.IsNullOrWhiteSpace(request.BaseColour))
-        {
-            if (has) builder.And(f => f.Where("BaseColour", ZVecCompareOp.Eq, request.BaseColour));
-            else { builder.Where("BaseColour", ZVecCompareOp.Eq, request.BaseColour); has = true; }
-        }
-        if (!string.IsNullOrWhiteSpace(request.Season))
-        {
-            if (has) builder.And(f => f.Where("Season", ZVecCompareOp.Eq, request.Season));
-            else { builder.Where("Season", ZVecCompareOp.Eq, request.Season); has = true; }
-        }
-        if (!string.IsNullOrWhiteSpace(request.Usage))
-        {
-            if (has) builder.And(f => f.Where("Usage", ZVecCompareOp.Eq, request.Usage));
-            else builder.Where("Usage", ZVecCompareOp.Eq, request.Usage);
-            has = true;
-        }
-        if (!string.IsNullOrWhiteSpace(request.MasterCategory))
-        {
-            if (has) builder.And(f => f.Where("MasterCategory", ZVecCompareOp.Eq, request.MasterCategory));
-            else builder.Where("MasterCategory", ZVecCompareOp.Eq, request.MasterCategory);
-            has = true;
+            foreach (var hit in ftsHits)
+            {
+                var score = hit.Score * _options.FtsFusionWeight;
+                if (!map.TryGetValue(hit.Id, out var existing))
+                {
+                    map[hit.Id] = new InternalHit(hit.Id, score, true, false, true);
+                    continue;
+                }
+
+                map[hit.Id] = existing with { Score = Math.Min(existing.Score, score), FromFts = true };
+            }
+
+            return map.Values.OrderBy(h => h.Score).Take(topK).ToList();
         }
 
-        return has ? builder.Build() : null;
+        var ranks = new Dictionary<string, (int AnnRank, int FtsRank)>(StringComparer.Ordinal);
+        for (var i = 0; i < annHits.Count; i++)
+            ranks[annHits[i].Id] = (i + 1, ranks.TryGetValue(annHits[i].Id, out var r) ? r.FtsRank : 0);
+        for (var i = 0; i < ftsHits.Count; i++)
+        {
+            if (ranks.TryGetValue(ftsHits[i].Id, out var r))
+                ranks[ftsHits[i].Id] = (r.AnnRank, i + 1);
+            else
+                ranks[ftsHits[i].Id] = (0, i + 1);
+        }
+
+        const float k = 60f;
+        return ranks
+            .Select(pair =>
+            {
+                var (annRank, ftsRank) = pair.Value;
+                var rrf = 0f;
+                if (annRank > 0) rrf += 1f / (k + annRank);
+                if (ftsRank > 0) rrf += 1f / (k + ftsRank);
+                return new InternalHit(pair.Key, -rrf, true, false, ftsRank > 0);
+            })
+            .OrderBy(h => h.Score)
+            .Take(topK)
+            .ToList();
+    }
+
+    private async Task<List<InternalHit>> PostFilterByInvertAsync(
+        IReadOnlyList<InternalHit> hits,
+        SearchRequestDto request,
+        CancellationToken ct)
+    {
+        if (hits.Count == 0)
+            return [];
+
+        var ids = hits.Select(h => Guid.Parse(h.Id)).ToList();
+        await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var q = db.Products.AsNoTracking().Where(p => ids.Contains(p.Id));
+        q = SearchInvertFilter.ApplyPostgres(q, request);
+        var allowed = await q.Select(p => p.Id).ToHashSetAsync(ct).ConfigureAwait(false);
+        return hits.Where(h => allowed.Contains(Guid.Parse(h.Id))).ToList();
     }
 
     private static List<InternalHit> FuseHits(
@@ -351,23 +424,11 @@ public sealed class ProductSearchService : IProductSearchService
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var vector = new Vector(queryVector);
         IQueryable<ProductEntity> q = db.Products.AsNoTracking();
+        q = SearchInvertFilter.ApplyPostgres(q, request);
 
         var isImageSearch = request.QueryMode == QueryMode.Image
-                            || !string.IsNullOrWhiteSpace(request.ImageBase64);
-
-        if (!isImageSearch)
-        {
-            if (!string.IsNullOrWhiteSpace(request.Gender))
-                q = q.Where(p => p.Gender == request.Gender);
-            if (!string.IsNullOrWhiteSpace(request.BaseColour))
-                q = q.Where(p => p.BaseColour == request.BaseColour);
-            if (!string.IsNullOrWhiteSpace(request.Season))
-                q = q.Where(p => p.Season == request.Season);
-            if (!string.IsNullOrWhiteSpace(request.Usage))
-                q = q.Where(p => p.Usage == request.Usage);
-            if (!string.IsNullOrWhiteSpace(request.MasterCategory))
-                q = q.Where(p => p.MasterCategory == request.MasterCategory);
-        }
+                            || !string.IsNullOrWhiteSpace(request.ImageBase64)
+                            || !string.IsNullOrWhiteSpace(request.ImageUrl);
 
         if (isImageSearch)
         {
@@ -430,7 +491,7 @@ public sealed class ProductSearchService : IProductSearchService
         return result;
     }
 
-    private ProductCardDto ToCard(ProductEntity row)
+    private static ProductCardDto ToCard(ProductEntity row)
         => new()
         {
             Id = row.Id,
@@ -445,20 +506,10 @@ public sealed class ProductSearchService : IProductSearchService
             Year = row.Year,
             Usage = row.Usage,
             ConcatenatedText = row.ConcatenatedText,
-            ImageUrl = BuildMediaUrl(row.CatalogId)
+            ImageUrl = $"/api/media/{row.CatalogId}"
         };
 
-    private string BuildMediaUrl(string catalogId)
-    {
-        var path = $"/api/media/{catalogId}";
-        var http = _httpContextAccessor.HttpContext;
-        if (http is null)
-            return path;
-
-        return $"{http.Request.Scheme}://{http.Request.Host}{path}";
-    }
-
-    private static List<InternalHit> ApplyConfidenceFilter(
+    private List<InternalHit> ApplyConfidenceFilter(
         IReadOnlyList<InternalHit> hits,
         int topK,
         float minCosine)
@@ -475,14 +526,12 @@ public sealed class ProductSearchService : IProductSearchService
         if (topCosine < minCosine)
             return [];
 
-        var gap = _optionsGap;
+        var gap = _options.MaxCosineGapFromTop;
         return [.. ordered
             .Where(x => x.Cosine >= minCosine && x.Cosine >= topCosine - gap)
             .Take(topK)
             .Select(x => x.Hit)];
     }
-
-    private const float _optionsGap = 0.12f;
 
     private static CompareMetricsDto BuildCompareMetrics(
         IReadOnlyList<SearchHitDto> zvec,
