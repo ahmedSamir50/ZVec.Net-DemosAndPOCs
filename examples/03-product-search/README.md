@@ -54,6 +54,12 @@ dotnet run --project src/ProductSearch.AppHost
 
 Opens **pgvector/pgvector:pg16** Postgres, API, and Blazor UI. UI reads `ProductSearchUi__ApiBaseUrl` from Aspire.
 
+AppHost starts `productsearch-api` / `productsearch-ui` as **OS processes**, not via Visual Studio `run_session`. F5 on AppHost debugs AppHost only; attach to `ProductSearch.Api` if you need to debug the API.
+
+**Visual Studio:** if the dashboard still shows `Timeout waiting for the IDE to start a run session` or `dotnet.exe` with empty args, stop any leftover `ProductSearch.Api.exe`, then use **Ctrl+F5** or the `dotnet run` command above — do not rely on VS launching child projects.
+
+After a successful start, if Status shows a model/dim stamp mismatch (e.g. index built with SigLIP2 1152-d while Base 768-d is active), **Reset indexes** then ingest.
+
 ### Persistent Postgres
 
 Aspire provisions Postgres with a **named Docker volume** so catalog rows survive AppHost restarts:
