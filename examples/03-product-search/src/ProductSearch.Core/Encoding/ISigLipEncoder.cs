@@ -14,4 +14,6 @@ public interface ISigLipEncoder
     float[] EncodeImage(Stream imageStream);
     float[] EncodeImage(string filePath);
     float[] EncodeText(string text);
+    float[][] EncodeTextBatch(IReadOnlyList<string> texts, CancellationToken ct = default);
+    float[][] EncodeImageBatch(IReadOnlyList<string> filePaths, CancellationToken ct = default);
 }

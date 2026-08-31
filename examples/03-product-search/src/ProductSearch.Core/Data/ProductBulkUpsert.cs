@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Pgvector;
-using ProductSearch.Core.Configuration;
 
 namespace ProductSearch.Core.Data;
 
@@ -17,29 +17,31 @@ public static class ProductBulkUpsert
         if (entities.Count == 0)
             return;
 
-        var sql = BuildSql(entities.Count, embeddingDim);
+        var sql = BuildSql(entities.Count);
         await using var cmd = db.Database.GetDbConnection().CreateCommand();
         cmd.CommandText = sql;
+        if (db.Database.CurrentTransaction is { } eftx)
+            cmd.Transaction = eftx.GetDbTransaction();
 
         for (var i = 0; i < entities.Count; i++)
         {
             var e = entities[i];
-            Add(cmd, $"id{i}", e.Id);
-            Add(cmd, $"catalog_id{i}", e.CatalogId);
-            Add(cmd, $"gender{i}", e.Gender);
-            Add(cmd, $"master_category{i}", e.MasterCategory);
-            Add(cmd, $"sub_category{i}", e.SubCategory);
-            Add(cmd, $"article_type{i}", e.ArticleType);
-            Add(cmd, $"base_colour{i}", e.BaseColour);
-            Add(cmd, $"season{i}", e.Season);
-            Add(cmd, $"year{i}", e.Year);
-            Add(cmd, $"usage{i}", e.Usage);
-            Add(cmd, $"product_display_name{i}", e.ProductDisplayName);
-            Add(cmd, $"concatenated_text{i}", e.ConcatenatedText);
-            Add(cmd, $"image_rel_path{i}", e.ImageRelPath);
-            AddVector(cmd, $"text_embedding{i}", e.TextEmbedding);
-            AddVector(cmd, $"image_embedding{i}", e.ImageEmbedding);
-            Add(cmd, $"updated_utc{i}", e.UpdatedUtc.UtcDateTime);
+            Add(cmd, $"@id{i}", e.Id);
+            Add(cmd, $"@catalog_id{i}", e.CatalogId);
+            Add(cmd, $"@gender{i}", e.Gender);
+            Add(cmd, $"@master_category{i}", e.MasterCategory);
+            Add(cmd, $"@sub_category{i}", e.SubCategory);
+            Add(cmd, $"@article_type{i}", e.ArticleType);
+            Add(cmd, $"@base_colour{i}", e.BaseColour);
+            Add(cmd, $"@season{i}", e.Season);
+            Add(cmd, $"@year{i}", e.Year);
+            Add(cmd, $"@usage{i}", e.Usage);
+            Add(cmd, $"@product_display_name{i}", e.ProductDisplayName);
+            Add(cmd, $"@concatenated_text{i}", e.ConcatenatedText);
+            Add(cmd, $"@image_rel_path{i}", e.ImageRelPath);
+            AddVector(cmd, $"@text_embedding{i}", e.TextEmbedding);
+            AddVector(cmd, $"@image_embedding{i}", e.ImageEmbedding);
+            Add(cmd, $"@updated_utc{i}", e.UpdatedUtc.UtcDateTime);
         }
 
         if (cmd.Connection!.State != System.Data.ConnectionState.Open)
@@ -48,7 +50,7 @@ public static class ProductBulkUpsert
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
-    private static string BuildSql(int rowCount, int embeddingDim)
+    private static string BuildSql(int rowCount)
     {
         var valueRows = new List<string>(rowCount);
         for (var i = 0; i < rowCount; i++)
@@ -61,26 +63,26 @@ public static class ProductBulkUpsert
 
         return $"""
             INSERT INTO products (
-                id, catalog_id, gender, master_category, sub_category, article_type,
-                base_colour, season, year, usage, product_display_name, concatenated_text,
-                image_rel_path, text_embedding, image_embedding, updated_utc)
+                "Id", "CatalogId", "Gender", "MasterCategory", "SubCategory", "ArticleType",
+                "BaseColour", "Season", "Year", "Usage", "ProductDisplayName", "ConcatenatedText",
+                "ImageRelPath", "TextEmbedding", "ImageEmbedding", "UpdatedUtc")
             VALUES {string.Join(",\n", valueRows)}
-            ON CONFLICT (id) DO UPDATE SET
-                catalog_id = EXCLUDED.catalog_id,
-                gender = EXCLUDED.gender,
-                master_category = EXCLUDED.master_category,
-                sub_category = EXCLUDED.sub_category,
-                article_type = EXCLUDED.article_type,
-                base_colour = EXCLUDED.base_colour,
-                season = EXCLUDED.season,
-                year = EXCLUDED.year,
-                usage = EXCLUDED.usage,
-                product_display_name = EXCLUDED.product_display_name,
-                concatenated_text = EXCLUDED.concatenated_text,
-                image_rel_path = EXCLUDED.image_rel_path,
-                text_embedding = EXCLUDED.text_embedding,
-                image_embedding = EXCLUDED.image_embedding,
-                updated_utc = EXCLUDED.updated_utc
+            ON CONFLICT ("Id") DO UPDATE SET
+                "CatalogId" = EXCLUDED."CatalogId",
+                "Gender" = EXCLUDED."Gender",
+                "MasterCategory" = EXCLUDED."MasterCategory",
+                "SubCategory" = EXCLUDED."SubCategory",
+                "ArticleType" = EXCLUDED."ArticleType",
+                "BaseColour" = EXCLUDED."BaseColour",
+                "Season" = EXCLUDED."Season",
+                "Year" = EXCLUDED."Year",
+                "Usage" = EXCLUDED."Usage",
+                "ProductDisplayName" = EXCLUDED."ProductDisplayName",
+                "ConcatenatedText" = EXCLUDED."ConcatenatedText",
+                "ImageRelPath" = EXCLUDED."ImageRelPath",
+                "TextEmbedding" = EXCLUDED."TextEmbedding",
+                "ImageEmbedding" = EXCLUDED."ImageEmbedding",
+                "UpdatedUtc" = EXCLUDED."UpdatedUtc"
             """;
     }
 

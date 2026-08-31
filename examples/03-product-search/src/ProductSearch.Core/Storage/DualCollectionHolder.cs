@@ -151,20 +151,17 @@ public sealed class DualCollectionHolder : IDisposable
                     col = (IZvecCollection<ProductTextDoc1152>)_textCollection;
                 }
 
-                foreach (var item in batch)
+                await UpsertParallelAsync(batch, (item, token) => col.UpsertAsync(new ProductTextDoc1152
                 {
-                    await col.UpsertAsync(new ProductTextDoc1152
-                    {
-                        Id = item.Id,
-                        ConcatenatedText = item.ConcatenatedText,
-                        Gender = item.Gender,
-                        BaseColour = item.BaseColour,
-                        Season = item.Season,
-                        Usage = item.Usage,
-                        MasterCategory = item.MasterCategory,
-                        TextEmbedding = item.Embedding
-                    }, ct).ConfigureAwait(false);
-                }
+                    Id = item.Id,
+                    ConcatenatedText = item.ConcatenatedText,
+                    Gender = item.Gender,
+                    BaseColour = item.BaseColour,
+                    Season = item.Season,
+                    Usage = item.Usage,
+                    MasterCategory = item.MasterCategory,
+                    TextEmbedding = item.Embedding
+                }, token), ct).ConfigureAwait(false);
                 return;
             }
 
@@ -176,20 +173,17 @@ public sealed class DualCollectionHolder : IDisposable
                     col = (IZvecCollection<ProductTextDoc768>)_textCollection;
                 }
 
-                foreach (var item in batch)
+                await UpsertParallelAsync(batch, (item, token) => col.UpsertAsync(new ProductTextDoc768
                 {
-                    await col.UpsertAsync(new ProductTextDoc768
-                    {
-                        Id = item.Id,
-                        ConcatenatedText = item.ConcatenatedText,
-                        Gender = item.Gender,
-                        BaseColour = item.BaseColour,
-                        Season = item.Season,
-                        Usage = item.Usage,
-                        MasterCategory = item.MasterCategory,
-                        TextEmbedding = item.Embedding
-                    }, ct).ConfigureAwait(false);
-                }
+                    Id = item.Id,
+                    ConcatenatedText = item.ConcatenatedText,
+                    Gender = item.Gender,
+                    BaseColour = item.BaseColour,
+                    Season = item.Season,
+                    Usage = item.Usage,
+                    MasterCategory = item.MasterCategory,
+                    TextEmbedding = item.Embedding
+                }, token), ct).ConfigureAwait(false);
             }
         }
         finally
@@ -217,14 +211,11 @@ public sealed class DualCollectionHolder : IDisposable
                     col = (IZvecCollection<ProductImageDoc1152>)_imageCollection;
                 }
 
-                foreach (var item in batch)
+                await UpsertParallelAsync(batch, (item, token) => col.UpsertAsync(new ProductImageDoc1152
                 {
-                    await col.UpsertAsync(new ProductImageDoc1152
-                    {
-                        Id = item.Id,
-                        ImageEmbedding = item.Embedding
-                    }, ct).ConfigureAwait(false);
-                }
+                    Id = item.Id,
+                    ImageEmbedding = item.Embedding
+                }, token), ct).ConfigureAwait(false);
                 return;
             }
 
@@ -236,20 +227,29 @@ public sealed class DualCollectionHolder : IDisposable
                     col = (IZvecCollection<ProductImageDoc768>)_imageCollection;
                 }
 
-                foreach (var item in batch)
+                await UpsertParallelAsync(batch, (item, token) => col.UpsertAsync(new ProductImageDoc768
                 {
-                    await col.UpsertAsync(new ProductImageDoc768
-                    {
-                        Id = item.Id,
-                        ImageEmbedding = item.Embedding
-                    }, ct).ConfigureAwait(false);
-                }
+                    Id = item.Id,
+                    ImageEmbedding = item.Embedding
+                }, token), ct).ConfigureAwait(false);
             }
         }
         finally
         {
             _inFlight.Leave();
         }
+    }
+
+    private Task UpsertParallelAsync<T>(
+        IReadOnlyList<T> batch,
+        Func<T, CancellationToken, ValueTask<ZVecStatus>> upsert,
+        CancellationToken ct)
+    {
+        var parallelism = Math.Max(1, _options.IngestZVecParallelism);
+        return Parallel.ForEachAsync(
+            batch,
+            new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = ct },
+            async (item, token) => await upsert(item, token).ConfigureAwait(false));
     }
 
     public async Task DeleteByIdsAsync(IEnumerable<string> ids, CancellationToken ct = default)

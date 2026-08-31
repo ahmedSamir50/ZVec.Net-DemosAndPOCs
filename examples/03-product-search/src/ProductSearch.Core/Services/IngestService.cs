@@ -234,9 +234,9 @@ public sealed class IngestService : IIngestService
 
                 var imagePaths = await _downloader.PrefetchImagesAsync(slice.Select(p => p.CatalogId), ct).ConfigureAwait(false);
 
+                var ready = new List<(CatalogProduct Product, string ImagePath)>(slice.Count);
                 for (var i = 0; i < slice.Count; i++)
                 {
-                    ct.ThrowIfCancellationRequested();
                     var product = slice[i];
                     if (!imagePaths.TryGetValue(product.CatalogId.Trim(), out var imagePath))
                     {
@@ -244,15 +244,45 @@ public sealed class IngestService : IIngestService
                         continue;
                     }
 
-                    _progress.SetEncoding(
-                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoding {i + 1}/{slice.Count} (offset {offset + i + 1}/{catalogTotal})…",
-                        offset + i,
-                        catalogTotal,
-                        totalEncoded + i + 1);
+                    ready.Add((product, imagePath));
+                }
 
+                if (ready.Count == 0)
+                {
+                    offset += slice.Count;
+                    processedInPatch += slice.Count;
+                    continue;
+                }
+
+                _progress.SetEncoding(
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoding {ready.Count} products…",
+                    offset,
+                    catalogTotal,
+                    totalEncoded + ready.Count);
+                _progress.AppendEvent("Info", "encode",
+                    $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoding {ready.Count} products");
+
+                var texts = ready.Select(r => r.Product.ConcatenatedText).ToList();
+                var paths = ready.Select(r => r.ImagePath).ToList();
+                var textTask = Task.Run(() => _encoder.EncodeTextBatch(texts, ct), ct);
+                var imageTask = Task.Run(() => _encoder.EncodeImageBatch(paths, ct), ct);
+                await Task.WhenAll(textTask, imageTask).ConfigureAwait(false);
+                var textEmbeddings = await textTask.ConfigureAwait(false);
+                var imageEmbeddings = await imageTask.ConfigureAwait(false);
+
+                if (textEmbeddings.Length != ready.Count || imageEmbeddings.Length != ready.Count)
+                {
+                    throw new InvalidOperationException(
+                        $"Encoder batch size mismatch: ready={ready.Count} text={textEmbeddings.Length} image={imageEmbeddings.Length}.");
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                for (var i = 0; i < ready.Count; i++)
+                {
+                    var product = ready[i].Product;
                     var id = ProductIdGenerator.StringFromCatalogId(product.CatalogId);
-                    var textEmbedding = _encoder.EncodeText(product.ConcatenatedText);
-                    var imageEmbedding = _encoder.EncodeImage(imagePath);
+                    var textEmbedding = textEmbeddings[i];
+                    var imageEmbedding = imageEmbeddings[i];
 
                     textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, product.MasterCategory, textEmbedding));
                     imageBatch.Add((id, imageEmbedding));
@@ -273,16 +303,9 @@ public sealed class IngestService : IIngestService
                         ImageRelPath = product.ImageRelPath,
                         TextEmbedding = new Vector(textEmbedding),
                         ImageEmbedding = new Vector(imageEmbedding),
-                        UpdatedUtc = DateTimeOffset.UtcNow
+                        UpdatedUtc = now
                     });
                     chunkIds.Add(id);
-                }
-
-                if (chunkIds.Count == 0)
-                {
-                    offset += slice.Count;
-                    processedInPatch += slice.Count;
-                    continue;
                 }
 
                 _progress.SetUpsertingZVec(
@@ -292,8 +315,19 @@ public sealed class IngestService : IIngestService
                     $"Sub-batch {chunkIndex + 1}/{chunkCount} · encoded {chunkIds.Count} products");
                 _logger.LogInformation("Ingest sub-batch {Chunk}/{Total}: upserting {Count} vectors to ZVec", chunkIndex + 1, chunkCount, chunkIds.Count);
 
-                await _collections.UpsertTextBatchAsync(textBatch, ct).ConfigureAwait(false);
-                await _collections.UpsertImageBatchAsync(imageBatch, ct).ConfigureAwait(false);
+                try
+                {
+                    await Task.WhenAll(
+                        _collections.UpsertTextBatchAsync(textBatch, ct),
+                        _collections.UpsertImageBatchAsync(imageBatch, ct)).ConfigureAwait(false);
+                }
+                catch
+                {
+                    _progress.AppendEvent("Error", "zvec",
+                        $"Sub-batch {chunkIndex + 1}/{chunkCount} · ZVec failed — rolling back chunk");
+                    await _collections.DeleteByIdsAsync(chunkIds, ct).ConfigureAwait(false);
+                    throw;
+                }
                 _progress.AppendEvent("Info", "zvec",
                     $"Sub-batch {chunkIndex + 1}/{chunkCount} · ZVec upserted {chunkIds.Count} docs");
 
