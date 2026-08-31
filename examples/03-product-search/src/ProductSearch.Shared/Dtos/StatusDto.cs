@@ -4,6 +4,8 @@ namespace ProductSearch.Shared.Dtos;
 public sealed class StatusDto
 {
     public int PostgresCount { get; set; }
+    /// <summary>Product cards in the catalog table (hydrate source).</summary>
+    public int CatalogProductCount { get; set; }
     public int ZVecTextCount { get; set; }
     public int ZVecImageCount { get; set; }
     public string ActiveModelId { get; set; } = "";

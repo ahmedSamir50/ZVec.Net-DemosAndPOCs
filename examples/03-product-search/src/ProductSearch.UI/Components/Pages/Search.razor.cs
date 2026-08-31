@@ -28,7 +28,7 @@ public partial class Search : IAsyncDisposable
     private FusionMode _fusion = FusionMode.Rrf;
     private int _topK = 5;
     private bool _useInvert = false;
-    private bool _useHybridFts = true;
+    private bool _useHybridFts = false;
     private string? _masterCategory;
     private bool _initLoading = true;
     private bool _busy;

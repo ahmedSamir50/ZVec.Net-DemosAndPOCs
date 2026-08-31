@@ -132,6 +132,16 @@
                 ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
             </p>
         }
+        @if (_response.Diagnosis is not null)
+        {
+            <p class="w-full max-w-5xl mx-auto mt-1 font-mono text-xs lg:text-sm text-base-content/50" title="@_response.Diagnosis.Recommendation">
+                Rank probe: @_response.Diagnosis.Branch · raw overlap@5 @_response.Diagnosis.OverlapAt5
+                @if (_response.Diagnosis.PgTopZVecProbeCosine is float probeCosine)
+                {
+                    <text> · PG#1 ZVec cos @probeCosine.ToString("0.###")</text>
+                }
+            </p>
+        }
         @if (_response.Runtime is not null)
         {
             <div class="w-full max-w-5xl mx-auto mt-2">

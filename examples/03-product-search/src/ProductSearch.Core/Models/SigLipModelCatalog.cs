@@ -24,6 +24,9 @@ public static class SigLipModelCatalog
 
     public const string DefaultModelId = "siglip-base-patch16-224";
 
+    /// <summary>Higher-quality model users can opt into from Status (not bootstrapped by default).</summary>
+    public const string RecommendedModelId = "siglip2-so400m-patch14-384";
+
     private const string XenovaBase = "https://huggingface.co/Xenova/siglip-base-patch16-224/resolve/main";
     private const string OnnxCommunitySigLip2 =
         "https://huggingface.co/onnx-community/siglip2-so400m-patch14-384-ONNX/resolve/main";
@@ -104,7 +107,7 @@ public static class SigLipModelCatalog
             AccuracyTier: "High",
             LatencyExpectation: "Slower encode; pre-ingest before talks",
             DownloadSizeNote: "~4.5 GB ONNX total (vision + text external data)",
-            WhenToPick: "Best retrieval quality when you can afford longer ingest and download.",
+            WhenToPick: "Recommended for best retrieval quality — slower encode and ~4.5 GB download.",
             RequiredModelFiles: SigLip2RequiredFiles,
             SentencePieceFile: "tokenizer.model",
             LowercaseText: false,

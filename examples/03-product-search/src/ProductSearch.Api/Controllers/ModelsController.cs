@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ProductSearch.Core.Models;
 using ProductSearch.Core.Services;
 using ProductSearch.Shared.Dtos;
 
@@ -30,7 +31,8 @@ public sealed class ModelsController : ControllerBase
                 Id = m.Id,
                 DisplayName = m.DisplayName,
                 EmbeddingDim = m.EmbeddingDim,
-                ImageSize = m.ImageSize
+                ImageSize = m.ImageSize,
+                IsRecommended = string.Equals(m.Id, SigLipModelCatalog.RecommendedModelId, StringComparison.OrdinalIgnoreCase)
             }).ToList()
         });
     }

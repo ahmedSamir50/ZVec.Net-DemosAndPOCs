@@ -88,6 +88,52 @@ public sealed class DualCollectionHolder : IDisposable
         }
     }
 
+    /// <summary>Fetch stored dense vector for rank diagnostics (PG #1 probe).</summary>
+    public float[]? TryFetchDenseEmbedding(string id, bool image)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return null;
+
+        _inFlight.Enter();
+        try
+        {
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                if (_embeddingDim == 1152)
+                {
+                    if (image)
+                    {
+                        var col = (IZvecCollection<ProductImageDoc1152>)_imageCollection;
+                        var doc = col.Fetch(id, includeVector: true);
+                        return doc is null ? null : doc.ImageEmbedding.ToArray();
+                    }
+
+                    var text = (IZvecCollection<ProductTextDoc1152>)_textCollection;
+                    var textDoc = text.Fetch(id, includeVector: true);
+                    return textDoc is null ? null : textDoc.TextEmbedding.ToArray();
+                }
+
+                if (image)
+                {
+                    var col = (IZvecCollection<ProductImageDoc768>)_imageCollection;
+                    var doc = col.Fetch(id, includeVector: true);
+                    return doc is null ? null : doc.ImageEmbedding.ToArray();
+                }
+
+                {
+                    var text = (IZvecCollection<ProductTextDoc768>)_textCollection;
+                    var textDoc = text.Fetch(id, includeVector: true);
+                    return textDoc is null ? null : textDoc.TextEmbedding.ToArray();
+                }
+            }
+        }
+        finally
+        {
+            _inFlight.Leave();
+        }
+    }
+
     public void SwitchToModel(SigLipModelDefinition model)
     {
         lock (_gate)

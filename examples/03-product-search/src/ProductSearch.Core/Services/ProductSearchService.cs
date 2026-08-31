@@ -81,13 +81,27 @@ public sealed class ProductSearchService : IProductSearchService
         var stamp = _stamp.Load();
         var (textCount, imageCount) = _collections.DocCounts;
 
+        await using (var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
+        {
+            var embeddingCount = await db.EmbeddingCountAsync(active.EmbeddingDim, ct).ConfigureAwait(false);
+
+            if (CatalogStoreAlignment.HasSplitBrain(embeddingCount, textCount, imageCount))
+            {
+                return new SearchResponseDto
+                {
+                    Warning = CatalogStoreAlignment.SplitBrainMessage(embeddingCount, textCount, imageCount),
+                    Runtime = _runtime.Capture()
+                };
+            }
+        }
+
         if (stamp.IngestOffset == 0 && (textCount > 0 || imageCount > 0))
         {
             return new SearchResponseDto
             {
                 Warning =
-                    $"SQL catalog is empty but ZVec still has {textCount} text / {imageCount} image docs. " +
-                    "Start ingest (or Reset catalog) to rebuild both stores together.",
+                    $"Ingest offset is 0 but ZVec still has {textCount} text / {imageCount} image docs. " +
+                    "Reset indexes, then re-ingest.",
                 Runtime = _runtime.Capture()
             };
         }
@@ -95,6 +109,26 @@ public sealed class ProductSearchService : IProductSearchService
         var encodeSw = Stopwatch.StartNew();
         var queryVector = await ResolveQueryVectorAsync(request, ct).ConfigureAwait(false);
         encodeSw.Stop();
+
+        SearchDiagnosisDto? diagnosis = null;
+        string? diagnosisWarning = null;
+        if (request.Engine == VectorEngineMode.Both)
+        {
+            var probe = await SearchRankDiagnostics.RunAsync(
+                request,
+                queryVector,
+                _collections,
+                async (req, vec, k, token) =>
+                {
+                    var hits = await SearchPostgresAsync(req, vec, k, token).ConfigureAwait(false);
+                    return hits.Select(h => new RankProbeHitDto { Id = h.Id, Score = h.Score }).ToList();
+                },
+                _logger,
+                ct).ConfigureAwait(false);
+            diagnosis = probe.Diagnosis;
+            if (probe.Diagnosis.Branch is "SdkDiffersHighProbe" or "SdkDiffersLowProbe" or "SdkDiffersMissingDoc" or "ZVecEmpty")
+                diagnosisWarning = probe.Diagnosis.Recommendation;
+        }
 
         IReadOnlyList<SearchHitDto> zvecHits = [];
         IReadOnlyList<SearchHitDto> pgHits = [];
@@ -152,7 +186,7 @@ public sealed class ProductSearchService : IProductSearchService
         totalSw.Stop();
 
         var primaryHits = request.Engine == VectorEngineMode.Postgres ? pgHits : zvecHits;
-        string? warning = mismatchWarning;
+        string? warning = mismatchWarning ?? diagnosisWarning;
         if (warning is null && primaryHits.Count == 0)
             warning = "No confident matches. Try another query or ingest more products.";
 
@@ -161,6 +195,7 @@ public sealed class ProductSearchService : IProductSearchService
             ZVecHits = request.Engine is VectorEngineMode.ZVec or VectorEngineMode.Both ? zvecHits : [],
             PostgreSqlHits = request.Engine is VectorEngineMode.Postgres or VectorEngineMode.Both ? pgHits : [],
             Compare = compare,
+            Diagnosis = diagnosis,
             Latency = new LatencyHudDto
             {
                 EncodeMs = encodeSw.Elapsed.TotalMilliseconds,
@@ -685,28 +720,17 @@ public sealed class ProductSearchService : IProductSearchService
         if (dense.Count == 0)
             return [];
 
-        var similarity = LooksLikeSimilarity(dense);
-        var list = new List<InternalHit>(dense.Count);
-        foreach (var hit in dense)
-        {
-            var cosine = similarity
-                ? Math.Clamp(hit.Score, -1f, 1f)
-                : SigLipScoreSemantics.CosineFromDistance(hit.Score);
-            list.Add(new InternalHit(hit.Id, hit.Score, fromText, fromImage, false, cosine));
-        }
+        var list = dense.Select(hit => new InternalHit(
+            hit.Id,
+            hit.Score,
+            fromText,
+            fromImage,
+            false,
+            SigLipScoreSemantics.CosineFromDistance(hit.Score))).ToList();
 
+        // ZVec Cosine Score is distance (same contract as CLIP/movie-recs). Sort by true cosine.
+        list.Sort((a, b) => b.DisplayCosine.CompareTo(a.DisplayCosine));
         return list;
-    }
-
-    /// <summary>
-    /// SDK best-first: non-increasing scores ⇒ cosine similarity; non-decreasing ⇒ distance.
-    /// A single Cosine hit is treated as similarity (ZVecMetricType.Cosine).
-    /// </summary>
-    private static bool LooksLikeSimilarity(IReadOnlyList<(string Id, float Score)> hits)
-    {
-        if (hits.Count >= 2)
-            return hits[0].Score >= hits[^1].Score;
-        return true;
     }
 
     private static CompareMetricsDto BuildCompareMetrics(

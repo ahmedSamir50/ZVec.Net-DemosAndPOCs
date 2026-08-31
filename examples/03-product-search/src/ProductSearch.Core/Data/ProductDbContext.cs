@@ -31,6 +31,15 @@ public sealed class ProductDbContext : DbContext
     public DbSet<ProductEmbedding768Entity> Embeddings768 => Set<ProductEmbedding768Entity>();
     public DbSet<ProductEmbedding1152Entity> Embeddings1152 => Set<ProductEmbedding1152Entity>();
 
+    public Task<int> EmbeddingCountAsync(int embeddingDim, CancellationToken ct = default)
+        => embeddingDim switch
+        {
+            768 => Embeddings768.CountAsync(ct),
+            1152 => Embeddings1152.CountAsync(ct),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(embeddingDim), embeddingDim, "Unsupported embedding dimension.")
+        };
+
     public int ClearEmbeddings(int embeddingDim)
         => embeddingDim switch
         {
@@ -39,6 +48,9 @@ public sealed class ProductDbContext : DbContext
             _ => throw new ArgumentOutOfRangeException(
                 nameof(embeddingDim), embeddingDim, "Unsupported embedding dimension.")
         };
+
+    public int ClearAllEmbeddings()
+        => Embeddings768.ExecuteDelete() + Embeddings1152.ExecuteDelete();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

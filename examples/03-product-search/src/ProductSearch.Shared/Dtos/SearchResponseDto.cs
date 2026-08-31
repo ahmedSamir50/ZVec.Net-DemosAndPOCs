@@ -8,5 +8,7 @@ public sealed class SearchResponseDto
     public LatencyHudDto Latency { get; set; } = new();
     public RuntimeSnapshotDto? Runtime { get; set; }
     public CompareMetricsDto? Compare { get; set; }
+    /// <summary>Set when Engine is Both — raw SDK vs PG rank probe (see server logs).</summary>
+    public SearchDiagnosisDto? Diagnosis { get; set; }
     public string? Warning { get; set; }
 }

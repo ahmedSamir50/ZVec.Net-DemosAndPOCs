@@ -7,6 +7,7 @@ public sealed class ModelDefinitionDto
     public string DisplayName { get; set; } = "";
     public int EmbeddingDim { get; set; }
     public int ImageSize { get; set; }
+    public bool IsRecommended { get; set; }
 }
 
 /// <summary>Model list response.</summary>

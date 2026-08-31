@@ -1,5 +1,9 @@
 namespace ProductSearch.Core.Encoding;
 
+/// <summary>
+/// ZVec Cosine metric exposes <b>cosine distance</b> on hit Score (lower = closer).
+/// Relation: cosθ ≈ 1 − distance for unit vectors.
+/// </summary>
 public static class SigLipScoreSemantics
 {
     /// <summary>Cosine from pgvector / ZVec cosine <b>distance</b> (lower distance = closer).</summary>

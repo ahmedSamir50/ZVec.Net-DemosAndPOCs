@@ -63,10 +63,12 @@ public sealed class StatusService : IStatusService
         var (textCount, imageCount) = _collections.DocCounts;
 
         var sqlCount = 0;
+        var catalogCount = 0;
         try
         {
             await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            sqlCount = await db.Products.CountAsync(ct).ConfigureAwait(false);
+            catalogCount = await db.Products.CountAsync(ct).ConfigureAwait(false);
+            sqlCount = await db.EmbeddingCountAsync(active.EmbeddingDim, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -93,18 +95,18 @@ public sealed class StatusService : IStatusService
         string? indexWarning = null;
         if (stamp.IngestOffset <= 0)
             indexWarning = "Indexes are empty. Run ingest before searching.";
-        else if (sqlCount != textCount || sqlCount != imageCount)
-            indexWarning = $"Count mismatch — SQL={sqlCount}, ZVec text={textCount}, ZVec image={imageCount}.";
+        else if (CatalogStoreAlignment.HasSplitBrain(sqlCount, textCount, imageCount))
+            indexWarning = CatalogStoreAlignment.SplitBrainMessage(sqlCount, textCount, imageCount);
 
         var demoReady = _encoder.IsReady && stampMatch && stamp.IngestOffset > 0
-                        && sqlCount > 0 && textCount > 0 && imageCount > 0
-                        && sqlCount == textCount && textCount == imageCount;
+                        && CatalogStoreAlignment.CountsMatch(sqlCount, textCount, imageCount);
 
         var boot = _bootstrap.Snapshot();
 
         return new StatusDto
         {
             PostgresCount = sqlCount,
+            CatalogProductCount = catalogCount,
             ZVecTextCount = (int)textCount,
             ZVecImageCount = (int)imageCount,
             ActiveModelId = active.Id,

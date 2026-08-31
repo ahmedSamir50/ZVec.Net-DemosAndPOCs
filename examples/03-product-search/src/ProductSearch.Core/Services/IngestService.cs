@@ -76,6 +76,21 @@ public sealed class IngestService : IIngestService
         if (_stamp.IsMismatch(active))
             return new IngestStartResult(false, patchSize, _stamp.MismatchMessage(active) + " Reset indexes first.");
 
+        var stamp = _stamp.Load();
+        if (stamp.IngestOffset > 0)
+        {
+            using var db = _dbFactory.CreateDbContext();
+            var embeddingCount = db.EmbeddingCountAsync(active.EmbeddingDim).GetAwaiter().GetResult();
+            var (textCount, imageCount) = _collections.DocCounts;
+            if (CatalogStoreAlignment.HasSplitBrain(embeddingCount, textCount, imageCount))
+            {
+                return new IngestStartResult(
+                    false,
+                    patchSize,
+                    CatalogStoreAlignment.SplitBrainMessage(embeddingCount, textCount, imageCount));
+            }
+        }
+
         lock (_startGate)
         {
             if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
@@ -109,7 +124,7 @@ public sealed class IngestService : IIngestService
                 _collections.RecreateEmpty();
                 _collections.EnsureIndexes();
                 using (var db = _dbFactory.CreateDbContext())
-                    db.ClearEmbeddings(active.EmbeddingDim);
+                    db.ClearAllEmbeddings();
                 _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0));
                 _progress.SetIdle($"Indexes reset for {active.DisplayName}. Start ingest to re-embed.");
                 return new IngestResetResult(true, null);
@@ -174,11 +189,13 @@ public sealed class IngestService : IIngestService
 
             await using (var dbCheck = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
             {
-                var sqlCount = await dbCheck.Products.CountAsync(ct).ConfigureAwait(false);
-                if (sqlCount == 0 && stamp.IngestOffset > 0)
+                var (textCount, imageCount) = _collections.DocCounts;
+                var embeddingCount = await dbCheck.EmbeddingCountAsync(active.EmbeddingDim, ct).ConfigureAwait(false);
+
+                if (embeddingCount == 0 && stamp.IngestOffset > 0)
                 {
                     _logger.LogWarning(
-                        "SQL catalog empty but ingest offset is {Offset} — rewinding stamp and clearing orphan ZVec docs",
+                        "Postgres embeddings empty but ingest offset is {Offset} — rewinding stamp and clearing orphan ZVec docs",
                         stamp.IngestOffset);
                     _collections.SwitchToModel(active);
                     _collections.RecreateEmpty();
@@ -186,6 +203,26 @@ public sealed class IngestService : IIngestService
                     offset = 0;
                     stamp = new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0);
                     _stamp.Save(stamp);
+                }
+                else if (embeddingCount > 0
+                         && (textCount == 0 || imageCount == 0
+                             || embeddingCount != textCount || embeddingCount != imageCount))
+                {
+                    _logger.LogWarning(
+                        "Store split detected — PG embeddings={EmbeddingCount}, ZVec text={TextCount}, ZVec image={ImageCount}. " +
+                        "Clearing all embeddings and ZVec, rewinding ingest offset to 0",
+                        embeddingCount, textCount, imageCount);
+                    dbCheck.ClearAllEmbeddings();
+                    _collections.SwitchToModel(active);
+                    _collections.RecreateEmpty();
+                    _collections.EnsureIndexes();
+                    offset = 0;
+                    stamp = new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0);
+                    _stamp.Save(stamp);
+                    _progress.AppendEvent(
+                        "Warn",
+                        "recovery",
+                        "Cleared orphan Postgres embeddings and ZVec after store mismatch — restart ingest from offset 0");
                 }
             }
 

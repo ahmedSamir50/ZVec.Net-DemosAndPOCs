@@ -27,7 +27,7 @@
         @if (_status.DemoReady)
         {
             <div class="alert alert-success rounded-2xl">
-                <span>Demo ready — SQL and ZVec counts are aligned.</span>
+                <span>Demo ready — PG embeddings and ZVec counts are aligned.</span>
             </div>
         }
 
@@ -48,10 +48,14 @@
             </div>
         }
 
-        <div class="grid sm:grid-cols-3 gap-4">
+        <div class="grid sm:grid-cols-4 gap-4">
             <div class="stat-card">
-                <p class="stat-label">Postgres</p>
+                <p class="stat-label">PG embeddings</p>
                 <p class="stat-value">@_status.PostgresCount</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Catalog rows</p>
+                <p class="stat-value">@_status.CatalogProductCount</p>
             </div>
             <div class="stat-card">
                 <p class="stat-label">ZVec text</p>
@@ -199,7 +203,7 @@
                         <select class="select select-bordered" value="@_models.ActiveModelId" @onchange="OnModelChanged" disabled="@_busy">
                             @foreach (var model in _models.Models)
                             {
-                                <option value="@model.Id">@model.DisplayName (@model.EmbeddingDim)</option>
+                                <option value="@model.Id">@model.DisplayName (@model.EmbeddingDim)@(model.IsRecommended ? " — Recommended" : "")</option>
                             }
                         </select>
                     </label>

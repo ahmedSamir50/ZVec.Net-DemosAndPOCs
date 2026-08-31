@@ -42,4 +42,15 @@ internal static class VectorMath
             mean[i] = (float)(acc[i] * invN);
         return L2Normalize(mean);
     }
+
+    /// <summary>Dot product for L2-normalized vectors (= cosine similarity).</summary>
+    public static double Dot(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+    {
+        if (a.Length != b.Length)
+            throw new ArgumentException("Vector lengths must match.");
+        double sum = 0;
+        for (var i = 0; i < a.Length; i++)
+            sum += a[i] * (double)b[i];
+        return sum;
+    }
 }
