@@ -13,7 +13,12 @@
         </p>
     </div>
 
-    <div class="card bg-base-200 border border-base-300">
+    @if (_loadError is not null && _progress is null)
+    {
+        <ErrorBanner Title="Could not load ingest state" Message="@_loadError" OnRetry="ReloadProgressAsync" RetryDisabled="@_busy" />
+    }
+
+    <div class="card bg-base-200 border border-base-300 rounded-2xl">
         <div class="card-body gap-4">
             <div>
                 <span class="label-text text-xs">Patch size</span>
@@ -45,26 +50,38 @@
 
             @if (_busy)
             {
-                <div class="flex items-center gap-3">
-                    <span class="loading loading-spinner loading-sm text-primary"></span>
-                    <p class="text-sm">@ActiveMessage</p>
-                </div>
-                @if (ProgressPercent is double pct)
+                <BusyBlock Visible="true"
+                           Message="@ActiveMessage"
+                           SubMessage="@(ProgressPercent is double pct ? $"{pct:0.#}%" : null)"
+                           CssClass="py-4" />
+                @if (ProgressPercent is double progress)
                 {
-                    <progress class="progress progress-primary w-full" value="@pct" max="100"></progress>
-                    <p class="text-xs text-base-content/60 tabular-nums">@($"{pct:0.#}%")</p>
+                    <progress class="progress progress-primary w-full" value="@progress" max="100"></progress>
                 }
                 else
                 {
                     <progress class="progress progress-primary w-full"></progress>
                 }
             }
+            else if (_progress is not null && !_progress.IsRunning && _progress.IngestOffset > 0)
+            {
+                <div class="alert alert-success rounded-xl text-sm">
+                    <span>Ready — catalog offset @_progress.IngestOffset / @FormatCatalogTotal()</span>
+                </div>
+            }
+            else if (_progress is not null && _progress.IngestOffset <= 0)
+            {
+                <EmptyState Icon="📥"
+                            Title="Nothing ingested yet"
+                            Message="Start a patch to populate Postgres and ZVec."
+                            CssClass="border-dashed py-6" />
+            }
         </div>
     </div>
 
     @if (_progress is not null)
     {
-        <div class="card bg-base-200 border border-base-300">
+        <div class="card bg-base-200 border border-base-300 rounded-2xl">
             <div class="card-body">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <h2 class="card-title text-base">Progress</h2>
@@ -79,6 +96,10 @@
                     else if (_progress.Status is "Failed")
                     {
                         <span class="badge badge-error badge-sm">Failed</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-ghost badge-sm">Idle</span>
                     }
                 </div>
 
@@ -102,7 +123,7 @@
                 </div>
                 @if (!string.IsNullOrEmpty(_progress.ErrorMessage))
                 {
-                    <div role="alert" class="alert alert-error mt-3 text-sm"><span>@_progress.ErrorMessage</span></div>
+                    <ErrorBanner Title="Ingest failed" Message="@_progress.ErrorMessage" CssClass="mt-3" />
                 }
             </div>
         </div>
@@ -114,6 +135,7 @@
     private bool _busy;
     private int _patchSize = 100;
     private bool _optimizeAfterPatch = true;
+    private string? _loadError;
     private CancellationTokenSource? _pollCts;
 
     private string ActiveMessage =>
@@ -146,17 +168,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await ReloadProgressAsync();
+        if (_progress?.IsRunning == true)
+        {
+            BeginPolling();
+            _ = ResumePollingAsync();
+        }
+    }
+
+    private async Task ReloadProgressAsync()
+    {
+        _loadError = null;
         try
         {
             _progress = await Api.GetIngestAsync();
-            if (_progress?.IsRunning == true)
-            {
-                BeginPolling();
-                _ = ResumePollingAsync();
-            }
         }
         catch (Exception ex)
         {
+            _loadError = ex.Message;
             Toasts.Show(ex.Message, ToastLevel.Warning);
         }
     }
@@ -300,6 +329,9 @@
             return $"{_progress.IngestOffset} / {_progress.CatalogTotal}";
         return _progress.IngestOffset.ToString();
     }
+
+    private string FormatCatalogTotal()
+        => _progress?.CatalogTotal > 0 ? _progress.CatalogTotal.ToString() : "?";
 
     public void Dispose()
     {

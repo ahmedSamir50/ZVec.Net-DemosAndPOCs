@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using ProductSearch.Shared.Constants;
 using ProductSearch.Shared.Dtos;
@@ -17,9 +16,19 @@ public sealed class ApiClientService
 
     public async Task<SearchResponseDto?> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync(ApiRoutes.Search.TrimStart('/'), request, ApiJson.Options, ct)
-            .ConfigureAwait(false);
-        return await ReadSuccessAsync<SearchResponseDto>(response, ct).ConfigureAwait(false);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            var response = await _http.PostAsJsonAsync(ApiRoutes.Search.TrimStart('/'), request, ApiJson.Options, timeoutCts.Token)
+                .ConfigureAwait(false);
+            return await ReadSuccessAsync<SearchResponseDto>(response, timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ApiException(System.Net.HttpStatusCode.RequestTimeout, "Search timed out after 30 seconds.");
+        }
     }
 
     public async Task<SearchResponseDto?> SimilarAsync(Guid productId, SearchRequestDto request, CancellationToken ct = default)

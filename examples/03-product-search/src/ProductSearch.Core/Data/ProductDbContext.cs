@@ -38,6 +38,8 @@ public sealed class ProductDbContext : DbContext
 
     public DbSet<ProductEntity> Products => Set<ProductEntity>();
 
+   
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("vector");

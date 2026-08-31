@@ -1,5 +1,7 @@
 namespace ProductSearch.Core.Services;
 
+using ProductSearch.Core.Models;
+using ProductSearch.Core.Storage;
 using ProductSearch.Shared.Dtos;
 
 public enum IngestState
@@ -52,6 +54,32 @@ public sealed class IngestProgressStatus
                 ErrorMessage = _error
             };
         }
+    }
+
+    public IngestProgressDto SnapshotHydrated(IndexStamp stamp, int catalogTotal)
+    {
+        var dto = Snapshot();
+        if (dto.IsRunning)
+            return dto;
+
+        if (dto.IngestOffset <= 0 && stamp.IngestOffset > 0)
+            dto.IngestOffset = stamp.IngestOffset;
+
+        if (catalogTotal > 0)
+            dto.CatalogTotal = catalogTotal;
+
+        if (dto.IngestOffset > 0
+            && dto.CatalogTotal > 0
+            && dto.IngestOffset < dto.CatalogTotal
+            && dto.Status is nameof(IngestState.Idle) or nameof(IngestState.Completed)
+            && (dto.Status == nameof(IngestState.Idle)
+                || dto.Message.StartsWith("Idle", StringComparison.Ordinal)
+                || dto.Message.StartsWith("Optimized", StringComparison.Ordinal)))
+        {
+            dto.Message = $"Catalog offset {dto.IngestOffset}/{dto.CatalogTotal} — start another patch to continue.";
+        }
+
+        return dto;
     }
 
     public void SetRunning(bool isRunning)

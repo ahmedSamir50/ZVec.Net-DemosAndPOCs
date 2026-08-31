@@ -92,6 +92,7 @@ public sealed class DualCollectionHolder : IDisposable
                 text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
+                text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
                 {
                     Tokenizer = ZVecFtsTokenizer.Standard,
@@ -105,6 +106,7 @@ public sealed class DualCollectionHolder : IDisposable
                 text.CreateIndex(p => p.BaseColour, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.Season, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.Usage, new ZVecInvertIndexParam());
+                text.CreateIndex(p => p.MasterCategory, new ZVecInvertIndexParam());
                 text.CreateIndex(p => p.ConcatenatedText, new ZVecFtsIndexParam
                 {
                     Tokenizer = ZVecFtsTokenizer.Standard,
@@ -117,7 +119,7 @@ public sealed class DualCollectionHolder : IDisposable
     }
 
     public async Task UpsertTextBatchAsync(
-        IReadOnlyList<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, float[] Embedding)> batch,
+        IReadOnlyList<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, string MasterCategory, float[] Embedding)> batch,
         CancellationToken ct = default)
     {
         if (batch.Count == 0)
@@ -137,6 +139,7 @@ public sealed class DualCollectionHolder : IDisposable
                     BaseColour = item.BaseColour,
                     Season = item.Season,
                     Usage = item.Usage,
+                    MasterCategory = item.MasterCategory,
                     TextEmbedding = item.Embedding
                 }, ct).ConfigureAwait(false);
             }
@@ -156,6 +159,7 @@ public sealed class DualCollectionHolder : IDisposable
                     BaseColour = item.BaseColour,
                     Season = item.Season,
                     Usage = item.Usage,
+                    MasterCategory = item.MasterCategory,
                     TextEmbedding = item.Embedding
                 }, ct).ConfigureAwait(false);
             }

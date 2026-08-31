@@ -2,7 +2,12 @@
 @inject ToastService Toasts
 @implements IDisposable
 
-@if (_boot is not null)
+@if (_apiUnreachable)
+{
+    <span class="badge badge-error badge-sm shrink-0">API unreachable</span>
+    <button type="button" class="btn btn-error btn-xs shrink-0" @onclick="RetryAsync">Retry</button>
+}
+else if (_boot is not null)
 {
     <div class="flex items-center gap-2 min-w-0">
         @if (_boot.State is "Ready")
@@ -41,6 +46,7 @@
     private ModelBootstrapSnapshotDto? _boot;
     private string? _activeModelId;
     private bool _retrying;
+    private bool _apiUnreachable;
     private bool _pollAfterFailure;
     private CancellationTokenSource? _pollCts;
     private PeriodicTimer? _timer;
@@ -60,7 +66,7 @@
         {
             while (await _timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                if (_boot?.State is "Ready")
+                if (_boot?.State is "Ready" && !_apiUnreachable)
                     continue;
 
                 if (_boot?.State is "Failed" && !_pollAfterFailure && !_retrying)
@@ -88,10 +94,12 @@
             var status = await Api.GetStatusAsync();
             _boot = status?.ModelBootstrap;
             _activeModelId = status?.ActiveModelId;
+            _apiUnreachable = false;
         }
         catch
         {
-            // API may be starting
+            _apiUnreachable = true;
+            _boot = null;
         }
     }
 

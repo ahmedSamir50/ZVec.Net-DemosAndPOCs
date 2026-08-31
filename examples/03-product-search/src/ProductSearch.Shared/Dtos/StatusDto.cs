@@ -16,4 +16,5 @@ public sealed class StatusDto
     public ModelBootstrapSnapshotDto? ModelBootstrap { get; set; }
     public string? StampWarning { get; set; }
     public string? IndexWarning { get; set; }
+    public PostgresConnectionDto? Postgres { get; set; }
 }

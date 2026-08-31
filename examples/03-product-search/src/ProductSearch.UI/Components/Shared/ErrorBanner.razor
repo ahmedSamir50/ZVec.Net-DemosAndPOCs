@@ -1,0 +1,22 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div role="alert" class="alert alert-error rounded-2xl @CssClass">
+        <div class="w-full">
+            <p class="font-semibold text-sm">@Title</p>
+            <p class="text-sm mt-1">@Message</p>
+            @if (OnRetry.HasDelegate)
+            {
+                <button type="button" class="btn btn-error btn-sm mt-3" disabled="@RetryDisabled" @onclick="OnRetry">@RetryLabel</button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Something went wrong";
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string RetryLabel { get; set; } = "Retry";
+    [Parameter] public bool RetryDisabled { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+}

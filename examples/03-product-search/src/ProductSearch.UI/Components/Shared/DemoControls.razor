@@ -42,63 +42,30 @@
     </div>
 
     <div class="flex flex-wrap gap-3">
-        <label class="form-control w-full sm:w-36">
-            <span class="label-text text-xs mb-1">Gender</span>
+        <label class="form-control w-full sm:w-48">
+            <span class="label-text text-xs mb-1">Category</span>
             <select class="select select-bordered select-sm"
-                    @bind="Gender"
-                    @bind:after="() => GenderChanged.InvokeAsync(Gender)">
+                    @bind="MasterCategory"
+                    @bind:after="() => MasterCategoryChanged.InvokeAsync(MasterCategory)">
                 <option value="">Any</option>
-                @foreach (var g in Genders)
+                @foreach (var category in Categories)
                 {
-                    <option value="@g">@g</option>
-                }
-            </select>
-        </label>
-        <label class="form-control w-full sm:w-36">
-            <span class="label-text text-xs mb-1">Colour</span>
-            <select class="select select-bordered select-sm"
-                    @bind="BaseColour"
-                    @bind:after="() => BaseColourChanged.InvokeAsync(BaseColour)">
-                <option value="">Any</option>
-                @foreach (var c in Colours)
-                {
-                    <option value="@c">@c</option>
-                }
-            </select>
-        </label>
-        <label class="form-control w-full sm:w-36">
-            <span class="label-text text-xs mb-1">Season</span>
-            <select class="select select-bordered select-sm"
-                    @bind="Season"
-                    @bind:after="() => SeasonChanged.InvokeAsync(Season)">
-                <option value="">Any</option>
-                @foreach (var s in Seasons)
-                {
-                    <option value="@s">@s</option>
-                }
-            </select>
-        </label>
-        <label class="form-control w-full sm:w-36">
-            <span class="label-text text-xs mb-1">Usage</span>
-            <select class="select select-bordered select-sm"
-                    @bind="Usage"
-                    @bind:after="() => UsageChanged.InvokeAsync(Usage)">
-                <option value="">Any</option>
-                @foreach (var u in Usages)
-                {
-                    <option value="@u">@u</option>
+                    <option value="@category">@category</option>
                 }
             </select>
         </label>
     </div>
 
     <div class="flex flex-wrap gap-4">
-        <label class="label cursor-pointer gap-2 justify-start">
+        <label class="label cursor-pointer gap-2 justify-start items-start">
             <input type="checkbox"
-                   class="toggle toggle-sm toggle-primary"
+                   class="toggle toggle-sm toggle-primary mt-0.5"
                    @bind="UseInvert"
                    @bind:after="() => UseInvertChanged.InvokeAsync(UseInvert)" />
-            <span class="label-text text-xs">Invert filters</span>
+            <span class="flex flex-col">
+                <span class="label-text text-xs font-medium">Filter by category</span>
+                <span class="text-[11px] text-base-content/50 max-w-xs">When on, search only the selected Category. Off = whole catalog.</span>
+            </span>
         </label>
         <label class="label cursor-pointer gap-2 justify-start">
             <input type="checkbox"
@@ -120,17 +87,8 @@
     [Parameter] public FusionMode Fusion { get; set; }
     [Parameter] public EventCallback<FusionMode> FusionChanged { get; set; }
 
-    [Parameter] public string? Gender { get; set; }
-    [Parameter] public EventCallback<string?> GenderChanged { get; set; }
-
-    [Parameter] public string? BaseColour { get; set; }
-    [Parameter] public EventCallback<string?> BaseColourChanged { get; set; }
-
-    [Parameter] public string? Season { get; set; }
-    [Parameter] public EventCallback<string?> SeasonChanged { get; set; }
-
-    [Parameter] public string? Usage { get; set; }
-    [Parameter] public EventCallback<string?> UsageChanged { get; set; }
+    [Parameter] public string? MasterCategory { get; set; }
+    [Parameter] public EventCallback<string?> MasterCategoryChanged { get; set; }
 
     [Parameter] public bool UseInvert { get; set; }
     [Parameter] public EventCallback<bool> UseInvertChanged { get; set; }
@@ -140,8 +98,9 @@
 
     [Parameter] public bool ShowFusion { get; set; }
 
-    private static readonly string[] Genders = ["Men", "Women", "Unisex", "Boys", "Girls"];
-    private static readonly string[] Colours = ["Blue", "Black", "White", "Red", "Green", "Brown", "Grey", "Pink", "Navy Blue"];
-    private static readonly string[] Seasons = ["Summer", "Winter", "Fall", "Spring"];
-    private static readonly string[] Usages = ["Casual", "Formal", "Sports", "Ethnic", "Smart Casual", "Travel"];
+    private static readonly string[] Categories =
+    [
+        "Tshirts", "Shirts", "Jeans", "Casual Shoes", "Sports Shoes", "Tops", "Kurtas",
+        "Handbags", "Watches", "Sunglasses", "Sandals", "Flip Flops", "Heels", "Wallets", "Belts"
+    ];
 }

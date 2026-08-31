@@ -99,6 +99,7 @@ public sealed class IngestService : IIngestService
                 var active = _models.ActiveDefinition;
                 _collections.SwitchToModel(active);
                 _collections.RecreateEmpty();
+                _collections.EnsureIndexes();
                 _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0));
                 _progress.SetIdle($"Indexes reset for {active.DisplayName}. Start ingest to re-embed.");
                 return new IngestResetResult(true, null);
@@ -146,6 +147,25 @@ public sealed class IngestService : IIngestService
             var stamp = _stamp.Load();
             var offset = Math.Clamp(stamp.IngestOffset, 0, catalog.Count);
 
+            await using (var dbCheck = await _dbFactory.CreateDbContextAsync().ConfigureAwait(false))
+            {
+                var sqlCount = await dbCheck.Products.CountAsync().ConfigureAwait(false);
+                if (sqlCount == 0 && stamp.IngestOffset > 0)
+                {
+                    _logger.LogWarning(
+                        "SQL catalog empty but ingest offset is {Offset} — rewinding stamp and clearing orphan ZVec docs",
+                        stamp.IngestOffset);
+                    _collections.SwitchToModel(active);
+                    _collections.RecreateEmpty();
+                    _collections.EnsureIndexes();
+                    offset = 0;
+                    stamp = new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0);
+                    _stamp.Save(stamp);
+                }
+            }
+
+            _collections.EnsureIndexes();
+
             if (_stamp.IsMismatch(active, stamp) && stamp.IngestOffset > 0)
                 throw new InvalidOperationException(_stamp.MismatchMessage(active, stamp));
 
@@ -162,7 +182,7 @@ public sealed class IngestService : IIngestService
                 "Ingest patch: encoding {Target} products starting at catalog offset {Offset}/{Total}",
                 target, offset, catalog.Count);
 
-            var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, float[] Embedding)>();
+            var textBatch = new List<(string Id, string ConcatenatedText, string Gender, string BaseColour, string Season, string Usage, string MasterCategory, float[] Embedding)>();
             var imageBatch = new List<(string Id, float[] Embedding)>();
             var entities = new List<ProductEntity>();
             writtenIds.Clear();
@@ -188,7 +208,7 @@ public sealed class IngestService : IIngestService
                 var textEmbedding = _encoder.EncodeText(product.ConcatenatedText);
                 var imageEmbedding = _encoder.EncodeImage(imagePath);
 
-                textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, textEmbedding));
+                textBatch.Add((id, product.ConcatenatedText, product.Gender, product.BaseColour, product.Season, product.Usage, product.MasterCategory, textEmbedding));
                 imageBatch.Add((id, imageEmbedding));
                 entities.Add(new ProductEntity
                 {

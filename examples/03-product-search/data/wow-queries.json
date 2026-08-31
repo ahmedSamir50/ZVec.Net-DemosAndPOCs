@@ -1,52 +1,47 @@
 [
   {
-    "name": "Exact name",
+    "name": "Peter England Men Blue Jeans",
     "category": "name",
-    "queryText": "Peter England Men Party Blue Jeans"
+    "queryText": "Peter England Men Blue Jeans"
   },
   {
-    "name": "Paraphrase",
+    "name": "Puma Men White Solid Foundation Polo T-shirt",
+    "category": "name",
+    "queryText": "Puma Men White Solid Foundation Polo T-shirt"
+  },
+  {
+    "name": "men's blue denim jeans for casual wear",
     "category": "description",
-    "queryText": "men's blue denim jeans for parties"
+    "queryText": "men's blue denim jeans for casual wear"
   },
   {
-    "name": "Colour filter",
+    "name": "blue denim jeans",
     "category": "metadata",
-    "queryText": "casual shirt",
-    "baseColour": "Blue",
-    "usage": "Casual"
+    "queryText": "blue denim jeans",
+    "masterCategory": "Jeans"
   },
   {
-    "name": "Season + gender",
+    "name": "white cotton t-shirt",
     "category": "metadata",
-    "queryText": "winter wear",
-    "gender": "Women",
-    "season": "Winter"
+    "queryText": "white cotton t-shirt",
+    "masterCategory": "Tshirts"
   },
   {
-    "name": "Beach vacation",
+    "name": "outfit for a beach vacation",
     "category": "implicit",
     "queryText": "outfit for a beach vacation",
-    "implicitVisualHint": "Resort / summer silhouettes not in product title"
+    "implicitVisualHint": "Resort / summer silhouettes — sandals, swimwear, light layers"
   },
   {
-    "name": "Rainy commute",
+    "name": "something for a rainy commute",
     "category": "implicit",
     "queryText": "something for a rainy commute",
-    "implicitVisualHint": "Water-resistant outerwear; usage/season carry the hit"
+    "implicitVisualHint": "Water-resistant outerwear and practical footwear"
   },
   {
-    "name": "Formal evening",
+    "name": "elegant look for a formal dinner",
     "category": "implicit",
     "queryText": "elegant look for a formal dinner",
-    "usage": "Formal",
     "implicitVisualHint": "Visual texture and cut matter more than title keywords"
-  },
-  {
-    "name": "Sporty active",
-    "category": "metadata",
-    "queryText": "running gear",
-    "masterCategory": "Apparel",
-    "usage": "Sports"
   }
 ]

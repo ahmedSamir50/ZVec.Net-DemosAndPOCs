@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ProductSearch.Core.Data;
+using ProductSearch.Core.Encoding;
+using ProductSearch.Core.Models;
 using ProductSearch.Core.Storage;
 
 namespace ProductSearch.Core.Services;
@@ -15,15 +17,24 @@ public sealed class CatalogMaintenanceService : ICatalogMaintenanceService
 {
     private readonly IDbContextFactory<ProductDbContext> _dbFactory;
     private readonly DualCollectionHolder _collections;
+    private readonly IIndexStampStore _stamp;
+    private readonly ISigLipModelSelectionService _models;
+    private readonly IngestProgressStatus _progress;
     private readonly ILogger<CatalogMaintenanceService> _logger;
 
     public CatalogMaintenanceService(
         IDbContextFactory<ProductDbContext> dbFactory,
         DualCollectionHolder collections,
+        IIndexStampStore stamp,
+        ISigLipModelSelectionService models,
+        IngestProgressStatus progress,
         ILogger<CatalogMaintenanceService> logger)
     {
         _dbFactory = dbFactory;
         _collections = collections;
+        _stamp = stamp;
+        _models = models;
+        _progress = progress;
         _logger = logger;
     }
 
@@ -52,11 +63,18 @@ public sealed class CatalogMaintenanceService : ICatalogMaintenanceService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var count = await db.Products.CountAsync(ct).ConfigureAwait(false);
-        if (count == 0)
-            return 0;
 
-        await db.Products.ExecuteDeleteAsync(ct).ConfigureAwait(false);
-        _logger.LogInformation("Reset SQL catalog — deleted {Count} rows", count);
+        if (count > 0)
+            await db.Products.ExecuteDeleteAsync(ct).ConfigureAwait(false);
+
+        var active = _models.ActiveDefinition;
+        _collections.SwitchToModel(active);
+        _collections.RecreateEmpty();
+        _collections.EnsureIndexes();
+        _stamp.Save(new IndexStamp(active.Id, active.EmbeddingDim, SigLipModelCatalog.EncodePipelineVersion, 0));
+        _progress.SetIdle("Catalog and ZVec indexes cleared — start ingest to rebuild.");
+
+        _logger.LogInformation("Reset catalog — deleted {Count} SQL rows and cleared ZVec indexes", count);
         return count;
     }
 }

@@ -1,8 +1,15 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var postgres = builder.AddPostgres("postgres")
+var postgresUser = builder.AddParameter("postgres-user");
+var postgresPassword = builder.AddParameter("postgres-password", secret: true);
+
+var postgres = builder.AddPostgres("postgres", postgresUser, postgresPassword)
     .WithImage("pgvector/pgvector")
-    .WithImageTag("pg16");
+    .WithImageTag("pg16")
+    .WithDataVolume("productsearch-pgdata")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithHostPort(5432);
+
 var db = postgres.AddDatabase("productsearch");
 
 var api = builder.AddProject<Projects.ProductSearch_Api>("productsearch-api")

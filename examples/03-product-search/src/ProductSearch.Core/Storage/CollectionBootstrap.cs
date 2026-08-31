@@ -1,5 +1,4 @@
 using ZVec.NET;
-using ZVec.NET.Mapping;
 
 namespace ProductSearch.Core.Storage;
 

@@ -54,6 +54,30 @@ dotnet run --project src/ProductSearch.AppHost
 
 Opens **pgvector/pgvector:pg16** Postgres, API, and Blazor UI. UI reads `ProductSearchUi__ApiBaseUrl` from Aspire.
 
+### Persistent Postgres
+
+Aspire provisions Postgres with a **named Docker volume** so catalog rows survive AppHost restarts:
+
+| Setting | Value |
+|---------|--------|
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `productsearch` |
+| Username | `postgres` |
+| Password | `postgres` |
+| Docker volume | `productsearch-pgdata` |
+
+The **Status** page shows these credentials parsed from the active connection string.
+
+**One-time cleanup:** if an older Aspire Postgres container was created with a random password, remove the old container (and anonymous volume if needed) before the first run after this change:
+
+```bash
+docker rm -f <old-postgres-container>
+docker volume rm productsearch-pgdata   # only if you want a fresh DB
+```
+
+Then restart AppHost.
+
 ## Run (API + UI standalone)
 
 1. Start Postgres with pgvector and create database `productsearch`.
@@ -86,9 +110,11 @@ ZVec Cosine metric exposes **distance** (lower = better). UI similarity % = `max
 
 | Action | Effect |
 |--------|--------|
-| **Reset indexes** | Wipes both ZVec folders + stamp; SQL rows remain until **Reset catalog** |
-| **Reset catalog** | Deletes SQL/pgvector rows only |
+| **Reset indexes** | Wipes both ZVec folders + stamp; recreates FTS/invert indexes; SQL rows remain |
+| **Reset catalog** | Deletes SQL/pgvector rows **and** clears ZVec + ingest stamp |
 | **Optimize** | Merges flat buffer → HNSW on both collections |
+
+If SQL is empty but ZVec still has docs (e.g. after an old ephemeral Postgres), **Start patch** auto-rewinds the ingest stamp and rebuilds both stores from offset 0.
 
 Model/dim mismatch → search blocked; **Reset indexes → Ingest** (same pattern as CLIP gallery).
 

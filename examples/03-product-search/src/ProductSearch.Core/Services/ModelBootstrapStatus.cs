@@ -91,14 +91,14 @@ public sealed class ModelBootstrapStatus
         lock (_gate)
         {
             _modelsDir = modelsDir;
-            _files = names.Select(n => new ModelFileProgress(
+            _files = [.. names.Select(n => new ModelFileProgress(
                 n,
                 ModelFileStatus.Pending,
                 0,
                 null,
                 null,
                 false,
-                Path.Combine(modelsDir, n))).ToList();
+                Path.Combine(modelsDir, n)))];
         }
     }
 

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using ProductSearch.Core.Data;
 using ProductSearch.Core.Services;
+using ProductSearch.Core.Storage;
 using ProductSearch.Shared.Dtos;
 
 namespace ProductSearch.Api.Controllers;
@@ -12,15 +14,21 @@ public sealed class IngestController : ControllerBase
     private readonly IIngestService _ingest;
     private readonly IngestProgressStatus _progress;
     private readonly ICatalogMaintenanceService _catalog;
+    private readonly IIndexStampStore _stamp;
+    private readonly FashionCatalogReader _catalogReader;
 
     public IngestController(
         IIngestService ingest,
         IngestProgressStatus progress,
-        ICatalogMaintenanceService catalog)
+        ICatalogMaintenanceService catalog,
+        IIndexStampStore stamp,
+        FashionCatalogReader catalogReader)
     {
         _ingest = ingest;
         _progress = progress;
         _catalog = catalog;
+        _stamp = stamp;
+        _catalogReader = catalogReader;
     }
 
     [HttpPost]
@@ -38,8 +46,21 @@ public sealed class IngestController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IngestProgressDto> GetProgress()
-        => Ok(_progress.Snapshot());
+    public async Task<ActionResult<IngestProgressDto>> GetProgressAsync(CancellationToken cancellationToken)
+    {
+        var catalogTotal = 0;
+        try
+        {
+            var catalog = await _catalogReader.ReadAllAsync(cancellationToken).ConfigureAwait(false);
+            catalogTotal = catalog.Count;
+        }
+        catch
+        {
+            // data.csv may not be extracted from the in-repo pack yet.
+        }
+
+        return Ok(_progress.SnapshotHydrated(_stamp.Load(), catalogTotal));
+    }
 
     [HttpPost("optimize")]
     public ActionResult Optimize()

@@ -9,7 +9,6 @@ using ProductSearch.Core.Services;
 using ProductSearch.Core.Storage;
 using ZVec.NET;
 using ZVec.NET.DependencyInjection;
-using Pgvector.EntityFrameworkCore;
 
 namespace ProductSearch.Core.DependencyInjection;
 

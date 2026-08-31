@@ -14,6 +14,7 @@ public sealed class ProductTextDoc1152
     public string BaseColour { get; set; } = "";
     public string Season { get; set; } = "";
     public string Usage { get; set; } = "";
+    public string MasterCategory { get; set; } = "";
 
     [ZVecVector(1152, Metric = ZVecMetricType.Cosine, M = 32, EfConstruction = 256)]
     public ReadOnlyMemory<float> TextEmbedding { get; set; }

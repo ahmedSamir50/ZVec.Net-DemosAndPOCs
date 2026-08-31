@@ -43,6 +43,7 @@ builder.Services.PostConfigure<ProductSearchOptions>(options =>
     }
 });
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddProductSearchCore(builder.Configuration);
 builder.Services.AddSingleton<WowQueryProvider>();
 
@@ -50,9 +51,23 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicyNames.AllowUi, policy =>
     {
-        policy.WithOrigins("http://localhost:5210", "https://localhost:7210")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(static origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin))
+                    return false;
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    return false;
+                return uri.Host is "localhost" or "127.0.0.1";
+            });
+        }
+        else
+        {
+            policy.WithOrigins("http://localhost:5210", "https://localhost:7210");
+        }
+
+        policy.AllowAnyHeader().AllowAnyMethod();
     });
 });
 

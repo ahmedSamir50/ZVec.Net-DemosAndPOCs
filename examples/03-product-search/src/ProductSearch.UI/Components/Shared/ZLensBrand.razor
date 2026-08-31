@@ -1,0 +1,15 @@
+<div class="flex items-center gap-2.5 min-w-0 @CssClass">
+    <img src="zlens-logo.svg" alt="" class="w-9 h-9 shrink-0 rounded-xl" />
+    <div class="flex items-center gap-2 min-w-0">
+        <span class="text-lg font-bold tracking-tight text-base-content truncate">ZLens</span>
+        @if (ShowBadge)
+        {
+            <span class="badge badge-sm badge-outline border-primary/40 text-primary/90 font-mono text-[10px] shrink-0">.NET 10</span>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool ShowBadge { get; set; } = true;
+    [Parameter] public string? CssClass { get; set; }
+}

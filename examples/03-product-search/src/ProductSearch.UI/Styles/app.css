@@ -1,9 +1,23 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: zlens --default;
+}
 
 @theme {
   --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
   --font-display: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-base-100: #0b1326;
+  --color-base-200: #131b2e;
+  --color-base-300: #222a3d;
+  --color-base-content: #dae2fd;
+  --color-primary: #6419e6;
+  --color-primary-content: #e9ddff;
+  --color-secondary: #cfbcff;
+  --color-accent: #22c55e;
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-error: #ff6b6b;
 }
 
 @layer base {
@@ -17,6 +31,10 @@
 }
 
 @layer components {
+  .zlens-app {
+    background: radial-gradient(ellipse at top, #131b2e 0%, #0b1326 55%, #060e20 100%);
+  }
+
   .search-canvas {
     @apply min-h-[calc(100vh-4rem)] flex flex-col;
   }
@@ -29,12 +47,16 @@
     @apply px-4 pb-8 pt-2;
   }
 
+  .search-busy-overlay {
+    @apply absolute inset-0 z-40 flex flex-col items-center justify-center bg-base-100/80 backdrop-blur-sm rounded-2xl;
+  }
+
   .omnibox {
     @apply flex items-center gap-2 w-full max-w-[680px] h-14 px-4 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
   }
 
   .omnibox:focus-within {
-    @apply border-primary/40 shadow-primary/10 shadow-xl;
+    @apply border-primary/40 shadow-primary/20 shadow-xl;
   }
 
   .omnibox-input {
@@ -58,7 +80,7 @@
   }
 
   .product-tile {
-    @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-base-200 border border-base-300 cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-lg;
+    @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-base-200 border border-base-300 cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30;
   }
 
   .product-tile img {
@@ -70,19 +92,43 @@
   }
 
   .dock-nav {
-    @apply fixed left-0 top-16 bottom-0 w-16 hidden md:flex flex-col items-center py-6 gap-2 border-r border-base-300 bg-base-100/80 backdrop-blur z-20;
+    @apply fixed bottom-0 left-0 right-0 md:left-0 md:top-16 md:bottom-0 md:right-auto md:w-20 flex flex-row md:flex-col items-center justify-around md:justify-start py-2 md:py-6 gap-1 md:gap-2 border-t md:border-t-0 md:border-r border-base-300 bg-base-100/90 backdrop-blur z-30;
+  }
+
+  .dock-link {
+    @apply btn btn-ghost btn-sm md:btn-square flex-col gap-0.5 min-h-0 h-auto md:h-12 px-3 text-base-content/70 hover:text-primary;
+  }
+
+  .dock-link.active {
+    @apply text-primary bg-primary/10;
+  }
+
+  .dock-label {
+    @apply text-[10px] font-medium md:hidden;
   }
 
   .main-with-dock {
-    @apply md:pl-16;
+    @apply md:pl-20;
   }
 
-  .wordmark {
-    @apply text-3xl md:text-4xl font-semibold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  .zlens-busy {
+    @apply flex flex-col items-center justify-center py-8 text-center;
   }
 
-  .demo-strip {
-    @apply w-full max-w-5xl mx-auto mt-3;
+  .stat-card {
+    @apply rounded-2xl border border-base-300 bg-base-200/70 p-4;
+  }
+
+  .stat-label {
+    @apply text-xs uppercase tracking-wide text-base-content/50;
+  }
+
+  .stat-value {
+    @apply text-2xl font-semibold tabular-nums mt-1;
+  }
+
+  .glow-ready {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
   }
 }
 

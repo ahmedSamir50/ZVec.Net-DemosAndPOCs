@@ -5,13 +5,23 @@
 @inject IJSRuntime Js
 @implements IAsyncDisposable
 
-<div class="search-canvas @(_hasResults ? "search-canvas--serp" : "search-canvas--home")">
-    @if (!_hasResults)
+<div class="search-canvas @(_searched && _hasResults ? "search-canvas--serp" : "search-canvas--home") relative">
+    @if (_busy)
     {
-        <div class="wordmark mb-8 select-none">ProductSearch</div>
+        <BusyBlock Visible="true"
+                   Message="Searching…"
+                   SubMessage="@(_queryModeLabel)"
+                   CssClass="search-busy-overlay" />
     }
 
-    <div class="w-full flex flex-col items-center @(_hasResults ? "sticky top-16 z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
+    @if (!_searched || !_hasResults)
+    {
+        <div class="mb-8">
+            <ZLensBrand ShowBadge="true" CssClass="justify-center flex-col sm:flex-row" />
+        </div>
+    }
+
+    <div class="w-full flex flex-col items-center @(_searched && _hasResults ? "sticky top-16 z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
         <div class="omnibox @(_encoderReady ? "" : "opacity-60")">
             <button type="button" class="omnibox-icon" disabled="@(!_encoderReady || _busy)" @onclick="SearchAsync" title="Search">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
@@ -24,13 +34,13 @@
             }
 
             <input class="omnibox-input"
-                   placeholder="@(_encoderReady ? "Search fashion products…" : "Waiting for SigLIP…")"
+                   placeholder="@(_encoderReady ? "Search fashion products with ZLens…" : "Waiting for SigLIP…")"
                    @bind="_query"
                    @bind:event="oninput"
                    @onkeydown="OnKeyDown"
                    disabled="@(!_encoderReady || _busy)" />
 
-            <button type="button" class="omnibox-icon text-primary" disabled="@(!_encoderReady || _busy)" @onclick="OpenLens" title="Google Lens">
+            <button type="button" class="omnibox-icon text-primary" disabled="@(!_encoderReady || _busy)" @onclick="OpenLens" title="Lens camera">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
         </div>
@@ -40,19 +50,19 @@
             <p class="text-xs text-base-content/50 mt-2 max-w-[680px] text-center">@_boot.Message</p>
         }
 
-        @if (_wowChips.Count > 0 && !_hasResults)
+        @if (_wowChips.Count > 0 && (!_searched || !_hasResults))
         {
             <div class="flex flex-wrap justify-center gap-2 mt-5 max-w-[680px]">
                 @foreach (var chip in _wowChips)
                 {
-                    <button type="button" class="btn btn-ghost btn-sm rounded-full border border-base-300/80" @onclick="() => ApplyChip(chip)">
-                        @chip.Name
+                    <button type="button" class="btn btn-ghost btn-sm rounded-full border border-base-300/80" @onclick="async () => await ApplyChip(chip)">
+                        @chip.QueryText
                     </button>
                 }
             </div>
         }
 
-        @if (_hasResults)
+        @if (_searched && _hasResults)
         {
             <div class="demo-strip">
                 <div class="collapse collapse-arrow bg-base-200/60 border border-base-300 rounded-2xl">
@@ -62,10 +72,7 @@
                         <DemoControls @bind-Engine="_engine"
                                       @bind-TopK="_topK"
                                       @bind-Fusion="_fusion"
-                                      @bind-Gender="_gender"
-                                      @bind-BaseColour="_baseColour"
-                                      @bind-Season="_season"
-                                      @bind-Usage="_usage"
+                                      @bind-MasterCategory="_masterCategory"
                                       @bind-UseInvert="_useInvert"
                                       @bind-UseHybridFts="_useHybridFts"
                                       ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
@@ -75,7 +82,7 @@
         }
     </div>
 
-    @if (!_hasResults)
+    @if (!_searched || !_hasResults)
     {
         <div class="demo-strip mt-8 w-full max-w-xl">
             <div class="collapse collapse-arrow bg-base-200/40 border border-base-300/60 rounded-2xl">
@@ -85,10 +92,7 @@
                     <DemoControls @bind-Engine="_engine"
                                   @bind-TopK="_topK"
                                   @bind-Fusion="_fusion"
-                                  @bind-Gender="_gender"
-                                  @bind-BaseColour="_baseColour"
-                                  @bind-Season="_season"
-                                  @bind-Usage="_usage"
+                                  @bind-MasterCategory="_masterCategory"
                                   @bind-UseInvert="_useInvert"
                                   @bind-UseHybridFts="_useHybridFts"
                                   ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
@@ -97,40 +101,49 @@
         </div>
     }
 
-    @if (_busy)
+    @if (!string.IsNullOrEmpty(_searchError))
     {
-        <progress class="progress progress-primary w-full max-w-5xl mx-auto mt-6"></progress>
+        <ErrorBanner Title="Search failed" Message="@_searchError" CssClass="w-full max-w-5xl mx-auto mt-6" />
     }
 
-    @if (_response?.Latency is not null)
+    @if (_response?.Latency is not null && _searched)
     {
-        <div class="w-full max-w-5xl mx-auto mt-4 rounded-2xl border border-base-300 bg-base-200/50 p-3 text-xs text-base-content/70">
+        <div class="w-full max-w-5xl mx-auto mt-4 rounded-2xl border border-base-300 bg-base-200/50 p-3 font-mono text-xs text-base-content/70">
+            <p class="text-sm font-sans font-semibold text-base-content mb-2">Query timing (ms)</p>
             <div class="flex flex-wrap gap-x-4 gap-y-1">
-                <span>encode @FormatMs(_response.Latency.EncodeMs)</span>
-                <span>text @FormatMs(_response.Latency.TextAnnMs)</span>
-                <span>image @FormatMs(_response.Latency.ImageAnnMs)</span>
-                <span>FTS @FormatMs(_response.Latency.FtsMs)</span>
-                <span>fuse @FormatMs(_response.Latency.FuseMs)</span>
-                <span>pgvector @FormatMs(_response.Latency.PgVectorMs)</span>
-                <span>SQL @FormatMs(_response.Latency.SqlHydrateMs)</span>
-                <span class="font-semibold text-base-content">total @FormatMs(_response.Latency.TotalMs)</span>
+                @foreach (var chip in BuildTimingChips())
+                {
+                    <span title="@chip.Tooltip">@chip.Label @chip.Value</span>
+                }
+                <span class="font-semibold text-base-content" title="Wall clock for the whole request.">Total @FormatMs(_response.Latency.TotalMs)</span>
             </div>
             @if (_response.Compare is not null)
             {
-                <p class="mt-2">
-                    Overlap @_response.Compare.OverlapAtN · Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
-                    rank swaps @_response.Compare.RankDisagreements ·
-                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs PG @FormatMs(_response.Compare.PostgreSqlTotalMs)
+                <p class="mt-2 font-sans text-xs">
+                    Overlap at N: @_response.Compare.OverlapAtN shared IDs ·
+                    Jaccard @_response.Compare.JaccardAtN.ToString("P0") ·
+                    @_response.Compare.RankDisagreements rank disagreements ·
+                    ZVec @FormatMs(_response.Compare.ZVecTotalMs) vs Postgres @FormatMs(_response.Compare.PostgreSqlTotalMs)
                 </p>
             }
         </div>
     }
 
-    @if (!string.IsNullOrEmpty(_response?.Warning))
+    @if (!string.IsNullOrEmpty(_response?.Warning) && _searched)
     {
-        <div role="alert" class="alert alert-warning w-full max-w-5xl mx-auto mt-4">
+        <div role="alert" class="alert alert-warning w-full max-w-5xl mx-auto mt-4 rounded-2xl">
             <span>@_response.Warning</span>
         </div>
+    }
+
+    @if (_searched && !_hasResults && string.IsNullOrEmpty(_searchError))
+    {
+        <EmptyState Icon="🛍️"
+                    Title="No results"
+                    Message="@(_response?.Warning ?? "Try another query, adjust filters, or ingest more products.")"
+                    CssClass="w-full max-w-lg mx-auto mt-8">
+            <a href="/ingest" class="btn btn-primary btn-sm">Go to Ingest</a>
+        </EmptyState>
     }
 
     @if (_hasResults)
@@ -146,17 +159,17 @@
                 <div class="grid lg:grid-cols-2 gap-6">
                     <div>
                         <h2 class="text-sm font-semibold mb-3 text-base-content/70">ZVec</h2>
-                        @RenderResults(_response?.ZVecHits)
+                        @RenderResultList(_response?.ZVecHits)
                     </div>
                     <div>
                         <h2 class="text-sm font-semibold mb-3 text-base-content/70">PostgreSQL</h2>
-                        @RenderResults(_response?.PostgreSqlHits)
+                        @RenderResultList(_response?.PostgreSqlHits)
                     </div>
                 </div>
             }
             else
             {
-                @RenderResults(_engine == VectorEngineMode.Postgres ? _response?.PostgreSqlHits : _response?.ZVecHits)
+                @RenderResultList(_engine == VectorEngineMode.Postgres ? _response?.PostgreSqlHits : _response?.ZVecHits)
             }
         </div>
     }
@@ -165,7 +178,7 @@
 <InputFile id="lens-file-input" OnChange="OnLensFileSelected" accept="image/*" class="hidden" />
 
 <div class="modal @(_lensOpen ? "modal-open" : "")">
-    <div class="modal-box max-w-lg bg-base-200 border border-base-300">
+    <div class="modal-box max-w-lg bg-base-200 border border-base-300 rounded-2xl">
         <h3 class="font-semibold text-lg mb-1">Search with Lens</h3>
         <p class="text-sm text-base-content/60 mb-4">Drop, paste, or upload a photo to find similar products.</p>
 
@@ -194,6 +207,8 @@
 @code {
     private enum ResultsTab { All, Images }
 
+    private sealed record TimingChip(string Label, string Value, string Tooltip);
+
     private string _query = "";
     private string? _imageBase64;
     private string? _imagePreviewUrl;
@@ -202,13 +217,12 @@
     private VectorEngineMode _engine = VectorEngineMode.ZVec;
     private FusionMode _fusion = FusionMode.Rrf;
     private int _topK = 5;
-    private bool _useInvert = true;
+    private bool _useInvert = false;
     private bool _useHybridFts = true;
-    private string? _gender;
-    private string? _baseColour;
-    private string? _season;
-    private string? _usage;
+    private string? _masterCategory;
     private bool _busy;
+    private bool _searched;
+    private string? _searchError;
     private bool _lensOpen;
     private bool _encoderReady;
     private ResultsTab _tab = ResultsTab.All;
@@ -221,6 +235,8 @@
 
     private bool _hasResults => _response is not null &&
         ((_response.ZVecHits?.Count ?? 0) > 0 || (_response.PostgreSqlHits?.Count ?? 0) > 0);
+
+    private string _queryModeLabel => string.IsNullOrEmpty(_imageBase64) ? "Text query" : "Image (Lens) query";
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,21 +291,26 @@
         }
 
         _busy = true;
+        _searchError = null;
         try
         {
             _response = await Api.SearchAsync(BuildRequest());
+            _searched = true;
         }
         catch (ApiException ex)
         {
+            _searchError = ex.Message;
             Toasts.Show(ex.Message, ToastLevel.Error);
         }
         catch (Exception ex)
         {
+            _searchError = ex.Message;
             Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
         {
             _busy = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -303,20 +324,16 @@
         TopK = _topK,
         UseInvertFilter = _useInvert,
         UseHybridFts = _useHybridFts,
-        Gender = _gender,
-        BaseColour = _baseColour,
-        Season = _season,
-        Usage = _usage
+        MasterCategory = _masterCategory
     };
 
-    private void ApplyChip(WowQueryChipDto chip)
+    private async Task ApplyChip(WowQueryChipDto chip)
     {
         _query = chip.QueryText;
-        _gender = chip.Gender;
-        _baseColour = chip.BaseColour;
-        _season = chip.Season;
-        _usage = chip.Usage;
-        _ = SearchAsync();
+        _imageBase64 = null;
+        _imagePreviewUrl = null;
+        _masterCategory = chip.MasterCategory;
+        await SearchAsync();
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
@@ -373,6 +390,7 @@
         _imageBase64 = _pendingImageBase64;
         _imagePreviewUrl = _lensPreviewUrl;
         _query = "";
+        _masterCategory = null;
         CloseLens();
         await SearchAsync();
     }
@@ -385,74 +403,103 @@
 
     private static string FormatMs(double ms) => ms.ToString("0.#");
 
-    private RenderFragment RenderResults(IReadOnlyList<SearchHitDto>? hits) => builder =>
+    private string FormatStage(double ms, bool used)
+        => used ? FormatMs(ms) : "—";
+
+    private IEnumerable<TimingChip> BuildTimingChips()
+    {
+        if (_response?.Latency is null)
+            yield break;
+
+        var lat = _response.Latency;
+        var isImageQuery = !string.IsNullOrEmpty(_imageBase64);
+        var usesZvec = _engine is VectorEngineMode.ZVec or VectorEngineMode.Both;
+        var usesPg = _engine is VectorEngineMode.Postgres or VectorEngineMode.Both;
+        var usesFts = usesZvec && _useHybridFts && !isImageQuery;
+
+        yield return new TimingChip("Encode", FormatMs(lat.EncodeMs),
+            "SigLIP turns the query (text or photo) into a vector. Usually the largest number.");
+        yield return new TimingChip("Text ANN", FormatStage(lat.TextAnnMs, usesZvec && !isImageQuery),
+            "ZVec nearest-neighbor on product text embeddings.");
+        yield return new TimingChip("Image ANN", FormatStage(lat.ImageAnnMs, usesZvec && isImageQuery),
+            "ZVec nearest-neighbor on product photos.");
+        yield return new TimingChip("FTS", FormatStage(lat.FtsMs, usesFts),
+            "Keyword full-text on product descriptions (Hybrid FTS).");
+        yield return new TimingChip("Fuse", FormatStage(lat.FuseMs, usesZvec && !isImageQuery && _engine == VectorEngineMode.ZVec),
+            "Merge text + image (and FTS) ranked lists.");
+        yield return new TimingChip("pgvector", FormatStage(lat.PgVectorMs, usesPg),
+            "Postgres cosine search (0 when Engine is ZVec-only).");
+        yield return new TimingChip("SQL", FormatMs(lat.SqlHydrateMs),
+            "Load product cards from Postgres after ANN (hydrate).");
+    }
+
+    private RenderFragment RenderResultList(IReadOnlyList<SearchHitDto>? hits) => __builder =>
     {
         if (hits is null || hits.Count == 0)
         {
-            builder.OpenElement(0, "p");
-            builder.AddAttribute(1, "class", "text-sm text-base-content/50");
-            builder.AddContent(2, "No results.");
-            builder.CloseElement();
+            __builder.OpenElement(0, "p");
+            __builder.AddAttribute(1, "class", "text-sm text-base-content/50");
+            __builder.AddContent(2, "No results.");
+            __builder.CloseElement();
             return;
         }
 
         if (_tab == ResultsTab.Images)
         {
-            builder.OpenElement(10, "div");
-            builder.AddAttribute(11, "class", "product-grid--masonry");
+            __builder.OpenElement(10, "div");
+            __builder.AddAttribute(11, "class", "product-grid--masonry");
             foreach (var hit in hits)
             {
-                builder.OpenElement(20, "article");
-                builder.AddAttribute(21, "class", "product-tile group");
-                builder.OpenElement(22, "img");
-                builder.AddAttribute(23, "src", hit.Product.ImageUrl);
-                builder.AddAttribute(24, "alt", hit.Product.ProductDisplayName);
-                builder.AddAttribute(25, "loading", "lazy");
-                builder.CloseElement();
-                builder.OpenElement(26, "div");
-                builder.AddAttribute(27, "class", "p-3 opacity-0 group-hover:opacity-100 transition-opacity");
-                builder.AddContent(28, hit.Product.ProductDisplayName);
-                builder.OpenElement(29, "div");
-                builder.AddAttribute(30, "class", "text-xs text-base-content/60");
-                builder.AddContent(31, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}%");
-                builder.CloseElement();
-                builder.CloseElement();
-                builder.CloseElement();
+                __builder.OpenElement(20, "article");
+                __builder.AddAttribute(21, "class", "product-tile group");
+                __builder.OpenComponent<ProductImage>(22);
+                __builder.AddComponentParameter(23, nameof(ProductImage.Src), hit.Product.ImageUrl);
+                __builder.AddComponentParameter(24, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
+                __builder.AddComponentParameter(25, nameof(ProductImage.CssClass), "w-full object-cover");
+                __builder.CloseComponent();
+                __builder.OpenElement(26, "div");
+                __builder.AddAttribute(27, "class", "p-3 opacity-0 group-hover:opacity-100 transition-opacity");
+                __builder.AddContent(28, hit.Product.ProductDisplayName);
+                __builder.OpenElement(29, "div");
+                __builder.AddAttribute(30, "class", "text-xs text-base-content/60");
+                __builder.AddContent(31, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}%");
+                __builder.CloseElement();
+                __builder.CloseElement();
+                __builder.CloseElement();
             }
-            builder.CloseElement();
+            __builder.CloseElement();
             return;
         }
 
-        builder.OpenElement(100, "div");
-        builder.AddAttribute(101, "class", "flex flex-col gap-3");
+        __builder.OpenElement(100, "div");
+        __builder.AddAttribute(101, "class", "flex flex-col gap-3");
         foreach (var hit in hits)
         {
-            builder.OpenElement(110, "article");
-            builder.AddAttribute(111, "class", "product-card-row");
-            builder.OpenElement(112, "img");
-            builder.AddAttribute(113, "src", hit.Product.ImageUrl);
-            builder.AddAttribute(114, "alt", hit.Product.ProductDisplayName);
-            builder.AddAttribute(115, "class", "w-24 h-32 object-cover rounded-xl shrink-0");
-            builder.AddAttribute(116, "loading", "lazy");
-            builder.CloseElement();
-            builder.OpenElement(117, "div");
-            builder.AddAttribute(118, "class", "min-w-0 flex-1");
-            builder.OpenElement(119, "h3");
-            builder.AddAttribute(120, "class", "font-medium truncate");
-            builder.AddContent(121, hit.Product.ProductDisplayName);
-            builder.CloseElement();
-            builder.OpenElement(122, "p");
-            builder.AddAttribute(123, "class", "text-xs text-base-content/60 mt-1");
-            builder.AddContent(124, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}");
-            builder.CloseElement();
-            builder.OpenElement(125, "p");
-            builder.AddAttribute(126, "class", "text-xs text-primary mt-2");
-            builder.AddContent(127, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}% · {hit.Engine}");
-            builder.CloseElement();
-            builder.CloseElement();
-            builder.CloseElement();
+            __builder.OpenElement(110, "article");
+            __builder.AddAttribute(111, "class", "product-card-row");
+            __builder.OpenComponent<ProductImage>(112);
+            __builder.AddComponentParameter(113, nameof(ProductImage.Src), hit.Product.ImageUrl);
+            __builder.AddComponentParameter(114, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
+            __builder.AddComponentParameter(115, nameof(ProductImage.CssClass), "w-24 h-32 object-cover rounded-xl shrink-0");
+            __builder.CloseComponent();
+            __builder.OpenElement(117, "div");
+            __builder.AddAttribute(118, "class", "min-w-0 flex-1");
+            __builder.OpenElement(119, "h3");
+            __builder.AddAttribute(120, "class", "font-medium truncate");
+            __builder.AddContent(121, hit.Product.ProductDisplayName);
+            __builder.CloseElement();
+            __builder.OpenElement(122, "p");
+            __builder.AddAttribute(123, "class", "text-xs text-base-content/60 mt-1");
+            __builder.AddContent(124, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}");
+            __builder.CloseElement();
+            __builder.OpenElement(125, "p");
+            __builder.AddAttribute(126, "class", "text-xs text-primary mt-2");
+            __builder.AddContent(127, $"#{hit.Rank} · {hit.SimilarityPercent:0.#}% · {hit.Engine}");
+            __builder.CloseElement();
+            __builder.CloseElement();
+            __builder.CloseElement();
         }
-        builder.CloseElement();
+        __builder.CloseElement();
     };
 
     public async ValueTask DisposeAsync()

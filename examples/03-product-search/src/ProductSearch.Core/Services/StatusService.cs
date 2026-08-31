@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Npgsql;
+using ProductSearch.Core.Configuration;
 using ProductSearch.Core.Data;
 using ProductSearch.Core.Encoding;
 using ProductSearch.Core.Storage;
@@ -20,6 +23,7 @@ public sealed class StatusService : IStatusService
     private readonly IDbContextFactory<ProductDbContext> _dbFactory;
     private readonly FashionCatalogReader _catalogReader;
     private readonly ModelBootstrapStatus _bootstrap;
+    private readonly ProductSearchOptions _options;
 
     public StatusService(
         ISigLipEncoder encoder,
@@ -28,7 +32,8 @@ public sealed class StatusService : IStatusService
         DualCollectionHolder collections,
         IDbContextFactory<ProductDbContext> dbFactory,
         FashionCatalogReader catalogReader,
-        ModelBootstrapStatus bootstrap)
+        ModelBootstrapStatus bootstrap,
+        IOptions<ProductSearchOptions> options)
     {
         _encoder = encoder;
         _models = models;
@@ -37,6 +42,7 @@ public sealed class StatusService : IStatusService
         _dbFactory = dbFactory;
         _catalogReader = catalogReader;
         _bootstrap = bootstrap;
+        _options = options.Value;
     }
 
     public async Task<StatusDto> GetStatusAsync(CancellationToken ct = default)
@@ -94,8 +100,29 @@ public sealed class StatusService : IStatusService
             ModelBootstrapComplete = _encoder.IsReady,
             ModelBootstrap = ToDto(boot),
             StampWarning = stampMatch ? null : _stamp.MismatchMessage(active, stamp),
-            IndexWarning = indexWarning
+            IndexWarning = indexWarning,
+            Postgres = ParsePostgresConnection(_options.PostgresConnectionString)
         };
+    }
+
+    private static PostgresConnectionDto ParsePostgresConnection(string connectionString)
+    {
+        try
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString);
+            return new PostgresConnectionDto
+            {
+                Host = builder.Host ?? "localhost",
+                Port = builder.Port > 0 ? builder.Port : 5432,
+                Database = builder.Database ?? "productsearch",
+                Username = builder.Username ?? "postgres",
+                Password = builder.Password ?? ""
+            };
+        }
+        catch
+        {
+            return new PostgresConnectionDto();
+        }
     }
 
     private static ModelBootstrapSnapshotDto ToDto(ModelBootstrapSnapshot snap)

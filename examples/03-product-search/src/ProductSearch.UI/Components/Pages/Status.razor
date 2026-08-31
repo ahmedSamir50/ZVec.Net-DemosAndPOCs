@@ -7,20 +7,67 @@
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
             <h1 class="text-2xl font-semibold">Status</h1>
-            <p class="text-sm text-base-content/60 mt-1">Catalog counts, SigLIP bootstrap, and maintenance.</p>
+            <p class="text-sm text-base-content/60 mt-1">Catalog counts, Postgres, SigLIP bootstrap, and maintenance.</p>
         </div>
         <button type="button" class="btn btn-outline btn-sm" disabled="@_loading" @onclick="RefreshAsync">Refresh</button>
     </div>
 
-    @if (_loading && _status is null)
+    @if (_loadError is not null && _status is null)
     {
-        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <ErrorBanner Title="Could not load status"
+                     Message="@_loadError"
+                     RetryLabel="Retry"
+                     OnRetry="RefreshAsync"
+                     RetryDisabled="@_loading" />
+    }
+    else if (_loading && _status is null)
+    {
+        <BusyBlock Visible="true" Message="Connecting to API…" />
     }
     else if (_status is not null)
     {
+        @if (_status.DemoReady)
+        {
+            <div class="alert alert-success rounded-2xl">
+                <span>Demo ready — SQL and ZVec counts are aligned.</span>
+            </div>
+        }
+
+        @if (_status.Postgres is not null)
+        {
+            <div class="card bg-base-200 border border-base-300 rounded-2xl">
+                <div class="card-body gap-3">
+                    <h2 class="card-title text-base">PostgreSQL</h2>
+                    <p class="text-xs text-base-content/60">Persistent Docker volume <code class="font-mono">@_status.Postgres.VolumeName</code></p>
+                    <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-base-content/50">Host</span><div class="font-mono">@_status.Postgres.Host</div></div>
+                        <div><span class="text-base-content/50">Port</span><div class="font-mono">@_status.Postgres.Port</div></div>
+                        <div><span class="text-base-content/50">Database</span><div class="font-mono">@_status.Postgres.Database</div></div>
+                        <div><span class="text-base-content/50">Username</span><div class="font-mono">@_status.Postgres.Username</div></div>
+                        <div class="sm:col-span-2"><span class="text-base-content/50">Password</span><div class="font-mono select-all">@_status.Postgres.Password</div></div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="grid sm:grid-cols-3 gap-4">
+            <div class="stat-card">
+                <p class="stat-label">Postgres</p>
+                <p class="stat-value">@_status.PostgresCount</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">ZVec text</p>
+                <p class="stat-value">@_status.ZVecTextCount</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">ZVec image</p>
+                <p class="stat-value">@_status.ZVecImageCount</p>
+            </div>
+        </div>
+
         @if (_status.ModelBootstrap is not null)
         {
-            <div class="card bg-base-200 border border-base-300">
+            <div class="card bg-base-200 border border-base-300 rounded-2xl">
                 <div class="card-body gap-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -41,13 +88,11 @@
                     @if (_status.ModelBootstrap.OverallPercent is not null &&
                          _status.ModelBootstrap.State is not ("Ready" or "Failed"))
                     {
-                        <div>
-                            <div class="flex justify-between text-xs mb-1">
-                                <span>Overall progress</span>
-                                <span>@($"{_status.ModelBootstrap.OverallPercent:0.#}%")</span>
-                            </div>
-                            <progress class="progress progress-primary w-full" value="@_status.ModelBootstrap.OverallPercent" max="100"></progress>
-                        </div>
+                        <BusyBlock Visible="true"
+                                   Message="Downloading SigLIP…"
+                                   SubMessage="@($"{_status.ModelBootstrap.OverallPercent:0.#}%")"
+                                   CssClass="py-4" />
+                        <progress class="progress progress-primary w-full" value="@_status.ModelBootstrap.OverallPercent" max="100"></progress>
                     }
 
                     @if (_status.ModelBootstrap.Files.Count > 0)
@@ -87,15 +132,11 @@
 
                     @if (!string.IsNullOrEmpty(_status.ModelBootstrap.Error))
                     {
-                        <div role="alert" class="alert alert-error text-sm">
-                            <div class="w-full">
-                                <p class="font-semibold">@_status.ModelBootstrap.Error</p>
-                                @if (!string.IsNullOrEmpty(_status.ModelBootstrap.ErrorDetail))
-                                {
-                                    <pre class="whitespace-pre-wrap break-all text-xs mt-2 max-h-64 overflow-y-auto select-all">@_status.ModelBootstrap.ErrorDetail</pre>
-                                }
-                            </div>
-                        </div>
+                        <ErrorBanner Title="@_status.ModelBootstrap.Error"
+                                     Message="@_status.ModelBootstrap.ErrorDetail"
+                                     RetryLabel="Retry download"
+                                     OnRetry="RetryModelAsync"
+                                     RetryDisabled="@_retryBusy" />
                     }
 
                     @if (!string.IsNullOrEmpty(_status.ModelBootstrap.ModelsDir))
@@ -109,7 +150,7 @@
             </div>
         }
 
-        <div class="card bg-base-200 border border-base-300">
+        <div class="card bg-base-200 border border-base-300 rounded-2xl">
             <div class="card-body">
                 <h2 class="card-title text-base mb-2">Demo readiness</h2>
                 <div class="overflow-x-auto">
@@ -118,9 +159,6 @@
                             <tr><td>Demo ready</td><td>@(_status.DemoReady ? "Yes" : "No")</td></tr>
                             <tr><td>Model</td><td>@_status.ActiveModelId (@_status.EmbeddingDim dim)</td></tr>
                             <tr><td>Stamp match</td><td>@(_status.StampMatch ? "Yes" : "No")</td></tr>
-                            <tr><td>Postgres count</td><td>@_status.PostgresCount</td></tr>
-                            <tr><td>ZVec text count</td><td>@_status.ZVecTextCount</td></tr>
-                            <tr><td>ZVec image count</td><td>@_status.ZVecImageCount</td></tr>
                             <tr><td>Ingest offset</td><td>@_status.IngestOffset / @_status.CatalogTotal</td></tr>
                             <tr><td>Encoder ready</td><td>@(_status.ModelBootstrapComplete ? "Yes" : "No")</td></tr>
                         </tbody>
@@ -131,14 +169,24 @@
 
         @if (!string.IsNullOrEmpty(_status.StampWarning))
         {
-            <div role="alert" class="alert alert-warning"><span>@_status.StampWarning</span></div>
+            <div role="alert" class="alert alert-warning rounded-2xl"><span>@_status.StampWarning</span></div>
         }
         @if (!string.IsNullOrEmpty(_status.IndexWarning))
         {
-            <div role="alert" class="alert alert-info"><span>@_status.IndexWarning</span></div>
+            <div role="alert" class="alert alert-info rounded-2xl"><span>@_status.IndexWarning</span></div>
         }
 
-        <div class="card bg-base-200 border border-base-300">
+        @if (_status.IngestOffset <= 0)
+        {
+            <EmptyState Icon="📦"
+                        Title="Indexes empty"
+                        Message="Run ingest before searching."
+                        CssClass="border-dashed">
+                <a href="/ingest" class="btn btn-primary btn-sm">Start ingest</a>
+            </EmptyState>
+        }
+
+        <div class="card bg-base-200 border border-base-300 rounded-2xl">
             <div class="card-body gap-4">
                 <h2 class="card-title text-base">Model</h2>
                 @if (_models is not null)
@@ -170,6 +218,7 @@
     private bool _loading;
     private bool _busy;
     private bool _retryBusy;
+    private string? _loadError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -179,6 +228,7 @@
     private async Task RefreshAsync()
     {
         _loading = true;
+        _loadError = null;
         try
         {
             _status = await Api.GetStatusAsync();
@@ -186,6 +236,7 @@
         }
         catch (Exception ex)
         {
+            _loadError = ex.Message;
             Toasts.Show(ex.Message, ToastLevel.Error);
         }
         finally
@@ -205,13 +256,9 @@
         {
             var result = await Api.SelectModelAsync(modelId);
             if (result?.Ok == true)
-            {
                 Toasts.Show("Model download restarted.", ToastLevel.Success);
-            }
             else
-            {
                 Toasts.Show(result?.Error ?? "Retry failed.", ToastLevel.Error);
-            }
 
             await RefreshAsync();
         }
@@ -299,7 +346,7 @@
         try
         {
             await Api.ResetCatalogAsync();
-            Toasts.Show("SQL catalog reset.", ToastLevel.Warning);
+            Toasts.Show("Catalog and ZVec indexes cleared.", ToastLevel.Warning);
             await RefreshAsync();
         }
         catch (Exception ex)

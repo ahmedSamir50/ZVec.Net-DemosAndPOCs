@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Pgvector.EntityFrameworkCore;
-using ProductSearch.Core.Data;
 
 #nullable disable
 

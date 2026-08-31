@@ -1,0 +1,18 @@
+@if (Visible)
+{
+    <div class="zlens-busy @CssClass" role="status" aria-live="polite">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="text-sm font-medium mt-4">@Message</p>
+        @if (SubMessage is not null)
+        {
+            <p class="text-xs text-base-content/60 mt-1">@SubMessage</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string Message { get; set; } = "Loading…";
+    [Parameter] public string? SubMessage { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+}

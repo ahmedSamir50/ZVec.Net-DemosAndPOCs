@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pgvector;
@@ -6,7 +7,6 @@ using Pgvector.EntityFrameworkCore;
 using ProductSearch.Core.Configuration;
 using ProductSearch.Core.Data;
 using ProductSearch.Core.Encoding;
-using ProductSearch.Core.Models;
 using ProductSearch.Core.Storage;
 using ProductSearch.Shared.Dtos;
 using ProductSearch.Shared.Enums;
@@ -28,6 +28,7 @@ public sealed class ProductSearchService : IProductSearchService
     private readonly IIndexStampStore _stamp;
     private readonly IDbContextFactory<ProductDbContext> _dbFactory;
     private readonly ProductSearchOptions _options;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ProductSearchService(
         DualCollectionHolder collections,
@@ -35,7 +36,8 @@ public sealed class ProductSearchService : IProductSearchService
         ISigLipModelSelectionService models,
         IIndexStampStore stamp,
         IDbContextFactory<ProductDbContext> dbFactory,
-        IOptions<ProductSearchOptions> options)
+        IOptions<ProductSearchOptions> options,
+        IHttpContextAccessor httpContextAccessor)
     {
         _collections = collections;
         _encoder = encoder;
@@ -43,6 +45,7 @@ public sealed class ProductSearchService : IProductSearchService
         _stamp = stamp;
         _dbFactory = dbFactory;
         _options = options.Value;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<SearchResponseDto> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
@@ -68,6 +71,28 @@ public sealed class ProductSearchService : IProductSearchService
         var topK = request.TopK > 0 ? request.TopK : _options.DefaultTopK;
         var minCosine = _options.MinCosine;
 
+        var (textCount, imageCount) = _collections.DocCounts;
+        var sqlCount = 0;
+        try
+        {
+            await using var countDb = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            sqlCount = await countDb.Products.CountAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Postgres may be unavailable.
+        }
+
+        if (sqlCount == 0 && (textCount > 0 || imageCount > 0))
+        {
+            return new SearchResponseDto
+            {
+                Warning =
+                    $"SQL catalog is empty but ZVec still has {textCount} text / {imageCount} image docs. " +
+                    "Start ingest (or Reset catalog) to rebuild both stores together."
+            };
+        }
+
         var encodeSw = Stopwatch.StartNew();
         var queryVector = await ResolveQueryVectorAsync(request, ct).ConfigureAwait(false);
         encodeSw.Stop();
@@ -79,6 +104,8 @@ public sealed class ProductSearchService : IProductSearchService
         double imageAnnMs = 0;
         double fuseMs = 0;
         double pgMs = 0;
+        double sqlHydrateMs = 0;
+        string? mismatchWarning = null;
 
         if (request.Engine is VectorEngineMode.ZVec or VectorEngineMode.Both)
         {
@@ -88,8 +115,16 @@ public sealed class ProductSearchService : IProductSearchService
             textAnnMs = fused.TextAnnMs;
             imageAnnMs = fused.ImageAnnMs;
             fuseMs = fuseSw.Elapsed.TotalMilliseconds;
-            zvecHits = await HydrateAsync(ApplyConfidenceFilter(fused.Hits, topK, minCosine), "zvec", ct)
-                .ConfigureAwait(false);
+            var filtered = ApplyConfidenceFilter(fused.Hits, topK, minCosine);
+            var hydrateSw = Stopwatch.StartNew();
+            zvecHits = await HydrateAsync(filtered, "zvec", ct).ConfigureAwait(false);
+            hydrateSw.Stop();
+            sqlHydrateMs += hydrateSw.Elapsed.TotalMilliseconds;
+            if (filtered.Count > 0 && zvecHits.Count == 0)
+            {
+                mismatchWarning =
+                    "ZVec returned matches but no product rows exist in Postgres to display. Start ingest to rebuild SQL.";
+            }
         }
 
         if (request.Engine is VectorEngineMode.Postgres or VectorEngineMode.Both)
@@ -98,14 +133,28 @@ public sealed class ProductSearchService : IProductSearchService
             var raw = await SearchPostgresAsync(request, queryVector, topK, ct).ConfigureAwait(false);
             pgSw.Stop();
             pgMs = pgSw.Elapsed.TotalMilliseconds;
-            pgHits = await HydrateAsync(ApplyConfidenceFilter(raw, topK, minCosine), "postgres", ct)
-                .ConfigureAwait(false);
+            var filtered = ApplyConfidenceFilter(raw, topK, minCosine);
+            var hydrateSw = Stopwatch.StartNew();
+            pgHits = await HydrateAsync(filtered, "postgres", ct).ConfigureAwait(false);
+            hydrateSw.Stop();
+            sqlHydrateMs += hydrateSw.Elapsed.TotalMilliseconds;
+            if (filtered.Count > 0 && pgHits.Count == 0 && mismatchWarning is null)
+            {
+                mismatchWarning =
+                    "Postgres ANN returned matches but product rows could not be loaded. Check catalog state.";
+            }
         }
 
         if (request.Engine == VectorEngineMode.Both)
             compare = BuildCompareMetrics(zvecHits, pgHits, fuseMs, pgMs);
 
         totalSw.Stop();
+
+        var primaryHits = request.Engine == VectorEngineMode.Postgres ? pgHits : zvecHits;
+        string? warning = mismatchWarning;
+        if (warning is null && primaryHits.Count == 0)
+            warning = "No confident matches. Try another query or ingest more products.";
+
         return new SearchResponseDto
         {
             ZVecHits = request.Engine is VectorEngineMode.ZVec or VectorEngineMode.Both ? zvecHits : [],
@@ -118,11 +167,10 @@ public sealed class ProductSearchService : IProductSearchService
                 ImageAnnMs = imageAnnMs,
                 FuseMs = fuseMs,
                 PgVectorMs = pgMs,
+                SqlHydrateMs = sqlHydrateMs,
                 TotalMs = totalSw.Elapsed.TotalMilliseconds
             },
-            Warning = (request.Engine == VectorEngineMode.ZVec ? zvecHits : pgHits).Count == 0
-                ? "No confident matches. Try another query or ingest more products."
-                : null
+            Warning = warning
         };
     }
 
@@ -219,7 +267,7 @@ public sealed class ProductSearchService : IProductSearchService
             ? textCol.Query(queries[0], topk: topK, filter: filter, includeVector: false)
             : textCol.Query(queries, topk: topK, reranker: reranker, filter: filter, includeVector: false);
 
-        return docs.Select(d => new InternalHit(d.Id, d.Score, true, false, queries.Count > 1)).ToList();
+        return [.. docs.Select(d => new InternalHit(d.Id, d.Score, true, false, queries.Count > 1))];
     }
 
     private static string? BuildInvertFilter(SearchRequestDto request)
@@ -248,6 +296,13 @@ public sealed class ProductSearchService : IProductSearchService
         {
             if (has) builder.And(f => f.Where("Usage", ZVecCompareOp.Eq, request.Usage));
             else builder.Where("Usage", ZVecCompareOp.Eq, request.Usage);
+            has = true;
+        }
+        if (!string.IsNullOrWhiteSpace(request.MasterCategory))
+        {
+            if (has) builder.And(f => f.Where("MasterCategory", ZVecCompareOp.Eq, request.MasterCategory));
+            else builder.Where("MasterCategory", ZVecCompareOp.Eq, request.MasterCategory);
+            has = true;
         }
 
         return has ? builder.Build() : null;
@@ -284,7 +339,7 @@ public sealed class ProductSearchService : IProductSearchService
         AddHits(textHits, 0.5f);
         AddHits(imageHits, 0.5f);
 
-        return map.Values.OrderBy(h => h.Score).Take(topK).ToList();
+        return [.. map.Values.OrderBy(h => h.Score).Take(topK)];
     }
 
     private async Task<List<InternalHit>> SearchPostgresAsync(
@@ -297,39 +352,43 @@ public sealed class ProductSearchService : IProductSearchService
         var vector = new Vector(queryVector);
         IQueryable<ProductEntity> q = db.Products.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(request.Gender))
-            q = q.Where(p => p.Gender == request.Gender);
-        if (!string.IsNullOrWhiteSpace(request.BaseColour))
-            q = q.Where(p => p.BaseColour == request.BaseColour);
-        if (!string.IsNullOrWhiteSpace(request.Season))
-            q = q.Where(p => p.Season == request.Season);
-        if (!string.IsNullOrWhiteSpace(request.Usage))
-            q = q.Where(p => p.Usage == request.Usage);
-        if (!string.IsNullOrWhiteSpace(request.MasterCategory))
-            q = q.Where(p => p.MasterCategory == request.MasterCategory);
+        var isImageSearch = request.QueryMode == QueryMode.Image
+                            || !string.IsNullOrWhiteSpace(request.ImageBase64);
 
-        var useImageColumn = request.QueryMode == QueryMode.Image
-                             || !string.IsNullOrWhiteSpace(request.ImageBase64);
+        if (!isImageSearch)
+        {
+            if (!string.IsNullOrWhiteSpace(request.Gender))
+                q = q.Where(p => p.Gender == request.Gender);
+            if (!string.IsNullOrWhiteSpace(request.BaseColour))
+                q = q.Where(p => p.BaseColour == request.BaseColour);
+            if (!string.IsNullOrWhiteSpace(request.Season))
+                q = q.Where(p => p.Season == request.Season);
+            if (!string.IsNullOrWhiteSpace(request.Usage))
+                q = q.Where(p => p.Usage == request.Usage);
+            if (!string.IsNullOrWhiteSpace(request.MasterCategory))
+                q = q.Where(p => p.MasterCategory == request.MasterCategory);
+        }
 
-        var rows = useImageColumn
-            ? await q.Where(p => p.ImageEmbedding != null)
-                .OrderBy(p => p.ImageEmbedding!.CosineDistance(vector))
-                .Take(topK)
-                .ToListAsync(ct)
-                .ConfigureAwait(false)
-            : await q.Where(p => p.TextEmbedding != null)
-                .OrderBy(p => p.TextEmbedding!.CosineDistance(vector))
+        if (isImageSearch)
+        {
+            var rows = await q.Where(p => p.ImageEmbedding != null)
+                .Select(p => new { p.Id, Distance = p.ImageEmbedding!.CosineDistance(vector) })
+                .OrderBy(x => x.Distance)
                 .Take(topK)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-        return rows.Select(r =>
-        {
-            var distance = useImageColumn
-                ? (float)r.ImageEmbedding!.CosineDistance(vector)
-                : (float)r.TextEmbedding!.CosineDistance(vector);
-            return new InternalHit(r.Id.ToString(), distance, !useImageColumn, useImageColumn, false);
-        }).ToList();
+            return [.. rows.Select(r => new InternalHit(r.Id.ToString(), (float)r.Distance, false, true, false))];
+        }
+
+        var textRows = await q.Where(p => p.TextEmbedding != null)
+            .Select(p => new { p.Id, Distance = p.TextEmbedding!.CosineDistance(vector) })
+            .OrderBy(x => x.Distance)
+            .Take(topK)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return [.. textRows.Select(r => new InternalHit(r.Id.ToString(), (float)r.Distance, true, false, false))];
     }
 
     private async Task<IReadOnlyList<SearchHitDto>> HydrateAsync(
@@ -371,7 +430,7 @@ public sealed class ProductSearchService : IProductSearchService
         return result;
     }
 
-    private static ProductCardDto ToCard(ProductEntity row)
+    private ProductCardDto ToCard(ProductEntity row)
         => new()
         {
             Id = row.Id,
@@ -386,8 +445,18 @@ public sealed class ProductSearchService : IProductSearchService
             Year = row.Year,
             Usage = row.Usage,
             ConcatenatedText = row.ConcatenatedText,
-            ImageUrl = $"/api/media/{row.CatalogId}"
+            ImageUrl = BuildMediaUrl(row.CatalogId)
         };
+
+    private string BuildMediaUrl(string catalogId)
+    {
+        var path = $"/api/media/{catalogId}";
+        var http = _httpContextAccessor.HttpContext;
+        if (http is null)
+            return path;
+
+        return $"{http.Request.Scheme}://{http.Request.Host}{path}";
+    }
 
     private static List<InternalHit> ApplyConfidenceFilter(
         IReadOnlyList<InternalHit> hits,
@@ -407,11 +476,10 @@ public sealed class ProductSearchService : IProductSearchService
             return [];
 
         var gap = _optionsGap;
-        return ordered
+        return [.. ordered
             .Where(x => x.Cosine >= minCosine && x.Cosine >= topCosine - gap)
             .Take(topK)
-            .Select(x => x.Hit)
-            .ToList();
+            .Select(x => x.Hit)];
     }
 
     private const float _optionsGap = 0.12f;
