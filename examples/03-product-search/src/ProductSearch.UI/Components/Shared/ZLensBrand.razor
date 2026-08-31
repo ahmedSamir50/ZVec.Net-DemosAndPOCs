@@ -1,5 +1,21 @@
 <div class="flex items-center gap-3 lg:gap-4 min-w-0 @CssClass">
-    <img src="zlens-logo.svg" alt="" class="w-10 h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 shrink-0 rounded-[11px] lg:rounded-[13px]" />
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 48 48"
+         fill="none"
+         aria-hidden="true"
+         class="zlens-mark w-10 h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 shrink-0 rounded-[11px] lg:rounded-[13px] @(Animate ? "zlens-mark--animate" : "")">
+        <defs>
+            <linearGradient id="@GradientId" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#38BDF8"/>
+                <stop offset="0.5" stop-color="#3B82F6"/>
+                <stop offset="1" stop-color="#7C3AED"/>
+            </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="11" fill="url(#@GradientId)"/>
+        <path class="zlens-stroke zlens-stroke--1" d="M14 15.5H34" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+        <path class="zlens-stroke zlens-stroke--2" d="M34 15.5L14 32.5" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+        <path class="zlens-stroke zlens-stroke--3" d="M14 32.5H34" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+    </svg>
     <div class="flex items-center gap-2.5 lg:gap-3 min-w-0">
         <span class="text-xl lg:text-2xl xl:text-3xl font-bold tracking-tight text-base-content truncate">ZLens</span>
         @if (ShowBadge)

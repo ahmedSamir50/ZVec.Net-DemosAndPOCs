@@ -2,14 +2,6 @@
 @rendermode InteractiveServer
 
 <div class="search-canvas @(_searched && _hasResults ? "search-canvas--serp" : "search-canvas--home") relative">
-    @if (_initLoading || _busy)
-    {
-        <BusyBlock Visible="true"
-                   Message="@(_initLoading ? "Loading search…" : "Searching…")"
-                   SubMessage="@(_initLoading ? (_encoderReady ? "Preparing demo…" : "Waiting for SigLIP…") : _queryModeLabel)"
-                   CssClass="search-busy-overlay" />
-    }
-
     @if (_ingestRunning)
     {
         <div role="status" class="alert alert-info w-full max-w-5xl mx-auto mb-4 rounded-2xl">
@@ -17,15 +9,12 @@
         </div>
     }
 
-    @if (!_searched || !_hasResults)
-    {
-        <div class="mb-8">
-            <ZLensBrand ShowBadge="true" CssClass="justify-center flex-col sm:flex-row" />
-        </div>
-    }
+    <div class="search-hero">
+        <ZLensBrand Animate="true" ShowBadge="true" CssClass="justify-center flex-col sm:flex-row" />
+    </div>
 
-    <div class="w-full flex flex-col items-center @(_searched && _hasResults ? "sticky zlens-header-offset z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60" : "")">
-        <div class="omnibox @(_encoderReady ? "" : "opacity-60")">
+    <div class="search-omnibox-bar @(_searched && _hasResults ? "search-omnibox-bar--sticky" : "")">
+        <div class="omnibox @(_encoderReady ? "" : "opacity-60") @(_busy ? "omnibox--searching" : "")">
             <button type="button" class="omnibox-icon" disabled="@(!_encoderReady || _busy)" @onclick="SearchAsync" title="Search">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" /></svg>
             </button>
@@ -52,14 +41,22 @@
             </button>
         </div>
 
-        @if (!_encoderReady && _boot is not null)
+        @if (_initLoading)
+        {
+            <p class="search-status" role="status">Loading search… @(_encoderReady ? "Preparing demo…" : "Waiting for SigLIP…")</p>
+        }
+        else if (_busy)
+        {
+            <p class="search-status" role="status">Searching… · @_queryModeLabel</p>
+        }
+        else if (!_encoderReady && _boot is not null)
         {
             <p class="text-xs lg:text-sm text-base-content/50 mt-2 max-w-[680px] lg:max-w-3xl xl:max-w-4xl text-center">@_boot.Message</p>
         }
 
-        @if (_wowChips.Count > 0 && (!_searched || !_hasResults))
+        @if (_wowChips.Count > 0)
         {
-            <div class="flex flex-wrap justify-center gap-2 mt-5 max-w-[680px] lg:max-w-3xl xl:max-w-4xl">
+            <div class="search-chips">
                 @foreach (var chip in _wowChips)
                 {
                     <button type="button" class="btn btn-ghost btn-sm rounded-full border border-base-300/80" @onclick="async () => await ApplyChip(chip)">
@@ -91,18 +88,20 @@
 
     @if (!_searched || !_hasResults)
     {
-        <div class="demo-strip mt-8">
-            <div class="collapse collapse-arrow bg-base-200/40 border border-base-300/60 rounded-2xl">
-                <input type="checkbox" />
-                <div class="collapse-title text-sm font-medium py-3 min-h-0">Demo settings</div>
-                <div class="collapse-content text-sm pb-4">
-                    <DemoControls @bind-Engine="_engine"
-                                  @bind-TopK="_topK"
-                                  @bind-Fusion="_fusion"
-                                  @bind-MasterCategory="_masterCategory"
-                                  @bind-UseInvert="_useInvert"
-                                  @bind-UseHybridFts="_useHybridFts"
-                                  ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
+        <div class="search-home-demo">
+            <div class="demo-strip mt-8">
+                <div class="collapse collapse-arrow bg-base-200/40 border border-base-300/60 rounded-2xl">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-sm font-medium py-3 min-h-0">Demo settings</div>
+                    <div class="collapse-content text-sm pb-4">
+                        <DemoControls @bind-Engine="_engine"
+                                      @bind-TopK="_topK"
+                                      @bind-Fusion="_fusion"
+                                      @bind-MasterCategory="_masterCategory"
+                                      @bind-UseInvert="_useInvert"
+                                      @bind-UseHybridFts="_useHybridFts"
+                                      ShowFusion="@(_engine == VectorEngineMode.ZVec)" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -116,11 +115,12 @@
     @if (_response?.Latency is not null && _searched)
     {
         <div class="serp-timing">
+            @{ var chipI = 0; }
             @foreach (var chip in BuildTimingChips())
             {
-                <span class="serp-timing-chip" title="@chip.Tooltip">@chip.Label @chip.Value</span>
+                <span class="serp-timing-chip" style="--chip-i: @(chipI++)" title="@chip.Tooltip">@chip.Label @chip.Value</span>
             }
-            <span class="serp-timing-chip serp-timing-chip--total" title="Wall clock for the whole request.">
+            <span class="serp-timing-chip serp-timing-chip--total" style="--chip-i: @chipI" title="Wall clock for the whole request.">
                 Total @FormatMs(_response.Latency.TotalMs)
             </span>
         </div>

@@ -45,6 +45,7 @@
 
 @layer components {
   .zlens-app {
+    position: relative;
     background: radial-gradient(ellipse at top, #131b2e 0%, #0b1326 55%, #060e20 100%);
   }
 
@@ -65,15 +66,77 @@
   }
 
   .search-canvas {
-    @apply min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4.5rem)] xl:min-h-[calc(100vh-5rem)] flex flex-col;
-  }
-
-  .search-canvas--home {
-    @apply justify-center items-center px-4 pb-16;
+    @apply min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-4.5rem)] xl:min-h-[calc(100vh-5rem)] flex flex-col items-center px-4;
+    padding-top: 18vh;
+    padding-bottom: 4rem;
+    transition: padding-top 0.4s ease;
   }
 
   .search-canvas--serp {
-    @apply px-4 pb-8 pt-2;
+    padding-top: 0.5rem;
+    padding-bottom: 2rem;
+  }
+
+  .search-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+    max-height: 10rem;
+    padding: 1.25rem 1rem 0;
+    opacity: 1;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
+    transition: max-height 0.4s ease, opacity 0.28s ease, margin 0.4s ease, transform 0.4s ease, padding 0.4s ease;
+  }
+
+  .search-canvas--serp .search-hero {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+    transform: translateY(-12px) scale(0.92);
+    pointer-events: none;
+  }
+
+  .search-omnibox-bar {
+    @apply w-full flex flex-col items-center;
+  }
+
+  .search-omnibox-bar--sticky {
+    @apply sticky top-16 lg:top-[4.5rem] xl:top-20 z-20 bg-base-100/95 backdrop-blur py-3 -mx-4 px-4 border-b border-base-300/60;
+  }
+
+  .search-status {
+    @apply text-xs lg:text-sm text-base-content/50 mt-2 max-w-[680px] lg:max-w-3xl xl:max-w-4xl text-center;
+  }
+
+  .search-chips {
+    @apply flex flex-wrap justify-center gap-2 mt-5 max-w-[680px] lg:max-w-3xl xl:max-w-4xl;
+    max-height: 8rem;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.28s ease, margin 0.35s ease;
+  }
+
+  .search-canvas--serp .search-chips {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .search-home-demo {
+    max-height: 24rem;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.28s ease;
+  }
+
+  .search-canvas--serp .search-home-demo {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .search-busy-overlay {
@@ -81,11 +144,30 @@
   }
 
   .omnibox {
-    @apply flex items-center gap-2 w-full max-w-[680px] lg:max-w-3xl xl:max-w-4xl h-14 lg:h-16 px-4 lg:px-5 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
+    @apply relative flex items-center gap-2 w-full max-w-[680px] lg:max-w-3xl xl:max-w-4xl h-14 lg:h-16 px-4 lg:px-5 rounded-full bg-base-200/90 border border-base-300 shadow-lg backdrop-blur-md transition-all duration-300;
+    isolation: isolate;
   }
 
   .omnibox:focus-within {
     @apply border-primary/40 shadow-primary/20 shadow-xl;
+  }
+
+  .omnibox--searching {
+    border-color: rgb(59 130 246 / 0.45);
+    box-shadow: 0 0 0 1px rgb(59 130 246 / 0.3), 0 0 24px rgb(59 130 246 / 0.18);
+  }
+
+  .omnibox--searching::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    background: conic-gradient(from 0deg, transparent 0 55%, #3b82f6, #7c3aed, transparent 85%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    animation: omnibox-spin 1.15s linear infinite;
+    z-index: -1;
+    pointer-events: none;
   }
 
   .omnibox-input {
@@ -114,6 +196,8 @@
 
   .product-tile {
     @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden bg-base-200 border border-base-300 cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30;
+    animation: result-in 0.38s ease both;
+    animation-delay: calc(var(--result-i, 0) * 45ms);
   }
 
   .product-tile img {
@@ -122,6 +206,8 @@
 
   .product-card-row {
     @apply flex gap-4 p-3 rounded-2xl bg-base-200 border border-base-300 hover:border-primary/30 transition-colors;
+    animation: result-in 0.38s ease both;
+    animation-delay: calc(var(--result-i, 0) * 45ms);
   }
 
   .dock-nav {
@@ -145,7 +231,7 @@
   }
 
   .main-with-dock {
-    @apply md:pl-20 lg:pl-24 xl:pl-28;
+    @apply relative z-10 md:pl-20 lg:pl-24 xl:pl-28;
   }
 
   .zlens-busy {
@@ -226,6 +312,8 @@
 
   .serp-timing-chip {
     @apply badge badge-sm lg:badge-md badge-ghost font-mono tabular-nums gap-1;
+    animation: result-in 0.32s ease both;
+    animation-delay: calc(var(--chip-i, 0) * 40ms);
   }
 
   .serp-timing-chip--total {
@@ -238,6 +326,8 @@
 
   .product-match-badge {
     @apply absolute top-2 right-2 rounded-full bg-base-100/90 border border-primary/40 px-2 py-0.5 text-xs lg:text-sm font-semibold text-primary tabular-nums shadow-sm;
+    animation: badge-in 0.28s ease both;
+    animation-delay: calc(var(--result-i, 0) * 45ms + 120ms);
   }
 
   .product-card-media {
@@ -253,7 +343,11 @@
   }
 
   .ingest-shader-layer {
-    @apply fixed inset-0 pointer-events-none z-0 opacity-[0.18];
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -263,7 +357,25 @@
   }
 
   .ingest-shader-canvas {
-    @apply block w-full h-full;
+    @apply block w-full h-full bg-transparent;
+  }
+
+  .zlens-mark--animate {
+    animation: zlens-glow 3s ease-in-out infinite;
+  }
+
+  .zlens-mark--animate .zlens-stroke {
+    stroke-dasharray: 32;
+    stroke-dashoffset: 32;
+    animation: zlens-draw 0.6s ease forwards;
+  }
+
+  .zlens-mark--animate .zlens-stroke--2 {
+    animation-delay: 0.12s;
+  }
+
+  .zlens-mark--animate .zlens-stroke--3 {
+    animation-delay: 0.24s;
   }
 
   .ingest-terminal {
@@ -292,6 +404,59 @@
 
   .ingest-terminal__elapsed {
     @apply text-base-content/40 ml-auto tabular-nums;
+  }
+}
+
+@keyframes zlens-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes zlens-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(59 130 246 / 0); }
+  50% { box-shadow: 0 0 18px 2px rgb(59 130 246 / 0.45); }
+}
+
+@keyframes omnibox-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes result-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes badge-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-canvas,
+  .search-hero,
+  .search-chips,
+  .search-home-demo {
+    transition: none !important;
+  }
+
+  .search-canvas--serp .search-hero {
+    transform: none;
+  }
+
+  .zlens-mark--animate {
+    animation: none;
+  }
+
+  .zlens-mark--animate .zlens-stroke {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .omnibox--searching::before,
+  .product-tile,
+  .product-card-row,
+  .product-match-badge,
+  .serp-timing-chip {
+    animation: none !important;
   }
 }
 

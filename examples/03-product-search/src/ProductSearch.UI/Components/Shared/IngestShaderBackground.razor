@@ -1,8 +1,8 @@
 @implements IAsyncDisposable
 @inject IJSRuntime Js
 
-<div class="ingest-shader-layer" aria-hidden="true">
-    <canvas @ref="_canvas" class="ingest-shader-canvas"></canvas>
+<div class="ingest-shader-layer" aria-hidden="true" style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden">
+    <canvas @ref="_canvas" class="ingest-shader-canvas" style="display:block;width:100%;height:100%"></canvas>
 </div>
 
 @code {

@@ -15,22 +15,45 @@ void main() {
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform vec2 u_mouse;
+varying vec2 v_texCoord;
+
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-    float speed = 0.05;
-    float frequency = 10.0;
-    float noise = sin(uv.x * frequency + u_time * speed) *
-                  cos(uv.y * frequency * 0.5 - u_time * speed * 1.2);
-    vec2 mouse_uv = u_mouse / u_resolution;
-    float dist = distance(uv, mouse_uv);
-    float glow = smoothstep(0.4, 0.0, dist) * 0.15;
-    vec3 color_a = vec3(0.03, 0.08, 0.15);
-    vec3 color_b = vec3(0.07, 0.12, 0.22);
-    vec3 accent = vec3(0.39, 0.40, 0.95);
-    vec3 final_color = mix(color_a, color_b, noise * 0.5 + 0.5);
-    final_color += accent * glow;
-    gl_FragColor = vec4(final_color, 1.0);
+    vec2 uv = v_texCoord;
+    vec2 centered_uv = (v_texCoord - 0.5) * 2.0;
+    centered_uv.x *= u_resolution.x / u_resolution.y;
+
+    vec3 glow = vec3(0.39, 0.62, 1.0);
+    float intensity = 0.0;
+
+    float grid = sin(centered_uv.x * 10.0 + u_time * 0.2) * sin(centered_uv.y * 10.0 + u_time * 0.2);
+    intensity += smoothstep(0.98, 1.0, grid) * 0.22;
+
+    for(int i = 0; i < 12; i++) {
+        float t = u_time * 0.3 + float(i) * 524.5;
+        vec2 pos = vec2(sin(t * 0.7), cos(t * 0.4)) * 0.8;
+        float dist = length(centered_uv - pos);
+        float pulse = 0.5 + 0.5 * sin(u_time * 2.0 + float(i));
+
+        intensity += (0.012 / max(dist, 0.002)) * pulse * 0.35;
+
+        for(int j = 0; j < 3; j++) {
+            float t2 = u_time * 0.3 + float(i + j) * 123.4;
+            vec2 pos2 = vec2(sin(t2 * 0.5), cos(t2 * 0.8)) * 0.8;
+            float line_dist = length(centered_uv - mix(pos, pos2, clamp(dot(centered_uv-pos, pos2-pos)/dot(pos2-pos, pos2-pos), 0.0, 1.0)));
+            intensity += (0.0008 / max(line_dist, 0.001)) * 0.12;
+        }
+    }
+
+    float vignette = clamp(1.0 - length(uv - 0.5) * 1.5, 0.0, 1.0);
+    float alpha = clamp(intensity * vignette, 0.0, 0.7);
+
+    gl_FragColor = vec4(glow, alpha);
 }`;
 
   function compileShader(type, src) {
@@ -62,6 +85,16 @@ void main() {
   let uRes = null;
   let uMouse = null;
 
+  function onMouseMove(event) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const nx = (event.clientX - rect.left) / rect.width;
+    const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+    mouse.x = nx * canvas.width;
+    mouse.y = ny * canvas.height;
+  }
+
   function render(t) {
     if (!gl || !canvas || paused) {
       rafId = null;
@@ -70,6 +103,8 @@ void main() {
 
     syncSize();
     gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     if (uTime) gl.uniform1f(uTime, t * 0.001);
     if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
     if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
@@ -82,7 +117,8 @@ void main() {
       if (!element || gl) return;
 
       canvas = element;
-      gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const opts = { alpha: true, premultipliedAlpha: false, antialias: false };
+      gl = canvas.getContext('webgl', opts) || canvas.getContext('experimental-webgl', opts);
       if (!gl) return;
 
       const program = gl.createProgram();
@@ -107,14 +143,7 @@ void main() {
       }
       syncSize();
 
-      canvas.addEventListener('mousemove', (event) => {
-        const rect = canvas.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const nx = (event.clientX - rect.left) / rect.width;
-        const ny = 1.0 - (event.clientY - rect.top) / rect.height;
-        mouse.x = nx * canvas.width;
-        mouse.y = ny * canvas.height;
-      });
+      window.addEventListener('mousemove', onMouseMove);
 
       document.addEventListener('visibilitychange', onVisibilityChange);
       onVisibilityChange();
@@ -129,6 +158,7 @@ void main() {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      window.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       gl = null;
       canvas = null;

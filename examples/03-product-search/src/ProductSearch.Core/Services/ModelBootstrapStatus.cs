@@ -65,12 +65,17 @@ public sealed class ModelBootstrapStatus
         {
             _state = state;
             _message = message;
-            if (error is not null)
-                _error = error;
-            if (state == ModelBootstrapState.Ready)
+            if (state is ModelBootstrapState.Checking
+                or ModelBootstrapState.Downloading
+                or ModelBootstrapState.Loading
+                or ModelBootstrapState.Ready)
             {
                 _error = null;
                 _errorDetail = null;
+            }
+            else if (error is not null)
+            {
+                _error = error;
             }
         }
     }

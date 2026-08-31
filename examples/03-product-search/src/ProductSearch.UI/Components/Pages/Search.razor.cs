@@ -342,28 +342,30 @@ public partial class Search : IAsyncDisposable
         {
             __builder.OpenElement(10, "div");
             __builder.AddAttribute(11, "class", "product-grid--masonry");
-            foreach (var hit in hits)
+            for (var i = 0; i < hits.Count; i++)
             {
+                var hit = hits[i];
                 __builder.OpenElement(20, "article");
                 __builder.AddAttribute(21, "class", "product-tile group");
-                __builder.OpenElement(22, "div");
-                __builder.AddAttribute(23, "class", "product-tile__media");
-                __builder.OpenComponent<ProductImage>(24);
-                __builder.AddComponentParameter(25, nameof(ProductImage.Src), hit.Product.ImageUrl);
-                __builder.AddComponentParameter(26, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
-                __builder.AddComponentParameter(27, nameof(ProductImage.CssClass), "w-full object-cover");
+                __builder.AddAttribute(22, "style", $"--result-i:{i}");
+                __builder.OpenElement(23, "div");
+                __builder.AddAttribute(24, "class", "product-tile__media");
+                __builder.OpenComponent<ProductImage>(25);
+                __builder.AddComponentParameter(26, nameof(ProductImage.Src), hit.Product.ImageUrl);
+                __builder.AddComponentParameter(27, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
+                __builder.AddComponentParameter(28, nameof(ProductImage.CssClass), "w-full object-cover");
                 __builder.CloseComponent();
-                __builder.OpenElement(28, "span");
-                __builder.AddAttribute(29, "class", "product-match-badge");
-                __builder.AddContent(30, $"{hit.SimilarityPercent:0.#}%");
+                __builder.OpenElement(29, "span");
+                __builder.AddAttribute(30, "class", "product-match-badge");
+                __builder.AddContent(31, $"{hit.SimilarityPercent:0.#}%");
                 __builder.CloseElement();
                 __builder.CloseElement();
-                __builder.OpenElement(31, "div");
-                __builder.AddAttribute(32, "class", "p-3 opacity-0 group-hover:opacity-100 transition-opacity");
-                __builder.AddContent(33, hit.Product.ProductDisplayName);
-                __builder.OpenElement(34, "div");
-                __builder.AddAttribute(35, "class", "text-xs text-base-content/60");
-                __builder.AddContent(36, $"#{hit.Rank}");
+                __builder.OpenElement(32, "div");
+                __builder.AddAttribute(33, "class", "p-3 opacity-0 group-hover:opacity-100 transition-opacity");
+                __builder.AddContent(34, hit.Product.ProductDisplayName);
+                __builder.OpenElement(35, "div");
+                __builder.AddAttribute(36, "class", "text-xs text-base-content/60");
+                __builder.AddContent(37, $"#{hit.Rank}");
                 __builder.CloseElement();
                 __builder.CloseElement();
                 __builder.CloseElement();
@@ -374,35 +376,37 @@ public partial class Search : IAsyncDisposable
 
         __builder.OpenElement(100, "div");
         __builder.AddAttribute(101, "class", "flex flex-col gap-3");
-        foreach (var hit in hits)
+        for (var i = 0; i < hits.Count; i++)
         {
+            var hit = hits[i];
             __builder.OpenElement(110, "article");
             __builder.AddAttribute(111, "class", "product-card-row");
-            __builder.OpenElement(112, "div");
-            __builder.AddAttribute(113, "class", "product-card-media");
-            __builder.OpenComponent<ProductImage>(114);
-            __builder.AddComponentParameter(115, nameof(ProductImage.Src), hit.Product.ImageUrl);
-            __builder.AddComponentParameter(116, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
-            __builder.AddComponentParameter(117, nameof(ProductImage.CssClass), "w-24 h-32 object-cover rounded-xl");
+            __builder.AddAttribute(112, "style", $"--result-i:{i}");
+            __builder.OpenElement(113, "div");
+            __builder.AddAttribute(114, "class", "product-card-media");
+            __builder.OpenComponent<ProductImage>(115);
+            __builder.AddComponentParameter(116, nameof(ProductImage.Src), hit.Product.ImageUrl);
+            __builder.AddComponentParameter(117, nameof(ProductImage.Alt), hit.Product.ProductDisplayName);
+            __builder.AddComponentParameter(118, nameof(ProductImage.CssClass), "w-24 h-32 object-cover rounded-xl");
             __builder.CloseComponent();
-            __builder.OpenElement(118, "span");
-            __builder.AddAttribute(119, "class", "product-match-badge");
-            __builder.AddContent(120, $"{hit.SimilarityPercent:0.#}%");
+            __builder.OpenElement(119, "span");
+            __builder.AddAttribute(120, "class", "product-match-badge");
+            __builder.AddContent(121, $"{hit.SimilarityPercent:0.#}%");
             __builder.CloseElement();
             __builder.CloseElement();
-            __builder.OpenElement(121, "div");
-            __builder.AddAttribute(122, "class", "min-w-0 flex-1");
-            __builder.OpenElement(123, "h3");
-            __builder.AddAttribute(124, "class", "font-medium truncate");
-            __builder.AddContent(125, hit.Product.ProductDisplayName);
+            __builder.OpenElement(122, "div");
+            __builder.AddAttribute(123, "class", "min-w-0 flex-1");
+            __builder.OpenElement(124, "h3");
+            __builder.AddAttribute(125, "class", "font-medium truncate");
+            __builder.AddContent(126, hit.Product.ProductDisplayName);
             __builder.CloseElement();
-            __builder.OpenElement(126, "p");
-            __builder.AddAttribute(127, "class", "text-xs text-base-content/60 mt-1");
-            __builder.AddContent(128, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}");
+            __builder.OpenElement(127, "p");
+            __builder.AddAttribute(128, "class", "text-xs text-base-content/60 mt-1");
+            __builder.AddContent(129, $"{hit.Product.BaseColour} · {hit.Product.Season} · {hit.Product.Usage}");
             __builder.CloseElement();
-            __builder.OpenElement(129, "p");
-            __builder.AddAttribute(130, "class", "text-xs text-primary mt-2");
-            __builder.AddContent(131, $"#{hit.Rank} · {hit.Engine}");
+            __builder.OpenElement(130, "p");
+            __builder.AddAttribute(131, "class", "text-xs text-primary mt-2");
+            __builder.AddContent(132, $"#{hit.Rank} · {hit.Engine}");
             __builder.CloseElement();
             __builder.CloseElement();
             __builder.CloseElement();
