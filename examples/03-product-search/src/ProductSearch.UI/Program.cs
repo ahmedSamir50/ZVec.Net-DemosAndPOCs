@@ -20,6 +20,7 @@ builder.Services.AddScoped<ApiClientService>();
 builder.Services.AddScoped<ToastService>();
 
 var app = builder.Build();
+app.Logger.LogInformation("UI calling API at {ApiBase}", apiBase);
 
 if (!app.Environment.IsDevelopment())
 {

@@ -41,6 +41,7 @@ public sealed class IngestController : ControllerBase
         var result = _ingest.TryStartPatch(request);
         if (!result.Started)
         {
+            _logger.LogWarning("Ingest refused: {Error}", result.Error);
             var snapshot = _progress.Snapshot();
             snapshot.ErrorMessage = result.Error;
             return BadRequest(snapshot);
@@ -74,7 +75,10 @@ public sealed class IngestController : ControllerBase
     {
         var result = _ingest.TryOptimize();
         if (!result.Ok)
+        {
+            _logger.LogWarning("Optimize refused: {Error}", result.Error);
             return BadRequest(new { error = result.Error });
+        }
         return Ok(new { optimized = true });
     }
 
@@ -83,14 +87,25 @@ public sealed class IngestController : ControllerBase
     {
         var result = _ingest.TryResetIndexes();
         if (!result.Reset)
+        {
+            _logger.LogWarning("Reset indexes refused: {Error}", result.Error);
             return BadRequest(new { error = result.Error });
+        }
         return Ok(new { reset = true });
     }
 
     [HttpPost("reset-catalog")]
     public async Task<IActionResult> ResetCatalogAsync(CancellationToken cancellationToken)
     {
-        var deleted = await _catalog.ResetCatalogAsync(cancellationToken).ConfigureAwait(false);
-        return Ok(new { reset = true, deleted });
+        try
+        {
+            var deleted = await _catalog.ResetCatalogAsync(cancellationToken).ConfigureAwait(false);
+            return Ok(new { reset = true, deleted });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Reset catalog failed");
+            throw;
+        }
     }
 }

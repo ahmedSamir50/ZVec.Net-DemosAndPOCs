@@ -10,10 +10,12 @@ namespace ProductSearch.Api.Controllers;
 public sealed class ModelsController : ControllerBase
 {
     private readonly ISigLipModelSelectionService _models;
+    private readonly ILogger<ModelsController> _logger;
 
-    public ModelsController(ISigLipModelSelectionService models)
+    public ModelsController(ISigLipModelSelectionService models, ILogger<ModelsController> logger)
     {
         _models = models;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -48,6 +50,8 @@ public sealed class ModelsController : ControllerBase
             Error = result.Error,
             ActiveModelId = result.ActiveModelId
         };
+        if (!result.Ok)
+            _logger.LogWarning("Model select failed for {ModelId}: {Error}", request.ModelId, result.Error);
         return result.Ok ? Ok(dto) : BadRequest(dto);
     }
 }

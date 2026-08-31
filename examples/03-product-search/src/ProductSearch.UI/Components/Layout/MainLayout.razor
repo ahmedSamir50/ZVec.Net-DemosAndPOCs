@@ -39,7 +39,9 @@
     </nav>
 
     <main class="main-with-dock pb-20 md:pb-4">
-        @Body
+        <AppErrorBoundary>
+            @Body
+        </AppErrorBoundary>
     </main>
 
     <ToastHost />

@@ -10,20 +10,33 @@ public sealed class SearchController : ControllerBase
 {
     private readonly IProductSearchService _search;
     private readonly WowQueryProvider _wowQueries;
+    private readonly ILogger<SearchController> _logger;
 
     public SearchController(
         IProductSearchService search,
-        WowQueryProvider wowQueries)
+        WowQueryProvider wowQueries,
+        ILogger<SearchController> logger)
     {
         _search = search;
         _wowQueries = wowQueries;
+        _logger = logger;
     }
 
     [HttpPost]
     public async Task<ActionResult<SearchResponseDto>> SearchAsync(
         [FromBody] SearchRequestDto request,
         CancellationToken cancellationToken)
-        => Ok(await _search.SearchAsync(request, cancellationToken).ConfigureAwait(false));
+    {
+        try
+        {
+            return Ok(await _search.SearchAsync(request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Search failed");
+            throw;
+        }
+    }
 
     [HttpPost("similar/{productId:guid}")]
     public async Task<ActionResult<SearchResponseDto>> SimilarAsync(
@@ -32,7 +45,15 @@ public sealed class SearchController : ControllerBase
         CancellationToken cancellationToken)
     {
         request.SimilarToProductId = productId;
-        return Ok(await _search.SearchAsync(request, cancellationToken).ConfigureAwait(false));
+        try
+        {
+            return Ok(await _search.SearchAsync(request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Similar-to search failed for {ProductId}", productId);
+            throw;
+        }
     }
 
     [HttpGet("wow-queries")]

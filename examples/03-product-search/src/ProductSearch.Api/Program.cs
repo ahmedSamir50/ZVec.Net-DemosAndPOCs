@@ -12,6 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+builder.Services.AddHostedService<UnhandledExceptionLoggingHostedService>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -90,7 +93,16 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Applying EF migrations: {Migrations}", string.Join(", ", pending));
     await context.Database.MigrateAsync().ConfigureAwait(false);
     logger.LogInformation("Database schema up to date.");
+
+    var stampStore = scope.ServiceProvider.GetRequiredService<ProductSearch.Core.Storage.IIndexStampStore>();
+    var models = scope.ServiceProvider.GetRequiredService<ProductSearch.Core.Services.ISigLipModelSelectionService>();
+    var stamp = stampStore.Load();
+    var mismatch = stampStore.MismatchMessage(models.ActiveDefinition, stamp);
+    if (!string.IsNullOrWhiteSpace(mismatch))
+        logger.LogWarning("Index stamp mismatch: {Message}", mismatch);
 }
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

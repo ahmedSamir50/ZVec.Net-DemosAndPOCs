@@ -410,9 +410,10 @@ public sealed class IngestService : IIngestService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ingest patch failed");
-            _progress.AppendEvent("Error", "failed", ex.Message);
-            _progress.SetFailed("Ingest patch failed", ex.Message);
+            var (summary, detail) = BootstrapExceptionFormatter.Format(ex);
+            _logger.LogError(ex, "Ingest patch failed: {Summary}", summary);
+            _progress.AppendEvent("Error", "failed", detail);
+            _progress.SetFailed("Ingest patch failed", detail);
         }
         finally
         {

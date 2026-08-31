@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using ProductSearch.Shared.Constants;
 using ProductSearch.Shared.Dtos;
 
@@ -8,10 +9,12 @@ namespace ProductSearch.UI.Services;
 public sealed class ApiClientService
 {
     private readonly HttpClient _http;
+    private readonly ILogger<ApiClientService> _logger;
 
-    public ApiClientService(IHttpClientFactory httpClientFactory)
+    public ApiClientService(IHttpClientFactory httpClientFactory, ILogger<ApiClientService> logger)
     {
         _http = httpClientFactory.CreateClient(HttpClientNames.ProductSearchApi);
+        _logger = logger;
     }
 
     public async Task<SearchResponseDto?> SearchAsync(SearchRequestDto request, CancellationToken ct = default)
@@ -72,8 +75,20 @@ public sealed class ApiClientService
     }
 
     public async Task<StatusDto?> GetStatusAsync(CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<StatusDto>(ApiRoutes.Status.TrimStart('/'), ApiJson.Options, ct)
-            .ConfigureAwait(false);
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+        try
+        {
+            return await _http.GetFromJsonAsync<StatusDto>(
+                ApiRoutes.Status.TrimStart('/'), ApiJson.Options, timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError("Status request timed out after 15 seconds ({BaseAddress})", _http.BaseAddress);
+            throw new ApiException(System.Net.HttpStatusCode.RequestTimeout, "API status timed out after 15 seconds.");
+        }
+    }
 
     public async Task<ModelsResponseDto?> GetModelsAsync(CancellationToken ct = default)
         => await _http.GetFromJsonAsync<ModelsResponseDto>(ApiRoutes.Models.TrimStart('/'), ApiJson.Options, ct)
@@ -94,21 +109,33 @@ public sealed class ApiClientService
         return new ModelSelectResultDto { Ok = false, Error = error };
     }
 
-    private static async Task<T?> ReadSuccessAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    private async Task<T?> ReadSuccessAsync<T>(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadFromJsonAsync<T>(ApiJson.Options, ct).ConfigureAwait(false);
 
         var message = await ReadProblemMessageAsync(response, ct).ConfigureAwait(false);
+        _logger.LogError(
+            "API {Method} {Uri} failed with {Status}: {Message}",
+            response.RequestMessage?.Method,
+            response.RequestMessage?.RequestUri,
+            (int)response.StatusCode,
+            message);
         throw new ApiException(response.StatusCode, message);
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
+    private async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)
             return;
 
         var message = await ReadProblemMessageAsync(response, ct).ConfigureAwait(false);
+        _logger.LogError(
+            "API {Method} {Uri} failed with {Status}: {Message}",
+            response.RequestMessage?.Method,
+            response.RequestMessage?.RequestUri,
+            (int)response.StatusCode,
+            message);
         throw new ApiException(response.StatusCode, message);
     }
 
