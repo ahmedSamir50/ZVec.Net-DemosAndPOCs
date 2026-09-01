@@ -120,10 +120,10 @@
   }
 
   .search-canvas--serp .search-chips {
-    max-height: 0;
-    opacity: 0;
-    margin: 0;
-    pointer-events: none;
+    @apply mt-2 mb-2 gap-1.5;
+    max-height: 6rem;
+    opacity: 0.95;
+    pointer-events: auto;
   }
 
   .search-home-demo {

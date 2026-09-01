@@ -27,7 +27,6 @@ public partial class DemoControls
 
     protected static readonly string[] Categories =
     [
-        "Tshirts", "Shirts", "Jeans", "Casual Shoes", "Sports Shoes", "Tops", "Kurtas",
-        "Handbags", "Watches", "Sunglasses", "Sandals", "Flip Flops", "Heels", "Wallets", "Belts"
+        "Apparel", "Footwear", "Accessories", "Personal Care", "Sporting Goods", "Home"
     ];
 }

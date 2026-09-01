@@ -68,9 +68,17 @@ public sealed class SigLipModelSelectionService : ISigLipModelSelectionService
         _http = http;
         _options = options;
         _logger = logger;
-        _activeId = string.IsNullOrWhiteSpace(options.Value.ActiveModelId)
-            ? SigLipModelCatalog.DefaultModelId
-            : options.Value.ActiveModelId;
+        var stampData = stamp.Load();
+        if (!string.IsNullOrWhiteSpace(stampData.ModelId))
+        {
+            _activeId = stampData.ModelId;
+        }
+        else
+        {
+            _activeId = string.IsNullOrWhiteSpace(options.Value.ActiveModelId)
+                ? SigLipModelCatalog.DefaultModelId
+                : options.Value.ActiveModelId;
+        }
     }
 
     public SigLipModelDefinition ActiveDefinition => SigLipModelCatalog.Get(_activeId);

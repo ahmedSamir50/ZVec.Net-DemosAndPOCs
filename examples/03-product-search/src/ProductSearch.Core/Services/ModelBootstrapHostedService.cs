@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProductSearch.Core.Configuration;
 using ProductSearch.Core.Models;
+using ProductSearch.Core.Storage;
 
 namespace ProductSearch.Core.Services;
 
@@ -44,9 +45,13 @@ public sealed class ModelBootstrapHostedService : IHostedService
         try
         {
             var selector = _services.GetRequiredService<ISigLipModelSelectionService>();
-            var id = string.IsNullOrWhiteSpace(_options.Value.ActiveModelId)
-                ? SigLipModelCatalog.DefaultModelId
-                : _options.Value.ActiveModelId;
+            var stampStore = _services.GetRequiredService<IIndexStampStore>();
+            var stamp = stampStore.Load();
+            var id = !string.IsNullOrWhiteSpace(stamp.ModelId)
+                ? stamp.ModelId
+                : (string.IsNullOrWhiteSpace(_options.Value.ActiveModelId)
+                    ? SigLipModelCatalog.DefaultModelId
+                    : _options.Value.ActiveModelId);
             var result = await selector.SelectAsync(id, ct).ConfigureAwait(false);
             if (!result.Ok)
             {
