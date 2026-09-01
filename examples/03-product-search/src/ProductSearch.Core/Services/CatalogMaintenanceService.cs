@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ProductSearch.Core.Data;
-using ProductSearch.Core.Encoding;
 using ProductSearch.Core.Models;
 using ProductSearch.Core.Storage;
 

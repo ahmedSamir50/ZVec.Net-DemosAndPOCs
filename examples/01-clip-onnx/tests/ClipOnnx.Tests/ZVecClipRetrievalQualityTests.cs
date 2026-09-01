@@ -43,7 +43,7 @@ public sealed class ZVecClipRetrievalQualityTests : IDisposable
         // 1. Graceful Bypass if models or test images are not present
         if (string.IsNullOrEmpty(_modelsDir) || !Directory.Exists(_modelsDir))
         {
-            Xunit.Assert.Skip("CLIP models directory not found relative to test runner. Skipping test.");
+            Assert.Skip("CLIP models directory not found relative to test runner. Skipping test.");
             return;
         }
 
@@ -54,13 +54,13 @@ public sealed class ZVecClipRetrievalQualityTests : IDisposable
 
         if (!File.Exists(visionPath) || !File.Exists(textPath))
         {
-            Xunit.Assert.Skip($"CLIP model weights not downloaded in {activeModelDir}. Skipping test.");
+            Assert.Skip($"CLIP model weights not downloaded in {activeModelDir}. Skipping test.");
             return;
         }
 
         if (string.IsNullOrEmpty(_imagesDir) || !Directory.Exists(_imagesDir))
         {
-            Xunit.Assert.Skip("Flickr8k images directory not found relative to test runner. Skipping test.");
+            Assert.Skip("Flickr8k images directory not found relative to test runner. Skipping test.");
             return;
         }
 
@@ -71,7 +71,7 @@ public sealed class ZVecClipRetrievalQualityTests : IDisposable
 
         if (!File.Exists(imgGirl) || !File.Exists(imgDogs) || !File.Exists(imgPaint))
         {
-            Xunit.Assert.Skip("Sample test images not found in Flickr8k directory. Skipping test.");
+            Assert.Skip("Sample test images not found in Flickr8k directory. Skipping test.");
             return;
         }
 

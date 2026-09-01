@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using ClipOnnx.App.Encoding;
 using ClipOnnx.App.Ingest;
-using ClipOnnx.App.DataModels;
 using ClipOnnx.App.Options;
 using ClipOnnx.App.Services;
 using ClipOnnx.App.Storage;

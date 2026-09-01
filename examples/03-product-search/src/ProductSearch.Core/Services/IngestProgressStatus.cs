@@ -1,7 +1,6 @@
 namespace ProductSearch.Core.Services;
 
 using ProductSearch.Core.Models;
-using ProductSearch.Core.Storage;
 using ProductSearch.Shared.Dtos;
 
 public enum IngestState

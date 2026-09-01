@@ -11,7 +11,6 @@ using ProductSearch.Core.Storage;
 using ProductSearch.Shared.Dtos;
 using ProductSearch.Shared.Enums;
 using ZVec.NET;
-using ZVec.NET.Query;
 
 namespace ProductSearch.Core.Services;
 

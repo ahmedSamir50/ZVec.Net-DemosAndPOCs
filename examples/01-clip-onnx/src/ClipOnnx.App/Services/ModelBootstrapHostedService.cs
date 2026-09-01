@@ -1,4 +1,3 @@
-using ClipOnnx.App.Encoding;
 using ClipOnnx.App.DataModels;
 using ClipOnnx.App.Options;
 using Microsoft.Extensions.Options;

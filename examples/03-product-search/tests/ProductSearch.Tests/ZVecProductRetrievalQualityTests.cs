@@ -8,8 +8,6 @@ using ProductSearch.Core.Models;
 using Xunit;
 using ZVec.NET;
 using ZVec.NET.DependencyInjection;
-using ZVec.NET.Mapping;
-using ZVec.NET.Query;
 
 namespace ProductSearch.Tests;
 
@@ -45,7 +43,7 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
         // 1. Graceful Bypass if models or dataset are not found
         if (string.IsNullOrEmpty(_modelsDir) || !Directory.Exists(_modelsDir))
         {
-            Xunit.Assert.Skip("ProductSearch models directory not found. Skipping test.");
+            Assert.Skip("ProductSearch models directory not found. Skipping test.");
             return;
         }
 
@@ -56,13 +54,13 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
 
         if (!File.Exists(visionPath) || !File.Exists(textPath))
         {
-            Xunit.Assert.Skip($"SigLIP model weights not found in {activeModelDir}. Skipping test.");
+            Assert.Skip($"SigLIP model weights not found in {activeModelDir}. Skipping test.");
             return;
         }
 
         if (string.IsNullOrEmpty(_dataZipPath) || !File.Exists(_dataZipPath))
         {
-            Xunit.Assert.Skip("fashion-10k.zip data pack not found. Skipping test.");
+            Assert.Skip("fashion-10k.zip data pack not found. Skipping test.");
             return;
         }
 
@@ -209,7 +207,7 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
         if (string.IsNullOrEmpty(_modelsDir) || !Directory.Exists(_modelsDir) ||
             string.IsNullOrEmpty(_dataZipPath) || !File.Exists(_dataZipPath))
         {
-            Xunit.Assert.Skip("Models or dataset not present. Skipping test.");
+            Assert.Skip("Models or dataset not present. Skipping test.");
             return;
         }
 
@@ -218,7 +216,7 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
         if (!File.Exists(Path.Combine(activeModelDir, "vision_model.onnx")) ||
             !File.Exists(Path.Combine(activeModelDir, "text_model.onnx")))
         {
-            Xunit.Assert.Skip($"SigLIP weights missing in {activeModelDir}. Skipping test.");
+            Assert.Skip($"SigLIP weights missing in {activeModelDir}. Skipping test.");
             return;
         }
 
@@ -347,7 +345,7 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
         // text documents can have high positive similarity (e.g. > 0.50).
         if (string.IsNullOrEmpty(_modelsDir) || !Directory.Exists(_modelsDir))
         {
-            Xunit.Assert.Skip("ProductSearch models directory not found. Skipping test.");
+            Assert.Skip("ProductSearch models directory not found. Skipping test.");
             return;
         }
 
@@ -355,7 +353,7 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
         var activeModelDir = Path.Combine(_modelsDir, modelDef.Id);
         if (!File.Exists(Path.Combine(activeModelDir, "text_model.onnx")))
         {
-            Xunit.Assert.Skip($"SigLIP model weights not found in {activeModelDir}. Skipping test.");
+            Assert.Skip($"SigLIP model weights not found in {activeModelDir}. Skipping test.");
             return;
         }
 

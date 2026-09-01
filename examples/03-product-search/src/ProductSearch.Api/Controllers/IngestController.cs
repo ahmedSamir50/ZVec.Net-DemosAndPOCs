@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using ProductSearch.Core.Data;
 using ProductSearch.Core.Services;
 using ProductSearch.Core.Storage;

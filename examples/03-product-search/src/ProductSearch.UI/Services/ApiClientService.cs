@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
 using ProductSearch.Shared.Constants;
 using ProductSearch.Shared.Dtos;
 

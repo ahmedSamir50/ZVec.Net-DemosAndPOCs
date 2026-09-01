@@ -1,6 +1,5 @@
 using ClipOnnx.App.DataModels;
 using ZVec.NET;
-using ZVec.NET.Mapping;
 
 namespace ClipOnnx.App.Storage;
 

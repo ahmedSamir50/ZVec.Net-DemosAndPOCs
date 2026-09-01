@@ -3,7 +3,6 @@ using ProductSearch.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZVec.NET;
-using ZVec.NET.Query;
 
 namespace ProductSearch.Core.Storage;
 
