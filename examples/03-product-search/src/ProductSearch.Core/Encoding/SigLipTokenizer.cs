@@ -16,6 +16,7 @@ public sealed class SigLipTokenizer
     private readonly HfTokenizer _tokenizer;
     private readonly int _contextLength;
     private readonly bool _lowercaseText;
+    private readonly long _padTokenId;
 
     public SigLipTokenizer(string modelsDir, SigLipModelDefinition model, int contextLength = DefaultContextLength)
     {
@@ -23,6 +24,8 @@ public sealed class SigLipTokenizer
         ArgumentNullException.ThrowIfNull(model);
         _contextLength = contextLength;
         _lowercaseText = model.LowercaseText;
+        // SigLIP 2 uses token 0 as <pad> and 1 as </s> (EOS). SigLIP 1 uses 1 for both.
+        _padTokenId = model.Id.Contains("siglip2", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
 
         var jsonPath = Path.Combine(modelsDir, "tokenizer.json");
         if (!File.Exists(jsonPath))
@@ -47,7 +50,7 @@ public sealed class SigLipTokenizer
         }
 
         for (var i = n; i < _contextLength; i++)
-            ids[i] = PadTokenId;
+            ids[i] = _padTokenId;
 
         return (ids, mask);
     }

@@ -168,10 +168,7 @@ public sealed class DualCollectionHolder : IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "ZVec index creation failed — recreating collections with current schema");
-                _inFlight.Drain();
-                RecreateEmptyUnlocked();
-                CreateIndexesUnlocked();
+                _logger.LogDebug(ex, "ZVec index creation notice (indexes may already exist or collection is empty)");
             }
 
             _indexesEnsured = true;

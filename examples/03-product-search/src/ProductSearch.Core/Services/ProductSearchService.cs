@@ -321,10 +321,11 @@ public sealed class ProductSearchService : IProductSearchService
         if (!useHybridFts)
         {
             var annSw = Stopwatch.StartNew();
-            var dense = await _collections.QueryTextDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
+            // In SigLIP / CLIP, text query embeddings match image embeddings in visual space
+            var dense = await _collections.QueryImageDenseAsync(queryVector, topK, filter, ct).ConfigureAwait(false);
             annSw.Stop();
             return new TextQueryResult(
-                ToDenseHits(dense, fromText: true, fromImage: false),
+                ToDenseHits(dense, fromText: true, fromImage: true),
                 annSw.Elapsed.TotalMilliseconds,
                 0,
                 0);
@@ -332,7 +333,8 @@ public sealed class ProductSearchService : IProductSearchService
 
         var fetchK = Math.Min(80, Math.Max(topK * 8, topK));
         var annOnlySw = Stopwatch.StartNew();
-        var annHits = await _collections.QueryTextDenseAsync(queryVector, fetchK, filter, ct).ConfigureAwait(false);
+        // Cross-modal dense query against image collection
+        var annHits = await _collections.QueryImageDenseAsync(queryVector, fetchK, filter, ct).ConfigureAwait(false);
         annOnlySw.Stop();
 
         var ftsSw = Stopwatch.StartNew();
@@ -343,7 +345,7 @@ public sealed class ProductSearchService : IProductSearchService
                 Fts = new ZVecFtsQuery
                 {
                     QueryString = request.QueryText!.Trim(),
-                    DefaultOperator = ZVecFtsDefaultOperator.And
+                    DefaultOperator = ZVecFtsDefaultOperator.Or
                 }
             }],
             filter,
@@ -365,7 +367,7 @@ public sealed class ProductSearchService : IProductSearchService
         FusionMode mode,
         int topK)
     {
-        var ann = ToDenseHits(annHits, fromText: true, fromImage: false);
+        var ann = ToDenseHits(annHits, fromText: true, fromImage: true);
         var annById = ann.ToDictionary(h => h.Id, StringComparer.Ordinal);
 
         if (mode == FusionMode.Weighted)
@@ -379,7 +381,7 @@ public sealed class ProductSearchService : IProductSearchService
                 var boost = _options.FtsFusionWeight;
                 if (!map.TryGetValue(hit.Id, out var existing))
                 {
-                    map[hit.Id] = new InternalHit(hit.Id, hit.Score, true, false, true, boost);
+                    map[hit.Id] = new InternalHit(hit.Id, hit.Score, true, true, true, 0.20f + boost);
                     continue;
                 }
 
@@ -412,8 +414,9 @@ public sealed class ProductSearchService : IProductSearchService
                 var rrf = 0f;
                 if (annRank > 0) rrf += 1f / (k + annRank);
                 if (ftsRank > 0) rrf += 1f / (k + ftsRank);
-                var cosine = annById.TryGetValue(pair.Key, out var annHit) ? annHit.DisplayCosine : 0f;
-                return new InternalHit(pair.Key, rrf, true, false, ftsRank > 0, cosine);
+                // For hits matched by FTS without dense ANN, assign calibrated non-zero baseline
+                var cosine = annById.TryGetValue(pair.Key, out var annHit) ? annHit.DisplayCosine : 0.20f;
+                return new InternalHit(pair.Key, rrf, true, true, ftsRank > 0, cosine);
             })
             .OrderByDescending(h => h.Score)
             .Take(topK)];
@@ -676,7 +679,9 @@ public sealed class ProductSearchService : IProductSearchService
             return [];
 
         var topCosine = hits[0].DisplayCosine;
-        if (topCosine < minCosine)
+        var topIsFts = hits[0].FromFts;
+        // Only drop entirely if the top hit is purely dense and below minimum confidence
+        if (!topIsFts && topCosine < minCosine)
             return [];
 
         var gap = _options.MaxCosineGapFromTop;
@@ -685,8 +690,9 @@ public sealed class ProductSearchService : IProductSearchService
         {
             if (kept.Count >= topK)
                 break;
-            if (hit.DisplayCosine < minCosine || hit.DisplayCosine < topCosine - gap)
-                break;
+            // Never drop confirmed lexical FTS matches on cosine threshold
+            if (!hit.FromFts && (hit.DisplayCosine < minCosine || hit.DisplayCosine < topCosine - gap))
+                continue;
             kept.Add(hit);
         }
 

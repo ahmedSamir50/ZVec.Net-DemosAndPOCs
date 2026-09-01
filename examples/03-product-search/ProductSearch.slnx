@@ -7,4 +7,7 @@
     <Project Path="src/ProductSearch.Shared/ProductSearch.Shared.csproj" />
     <Project Path="src/ProductSearch.UI/ProductSearch.UI.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProductSearch.Tests/ProductSearch.Tests.csproj" />
+  </Folder>
 </Solution>

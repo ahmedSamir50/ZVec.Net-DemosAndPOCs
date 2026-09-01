@@ -96,6 +96,16 @@ dotnet run
 
 Laptop-class CPU (e.g. i7-8850H + 32GB) can run B/16 and L/14 **FP32 on CPU**. **4GB VRAM is not assumed** for L/14 dual-encoder CUDA. Pre-embed L/14 before live demos.
 
+## Integration Tests (xUnit v3)
+
+Isolated ZVec CLIP retrieval quality tests (Text-to-Image and Image-to-Image) run with upward relative path resolution:
+
+```bash
+dotnet run --project tests/ClipOnnx.Tests/ClipOnnx.Tests.csproj
+```
+
+Automatically skips gracefully if CLIP ONNX models or Flickr8k images are not present on disk.
+
 ## Data layout
 
 ```
@@ -105,4 +115,6 @@ data/
   zvec-clip-gallery/{modelId}/  # per-model ZVec
   state/flickr8k.json           # offset + model stamp
 models/{modelId}/               # per-model ONNX + vocab
+tests/
+  ClipOnnx.Tests/               # xUnit v3 integration suite
 ```

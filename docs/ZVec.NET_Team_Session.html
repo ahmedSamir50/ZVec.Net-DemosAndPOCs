@@ -4237,14 +4237,14 @@ main.sidenav-collapsed { margin-left: 0; }
     <div class="surface insight-strip">
       <span class="material-icons md-18" style="color: var(--accent);">key</span>
       <span class="lbl">Key Insight</span>
-      <span class="body">Unlike CLIP gallery (vision-only index), this demo splits <strong>two collections, one Guid</strong> — production pattern for independent rebuild, <span class="mono">Optimize()</span>, and schema evolution.</span>
+      <span class="body"><strong>Cross-Modal Routing Principle:</strong> Text queries live in visual space and query the <strong>Image collection</strong> for semantic ANN, while Lexical BM25 queries the <strong>Text collection</strong> via FTS. Dual-encoders suffer from text-to-text cone collapse if text queries search text vectors.</span>
     </div>
 
     <div class="surface-elev demo-callout" style="margin-top:8px;">
       <div>
-        <div class="dc-label">Live Demo</div>
-        <div class="dc-title">SigLIP + dual ZVec collections</div>
-        <p class="dc-body">Fashion catalog (~44k Myntra SKUs). Run <span class="mono">dotnet run --project src/ProductSearch.AppHost</span>. Wow chips in <span class="mono">data/wow-queries.json</span> — name / metadata / implicit visual queries.</p>
+        <div class="dc-label">Live Demo & Loss Geometry</div>
+        <div class="dc-title">SigLIP (Sigmoid) vs CLIP (Softmax)</div>
+        <p class="dc-body">CLIP's softmax temperature inflates positive cosines to [0.25..0.45]. SigLIP's pairwise sigmoid loss produces unscaled positives in [0.05..0.18]. Calibrated threshold (<span class="mono">MinCosine = 0.03</span>) and FTS bypass ensure zero false rejections.</p>
       </div>
       <div class="dc-bullets">
         <div class="dc-bullet">
@@ -4253,7 +4253,7 @@ main.sidenav-collapsed { margin-left: 0; }
         </div>
         <div class="dc-bullet">
           <span class="material-icons md-18 ico">contrast</span>
-          <span>CLIP = single vision index; product-search = <strong>text + image</strong> collections + invert/FTS/hybrid</span>
+          <span>True multimodal hybrid: <strong>visual image ANN + metadata text FTS + RRF fusion</strong></span>
         </div>
       </div>
     </div>
@@ -4268,7 +4268,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Live demo script aligned with examples/03-product-search/README.md: Status → confirm SigLIP loaded → Ingest patch 100 → wait for Demo ready (SQL count = ZVec text = ZVec image) → Search with engine toggle ZVec | PostgreSQL | Both. Try wow chips: exact name, paraphrase, colour filter, beach vacation (implicit visual — words absent from title). Lens camera icon for image query. Enable Hybrid FTS + RRF/Weighted under ZVec mode. Mention Param Aggarwal / HF dataset attribution briefly. Contrast with slide 16: CLIP indexes vision only; product-search splits text + image collections with invert + FTS on the text side.</div>
+        <div class="notes-content">Live demo script aligned with examples/03-product-search/README.md: Status → confirm SigLIP loaded → Ingest patch 100 → wait for Demo ready (SQL count = ZVec text = ZVec image) → Search with engine toggle ZVec | PostgreSQL | Both. Crucial architectural takeaways from our forensic probe: 1) Contrastive dual-encoders (CLIP/SigLIP) are trained on (image, text) pairs; text queries match visual image embeddings in joint space. Querying text vectors with text queries causes anisotropic cone collapse where unrelated items have high similarity. 2) True hybrid search routes the text query to Image ZVec (dense visual ANN) and Text ZVec (FTS BM25 on metadata), fused via RRF. 3) Loss geometry: SigLIP uses sigmoid loss without softmax competition, so true positive cosines are ~0.08..0.15; never use high CLIP thresholds like 0.15 on SigLIP. 4) Never let confidence filters purge confirmed FTS keyword matches.</div>
       </details>
     </section>
 

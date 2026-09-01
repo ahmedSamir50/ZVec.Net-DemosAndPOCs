@@ -42,8 +42,8 @@ public sealed class ProductSearchOptions
     public int IngestZVecParallelism { get; set; } = 4;
     public long MaxUploadBytes { get; set; } = 8 * 1024 * 1024;
 
-    public float MinCosine { get; set; } = 0.15f;
-    public float MaxCosineGapFromTop { get; set; } = 0.12f;
+    public float MinCosine { get; set; } = 0.03f;
+    public float MaxCosineGapFromTop { get; set; } = 0.35f;
     public int MinConfidentHits { get; set; } = 1;
 
     public float DenseFusionWeight { get; set; } = 0.7f;

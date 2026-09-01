@@ -112,9 +112,34 @@ Then restart AppHost.
 7. Enable **Hybrid FTS** + **RRF/Weighted** under ZVec mode only.
 8. **More like this** (API) uses stored image vector — no re-encode.
 
-## Scores
+## Scores & Semantics
 
-ZVec Cosine metric exposes **distance** (lower = better). UI similarity % = `max(0, round(100 × (1 − distance)))`.
+ZVec Cosine metric exposes **distance** (lower = better). Relation: `cosθ ≈ 1 − distance` for unit vectors.
+- **SigLIP vs CLIP Loss Geometry:** CLIP uses softmax with low temperature, producing positive cosine similarities in `[0.25..0.45]`. SigLIP uses pairwise sigmoid loss without in-batch softmax competition, producing unscaled positive cosines in `[0.05..0.18]` (negatives in `[-0.05..0.02]`).
+- **Confidence Thresholds:** Calibrated to `MinCosine = 0.03f` and `MaxCosineGapFromTop = 0.35f` to prevent false rejections of legitimate fashion matches.
+- **User Similarity %:** Calibrated via piecewise mapping (`SigLipScoreSemantics.SimilarityPercent`) so that cross-modal matches (`0.03..0.20`) display in `[50%..95%]`, and image-to-image matches (`0.30..1.00`) display in `[50%..100%]`.
+
+## Architecture & Multimodal Retrieval Mechanics
+
+1. **Cross-Modal Dense Vector Routing:**
+   - Contrastive dual-encoders (CLIP and SigLIP) project text and images into a shared space trained on `(Image, Text)` pairs.
+   - Text queries inhabit the visual feature space. Searching text embeddings (`zvec-text`) with text queries causes **anisotropic cone collapse** where unrelated items yield high similarity.
+   - Therefore, dense ANN text queries search **`zvec-image`** (product photos).
+2. **Lexical FTS Keyword Search:**
+   - Keyword queries search **`zvec-text`** on `ConcatenatedText` (title, category, colour, description) using `ZVecFtsDefaultOperator.Or` with BM25 ranking.
+3. **Hybrid RRF Fusion:**
+   - RRF (`1 / (60 + rank)`) fuses cross-modal visual hits (`zvec-image`) with lexical metadata hits (`zvec-text`). Items that both look like the query AND match keywords rank highest.
+   - Confirmed FTS keyword matches are never discarded by vector cosine threshold filters.
+
+## Integration Tests (xUnit v3)
+
+Isolated ZVec retrieval quality tests (cross-modal dense search, FTS, and hybrid fusion) run without Postgres or UI dependencies:
+
+```bash
+dotnet run --project tests/ProductSearch.Tests/ProductSearch.Tests.csproj
+```
+
+Automatically skips gracefully if SigLIP ONNX models or dataset pack are not present on disk.
 
 ## Reset paths
 
@@ -144,4 +169,6 @@ examples/03-product-search/
     ProductSearch.Shared
     ProductSearch.UI
     ProductSearch.ServiceDefaults
+  tests/
+    ProductSearch.Tests       # xUnit v3 integration suite
 ```

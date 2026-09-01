@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/ClipOnnx.App/ClipOnnx.App.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClipOnnx.Tests/ClipOnnx.Tests.csproj" />
+  </Folder>
 </Solution>
