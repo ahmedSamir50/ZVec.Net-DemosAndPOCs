@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using ClipOnnx.App.Encoding;
-using ClipOnnx.App.Models;
+using ClipOnnx.App.DataModels;
 using ClipOnnx.App.Options;
 using ClipOnnx.App.Services;
 using ClipOnnx.App.Storage;

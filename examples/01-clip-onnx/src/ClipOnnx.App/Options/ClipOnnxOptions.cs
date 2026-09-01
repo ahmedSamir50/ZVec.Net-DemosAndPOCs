@@ -16,7 +16,7 @@ public sealed class ClipOnnxOptions
     public string ModelsDir { get; set; } = "./models";
 
     /// <summary>
-    /// Active CLIP dual-encoder id from <see cref="Models.ClipModelCatalog"/>:
+    /// Active CLIP dual-encoder id from <see cref="DataModels.ClipModelCatalog"/>:
     /// <c>clip-vit-b32</c>, <c>clip-vit-b16</c> (default), or <c>clip-vit-l14</c>.
     /// </summary>
     public string ActiveModelId { get; set; } = "clip-vit-b16";

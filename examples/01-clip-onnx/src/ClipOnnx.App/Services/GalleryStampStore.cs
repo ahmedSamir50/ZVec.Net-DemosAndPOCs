@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ClipOnnx.App.Models;
+using ClipOnnx.App.DataModels;
 using ClipOnnx.App.Options;
 using Microsoft.Extensions.Options;
 

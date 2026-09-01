@@ -1,4 +1,4 @@
-using ClipOnnx.App.Models;
+using ClipOnnx.App.DataModels;
 using ClipOnnx.App.Options;
 using Microsoft.Extensions.Options;
 using ZVec.NET;

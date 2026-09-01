@@ -1,4 +1,4 @@
-using ClipOnnx.App.Models;
+using ClipOnnx.App.DataModels;
 using ZVec.NET;
 using ZVec.NET.Mapping;
 
@@ -15,7 +15,7 @@ public static class CollectionBootstrap
         IZvecFactory factory,
         string path,
         bool enableMmap = true)
-        where T : class
+        where T : class, new()
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
