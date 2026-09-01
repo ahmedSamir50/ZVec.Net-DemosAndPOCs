@@ -25,10 +25,10 @@ public partial class Search : IAsyncDisposable
     private string? _pendingImageBase64;
     private string? _lensPreviewUrl;
     private VectorEngineMode _engine = VectorEngineMode.Both;
-    private FusionMode _fusion = FusionMode.Rrf;
+    private FusionMode _fusion = FusionMode.Weighted;
     private int _topK = 5;
     private bool _useInvert = false;
-    private bool _useHybridFts = false;
+    private bool _useHybridFts = true;
     private string? _masterCategory;
     private bool _initLoading = true;
     private bool _busy;

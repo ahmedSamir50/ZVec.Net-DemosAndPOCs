@@ -288,37 +288,47 @@ public sealed class ZVecProductRetrievalQualityTests : IDisposable
             var queryText = "Femella White Necklace";
             var queryVec = encoder.EncodeText(queryText);
 
-            // 1. Cross-modal dense query against IMAGE collection
+            // 1. Hit Place 1: Dense query against IMAGE collection (visual match)
             var denseHits = await imgCol.QueryAsync(p => p.ImageEmbedding, queryVec, topK: 3, ct: ct);
-            // 2. FTS query against TEXT collection with DefaultOperator = Or
-            var ftsQuery = new ZVecQuery
+
+            // 2. Hit Place 2: In-DB Hybrid query against TEXT collection using native ZVecWeightedReranker
+            var textQueries = new List<ZVecQuery>
             {
-                FieldName = "ConcatenatedText",
-                Fts = new ZVecFtsQuery { QueryString = queryText, DefaultOperator = ZVecFtsDefaultOperator.Or }
+                new() { FieldName = "TextEmbedding", Vector = queryVec },
+                new()
+                {
+                    FieldName = "ConcatenatedText",
+                    Fts = new ZVecFtsQuery { QueryString = queryText, DefaultOperator = ZVecFtsDefaultOperator.Or }
+                }
             };
-            var ftsHits = txtCol.Untyped.Query(ftsQuery, topk: 3, includeVector: false);
-
-            // 3. Fuse via RRF
-            var ranks = new Dictionary<string, (int AnnRank, int FtsRank)>(StringComparer.Ordinal);
-            for (var i = 0; i < denseHits.Count; i++) ranks[denseHits[i].Record.Id] = (i + 1, 0);
-            for (var i = 0; i < ftsHits.Count; i++)
+            var reranker = new ZVecWeightedReranker
             {
-                if (ranks.TryGetValue(ftsHits[i].Id, out var r)) ranks[ftsHits[i].Id] = (r.AnnRank, i + 1);
-                else ranks[ftsHits[i].Id] = (0, i + 1);
+                TopN = 3,
+                Metric = ZVecMetricType.Cosine,
+                Weights = new Dictionary<string, float>
+                {
+                    ["TextEmbedding"] = 0.3f,
+                    ["ConcatenatedText"] = 0.7f
+                }
+            };
+            var textHits = txtCol.Untyped.Query(textQueries, topk: 3, reranker: reranker, includeVector: false);
+            Assert.NotEmpty(textHits);
+            Assert.Equal("54147_necklace", textHits[0].Id);
+            _output.WriteLine($"[PASS] Text collection native ZVecWeightedReranker -> Rank 1: {textHits[0].Id} (Score: {textHits[0].Score:F4})");
+
+            // 3. Merge results from both collections (Image + Text)
+            var merged = new Dictionary<string, float>(StringComparer.Ordinal);
+            foreach (var h in denseHits) merged[h.Record.Id] = 1f - h.Score; // Cosine similarity
+            foreach (var h in textHits)
+            {
+                if (merged.TryGetValue(h.Id, out var existing))
+                    merged[h.Id] = existing + 0.30f; // Dual-match bonus
+                else
+                    merged[h.Id] = 0.50f; // Exact text match baseline
             }
-
-            const float k = 60f;
-            var fused = ranks.Select(p =>
-            {
-                var rrf = 0f;
-                if (p.Value.AnnRank > 0) rrf += 1f / (k + p.Value.AnnRank);
-                if (p.Value.FtsRank > 0) rrf += 1f / (k + p.Value.FtsRank);
-                return (Id: p.Key, Score: rrf);
-            }).OrderByDescending(x => x.Score).ToList();
-
-            Assert.NotEmpty(fused);
-            Assert.Equal("54147_necklace", fused[0].Id);
-            _output.WriteLine($"[PASS] Hybrid query '{queryText}' -> Rank 1: {fused[0].Id} (RRF Score: {fused[0].Score:F4})");
+            var topMerged = merged.OrderByDescending(kv => kv.Value).First();
+            Assert.Equal("54147_necklace", topMerged.Key);
+            _output.WriteLine($"[PASS] Merged dual-collection result -> Rank 1: {topMerged.Key} (Score: {topMerged.Value:F4})");
 
             // --- Hybrid Query 2: Pure Visual Query "running shoes" ---
             var shoeQueryVec = encoder.EncodeText("running shoes");

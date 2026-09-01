@@ -4318,11 +4318,14 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
     </div>
 
-    <div class="rr-code" style="margin-top:12px; font-size:11px;"><span class="c">// dense + FTS fusion (ZVec-only hybrid)</span>
+    <div class="rr-code" style="margin-top:12px; font-size:11px;"><span class="c">// In-DB dense + FTS weighted fusion inside ZVec text collection (ZVec.NET hybrid-fts pattern)</span>
 <span class="k">var</span> hits = textCol.<span class="t">Untyped</span>.<span class="t">Query</span>([
-    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"embedding"</span>, Vector = queryVec },
-    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"concatenated_text"</span>, Text = queryText }
-], topk: <span class="n">20</span>, reranker: <span class="k">new</span> <span class="t">ZVecRrfReranker</span> { TopN = <span class="n">20</span> });</div>
+    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"TextEmbedding"</span>, Vector = queryVec },
+    <span class="k">new</span> <span class="t">ZVecQuery</span> { FieldName = <span class="s">"ConcatenatedText"</span>, Fts = <span class="k">new</span> <span class="t">ZVecFtsQuery</span> { QueryString = queryText, DefaultOperator = <span class="t">ZVecFtsDefaultOperator</span>.Or } }
+], topk: <span class="n">20</span>, reranker: <span class="k">new</span> <span class="t">ZVecWeightedReranker</span> {
+    TopN = <span class="n">20</span>, Metric = <span class="t">ZVecMetricType</span>.Cosine,
+    Weights = <span class="k">new</span> <span class="t">Dictionary</span>&lt;<span class="t">string</span>, <span class="t">float</span>&gt; { [<span class="s">"TextEmbedding"</span>] = <span class="n">0.3f</span>, [<span class="s">"ConcatenatedText"</span>] = <span class="n">0.7f</span> }
+});</div>
 
     <div class="page-foot">
       <span>ZVec.NET · Internal Tech Session</span>
@@ -4332,7 +4335,7 @@ main.sidenav-collapsed { margin-left: 0; }
       </div>
       <details class="speaker-notes">
         <summary><span class="material-icons">notes</span> Speaker notes</summary>
-        <div class="notes-content">Call out slide 7 Invert + FTS and slide 8 RRF now have a live home in product-search. Walk the stack row: Postgres + pgvector holds the full catalog row and HNSW copies; ZVec text + image collections are in-process ANN; SigLIP ONNX runs locally with no LM Studio; Aspire AppHost orchestrates Postgres, API, and MudBlazor UI. Saga ingest: ZVec upsert first, then SQL transaction, compensate ZVec if SQL fails. Engine toggle encodes once and compares ZVec vs pgvector vs both — dense-only for fair latency contest; hybrid FTS is ZVec-only. Honest gaps: no long descriptions in the small dataset; group-by/INT8 not faked on Status. Punchline: ZVec beside pgvector, not instead of.</div>
+        <div class="notes-content">Slide 19 architecture walkthrough: When a user searches by text, ZVec executes two hits: Place 1 queries the Image collection (photos) for visual semantic ANN; Place 2 queries the Text collection using ZVec.NET's native in-DB ZVecWeightedReranker fusing TextEmbedding (catalog text vectors) and ConcatenatedText (BM25 FTS keywords). The two result sets are merged so products matching both visual look and metadata keywords claim top rank, while exact title matches are never lost. Options illustrated on UI: 'Exact Keywords First' (in-DB weighted reranker, 70% FTS + 30% vector) vs 'Balanced Hybrid' (in-DB RRF). Call out slide 7 Invert + FTS and slide 8 RRF live home here.</div>
       </details>
     </section>
 

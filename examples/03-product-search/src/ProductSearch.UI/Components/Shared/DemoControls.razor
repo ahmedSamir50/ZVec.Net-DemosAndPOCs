@@ -28,18 +28,33 @@
         @if (ShowFusion)
         {
             <label class="form-control w-full sm:w-auto">
-                <span class="label-text text-xs mb-1">Fusion</span>
+                <span class="label-text text-xs mb-1">Fusion Strategy</span>
                 <select class="select select-bordered select-sm"
                         @bind="Fusion"
                         @bind:after="() => FusionChanged.InvokeAsync(Fusion)">
-                    @foreach (var mode in Enum.GetValues<FusionMode>())
-                    {
-                        <option value="@mode">@mode</option>
-                    }
+                    <option value="@FusionMode.Weighted">Exact Keywords First (In-DB Weighted)</option>
+                    <option value="@FusionMode.Rrf">Balanced Hybrid (In-DB RRF)</option>
                 </select>
             </label>
         }
     </div>
+
+    @if (ShowFusion && UseHybridFts)
+    {
+        <div class="bg-base-200/80 border border-base-300 rounded-xl p-2.5 text-xs text-base-content/80 flex items-start gap-2">
+            <span class="text-info font-bold">ℹ️</span>
+            <div>
+                @if (Fusion == FusionMode.Weighted)
+                {
+                    <span><strong>Exact Keywords First:</strong> Prioritizes exact catalog titles, brand names, and SKUs using ZVec's native <code>ZVecWeightedReranker</code> (70% lexical FTS + 30% vector).</span>
+                }
+                else
+                {
+                    <span><strong>Balanced Hybrid:</strong> Balances visual photo embeddings, catalog text vectors, and lexical FTS using ZVec's native <code>ZVecRrfReranker</code>.</span>
+                }
+            </div>
+        </div>
+    }
 
     <div class="flex flex-wrap gap-3">
         <label class="form-control w-full sm:w-48">
@@ -58,11 +73,11 @@
 
     <div class="flex flex-col gap-4">
         <LabeledSwitch Label="Filter by category"
-                       Description="When on, search only the selected Category. Off = whole catalog."
+                       Description="When on, restricts search to the selected Category using ZVec Invert Index."
                        @bind-Value="UseInvert"
                        @bind-Value:after="() => UseInvertChanged.InvokeAsync(UseInvert)" />
-        <LabeledSwitch Label="Hybrid FTS"
-                       Description="Blend keyword full-text with vector search on text queries."
+        <LabeledSwitch Label="Hybrid Search (Visual + Catalog FTS)"
+                       Description="Searches both Product Photos (Visual AI) and Catalog Metadata (Exact Keywords & Text Embeddings) fused in-DB by ZVec."
                        @bind-Value="UseHybridFts"
                        @bind-Value:after="() => UseHybridFtsChanged.InvokeAsync(UseHybridFts)" />
     </div>

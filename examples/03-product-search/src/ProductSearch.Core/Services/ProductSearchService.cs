@@ -337,8 +337,10 @@ public sealed class ProductSearchService : IProductSearchService
         annOnlySw.Stop();
 
         var ftsSw = Stopwatch.StartNew();
-        var ftsHits = await _collections.QueryTextUntypedAsync(
-            [new ZVecQuery
+        var textQueries = new List<ZVecQuery>
+        {
+            new() { FieldName = "TextEmbedding", Vector = queryVector },
+            new()
             {
                 FieldName = "ConcatenatedText",
                 Fts = new ZVecFtsQuery
@@ -346,79 +348,70 @@ public sealed class ProductSearchService : IProductSearchService
                     QueryString = request.QueryText!.Trim(),
                     DefaultOperator = ZVecFtsDefaultOperator.Or
                 }
-            }],
+            }
+        };
+
+        var reranker = request.Fusion == FusionMode.Rrf
+            ? (ZVecReranker)new ZVecRrfReranker { TopN = fetchK, RankConstant = 60 }
+            : new ZVecWeightedReranker
+            {
+                TopN = fetchK,
+                Metric = ZVecMetricType.Cosine,
+                Weights = new Dictionary<string, float>
+                {
+                    ["TextEmbedding"] = _options.DenseFusionWeight,
+                    ["ConcatenatedText"] = _options.FtsFusionWeight
+                }
+            };
+
+        var textHits = await _collections.QueryTextUntypedAsync(
+            textQueries,
             filter,
-            reranker: null,
+            reranker,
             fetchK,
             ct).ConfigureAwait(false);
         ftsSw.Stop();
 
         var fuseSw = Stopwatch.StartNew();
-        var fused = FuseAnnAndFts(annHits, ftsHits, request.Fusion, topK);
+        var fused = FuseAnnAndFts(annHits, textHits, request.Fusion, topK);
         fuseSw.Stop();
 
         return new TextQueryResult(fused, annOnlySw.Elapsed.TotalMilliseconds, ftsSw.Elapsed.TotalMilliseconds, fuseSw.Elapsed.TotalMilliseconds);
     }
 
     private List<InternalHit> FuseAnnAndFts(
-        IReadOnlyList<(string Id, float Score)> annHits,
-        IReadOnlyList<(string Id, float Score)> ftsHits,
+        IReadOnlyList<(string Id, float Score)> imageHits,
+        IReadOnlyList<(string Id, float Score)> textHits,
         FusionMode mode,
         int topK)
     {
-        var ann = ToDenseHits(annHits, fromText: true, fromImage: true);
-        var annById = ann.ToDictionary(h => h.Id, StringComparer.Ordinal);
+        var ann = ToDenseHits(imageHits, fromText: false, fromImage: true);
+        var map = new Dictionary<string, InternalHit>(StringComparer.Ordinal);
+        foreach (var hit in ann)
+            map[hit.Id] = hit;
 
-        if (mode == FusionMode.Weighted)
+        for (var i = 0; i < textHits.Count; i++)
         {
-            var map = new Dictionary<string, InternalHit>(StringComparer.Ordinal);
-            foreach (var hit in ann)
-                map[hit.Id] = hit with { DisplayCosine = hit.DisplayCosine * _options.DenseFusionWeight };
-
-            foreach (var hit in ftsHits)
+            var (id, score) = textHits[i];
+            var rank = i + 1;
+            if (!map.TryGetValue(id, out var existing))
             {
-                var boost = _options.FtsFusionWeight;
-                if (!map.TryGetValue(hit.Id, out var existing))
-                {
-                    map[hit.Id] = new InternalHit(hit.Id, hit.Score, true, true, true, 0.20f + boost);
-                    continue;
-                }
-
-                map[hit.Id] = existing with
-                {
-                    DisplayCosine = existing.DisplayCosine + boost,
-                    FromFts = true
-                };
+                // In text collection only (exact title / brand / metadata match from in-DB ZVec reranker)
+                var baseline = rank <= 3 ? 0.50f : Math.Max(0.20f, 0.45f - rank * 0.02f);
+                map[id] = new InternalHit(id, score, true, false, true, baseline);
+                continue;
             }
 
-            return [.. map.Values.OrderByDescending(h => h.DisplayCosine).Take(topK)];
-        }
-
-        var ranks = new Dictionary<string, (int AnnRank, int FtsRank)>(StringComparer.Ordinal);
-        for (var i = 0; i < annHits.Count; i++)
-            ranks[annHits[i].Id] = (i + 1, 0);
-        for (var i = 0; i < ftsHits.Count; i++)
-        {
-            if (ranks.TryGetValue(ftsHits[i].Id, out var r))
-                ranks[ftsHits[i].Id] = (r.AnnRank, i + 1);
-            else
-                ranks[ftsHits[i].Id] = (0, i + 1);
-        }
-
-        const float k = 60f;
-        return [.. ranks
-            .Select(pair =>
+            // In both collections: visual match + metadata match synergy boost!
+            map[id] = existing with
             {
-                var (annRank, ftsRank) = pair.Value;
-                var rrf = 0f;
-                if (annRank > 0) rrf += 1f / (k + annRank);
-                if (ftsRank > 0) rrf += 1f / (k + ftsRank);
-                // For hits matched by FTS without dense ANN, assign calibrated non-zero baseline
-                var cosine = annById.TryGetValue(pair.Key, out var annHit) ? annHit.DisplayCosine : 0.20f;
-                return new InternalHit(pair.Key, rrf, true, true, ftsRank > 0, cosine);
-            })
-            .OrderByDescending(h => h.Score)
-            .Take(topK)];
+                FromText = true,
+                FromFts = true,
+                DisplayCosine = existing.DisplayCosine + 0.30f
+            };
+        }
+
+        return [.. map.Values.OrderByDescending(h => h.DisplayCosine).Take(topK)];
     }
 
     private async Task<List<InternalHit>> PostFilterByInvertAsync(
@@ -491,7 +484,10 @@ public sealed class ProductSearchService : IProductSearchService
                 var rrf = 0f;
                 if (textRank > 0) rrf += 1f / (k + textRank);
                 if (imageRank > 0) rrf += 1f / (k + imageRank);
-                return hit with { Score = rrf };
+                var cosine = (textRank > 0 && imageRank > 0)
+                    ? hit.DisplayCosine + 0.15f
+                    : hit.DisplayCosine;
+                return hit with { Score = rrf, DisplayCosine = cosine };
             })
             .OrderByDescending(h => h.Score)
             .Take(topK)];

@@ -121,15 +121,31 @@ ZVec Cosine metric exposes **distance** (lower = better). Relation: `cosθ ≈ 1
 
 ## Architecture & Multimodal Retrieval Mechanics
 
-1. **Cross-Modal Dense Vector Routing:**
-   - Contrastive dual-encoders (CLIP and SigLIP) project text and images into a shared space trained on `(Image, Text)` pairs.
-   - Text queries inhabit the visual feature space. Searching text embeddings (`zvec-text`) with text queries causes **anisotropic cone collapse** where unrelated items yield high similarity.
-   - Therefore, dense ANN text queries search **`zvec-image`** (product photos).
-2. **Lexical FTS Keyword Search:**
-   - Keyword queries search **`zvec-text`** on `ConcatenatedText` (title, category, colour, description) using `ZVecFtsDefaultOperator.Or` with BM25 ranking.
-3. **Hybrid RRF Fusion:**
-   - RRF (`1 / (60 + rank)`) fuses cross-modal visual hits (`zvec-image`) with lexical metadata hits (`zvec-text`). Items that both look like the query AND match keywords rank highest.
-   - Confirmed FTS keyword matches are never discarded by vector cosine threshold filters.
+When a user searches with a **Text Query**, the system searches **two places simultaneously** and merges the results:
+
+1. **Place 1: Image Collection (`zvec-image`) — Visual Semantic Search:**
+   - The user query is encoded into `queryVector` via the SigLIP text encoder.
+   - It queries the product photos in `zvec-image` using dense vector search (ANN).
+   - *Why?* SigLIP embeds text into the visual feature space. This captures visual semantics (e.g. colors, shapes, style) even when words are absent from metadata (e.g. `"beach vacation dress"` matches floral summer photos).
+2. **Place 2: Text Collection (`zvec-text`) — In-DB Native Hybrid Search:**
+   - Queries `zvec-text` using **ZVec native multi-query**:
+     - **Lexical FTS (BM25):** Searches `ConcatenatedText` for exact names, brands, and SKUs (e.g. `"Femella White Necklace"`, `"Nike Backboard"`).
+     - **Dense Vector:** Searches `TextEmbedding` for semantic catalog description similarity.
+     - **In-DB Reranker:** Fused directly inside ZVec using `ZVecWeightedReranker` or `ZVecRrfReranker`.
+3. **Merging & Confidence Selection:**
+   - Results from both collections are merged:
+     - **Dual Match (Visual + Metadata):** Receives top priority score (`visualCosine + 0.30f`).
+     - **Exact Title / Brand Match (FTS):** Receives strong confident baseline (`0.50f`), guaranteeing exact product titles rank at the top.
+     - **Visual-Only Match:** Retains its calibrated visual cosine score.
+
+## Search Options & Their Effect (UI & API)
+
+| Option | Meaning & Architecture | When to Use / Effect |
+|--------|------------------------|----------------------|
+| **Exact Keywords First (`Weighted`)** *(Default)* | Uses ZVec's native `ZVecWeightedReranker` (`70%` FTS + `30%` vector), boosting exact catalog matches. | Best for e-commerce search! Guarantees that exact product titles, brand names, and SKUs rank #1. |
+| **Balanced Hybrid (`Rrf`)** | Uses ZVec's native `ZVecRrfReranker` across photo embeddings, catalog text vectors, and lexical FTS. | Best for exploratory search where you want a blend of visual appearance and loose text semantics. |
+| **Hybrid Search Toggle** | When **ON**, searches both `zvec-image` (photos) and `zvec-text` (catalog FTS + text vector). When **OFF**, searches photos only. | Toggle ON for full catalog search; toggle OFF for pure visual similarity matching. |
+| **Filter by Category** | Uses ZVec's native Invert Index to pre/post-filter candidates by `MasterCategory`. | Instant category filtering without linear scanning. |
 
 ## Integration Tests (xUnit v3)
 
