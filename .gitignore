@@ -20,7 +20,7 @@ Advanced/**/data/
 examples/01-clip-onnx/**/data/
 
 ## Downloaded ONNX weights (not C# source folders named Models/)
-examples/01-clip-onnx/**/models/
+##examples/01-clip-onnx/
 examples/03-product-search/models/
 examples/03-product-search/**/models/
 
